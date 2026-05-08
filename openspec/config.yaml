@@ -1,0 +1,53 @@
+schema: spec-driven
+
+context: |
+  This repository is a reusable SaaS foundation template.
+
+  Tech stack:
+  - Frontend: React + Vite + TypeScript + TailwindCSS
+  - Backend: Supabase (PostgreSQL, Auth, RLS, Storage)
+  - Hosting: Vercel
+  - Email: Resend
+
+  Architecture principles:
+  - SPA-first architecture
+  - Serverless / BaaS-first approach
+  - Spec-driven development (OpenSpec)
+  - MVP-first and incremental delivery
+  - Feature-based modular structure
+  - Security-first (RLS as primary authorization layer)
+  - Prefer platform-native capabilities over custom backend
+
+  This repo is intended to be reused across multiple SaaS products.
+  Product-specific logic MUST live in /docs/architecture and /docs/specs.
+
+rules:
+  proposal:
+    - Specs must be feature-focused and reusable across SaaS products
+    - Avoid embedding product-specific domain knowledge in specs
+    - Always include: User Flow, Data Model, Acceptance Criteria
+    - Specs must be implementation-ready and scoped
+    - Include edge cases when relevant (auth, time, permissions)
+
+  tasks:
+    - Break work into small incremental vertical slices
+    - Prefer feature-based delivery (UI + DB + logic together)
+    - Max task size: 1 feature or sub-feature
+    - Always consider Supabase-first implementation
+    - Include security (RLS) implications in relevant tasks
+
+  architecture:
+    - No REST backend unless strictly necessary
+    - Supabase is the primary backend system
+    - Edge functions only for:
+        - external integrations
+        - secrets handling
+        - async/background jobs
+    - Enforce separation:
+        frontend / data layer / external services
+    - Architecture must remain reusable across SaaS products
+
+  validation:
+    - All specs must be reviewed before implementation
+    - QA must validate critical flows (auth, permissions, core domain logic)
+    - No feature is complete without acceptance criteria being met
