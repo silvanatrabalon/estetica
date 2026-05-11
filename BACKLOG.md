@@ -67,7 +67,7 @@ Sistema de Turnos — Ordered by Dependency
 
 ### 6b. Visual Polish & Design System
 **Description:** Implement distinctive typography, color scheme, transitions, and micro-interactions to elevate aesthetic quality.
-- [x] `visual-polish-design-system` — mobile-first typography, shared visual tokens, shell transitions, navigation micro-interactions, and accessibility polish
+- [x] `visual-polish-design-system` (2a893f2) — mobile-first typography, shared visual tokens, shell transitions, navigation micro-interactions, and accessibility polish
 
 ### 7. Protected Routes System
 **Description:** Route guards, role-based access control, redirect logic, unauthorized handling.
