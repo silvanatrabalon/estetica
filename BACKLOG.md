@@ -12,7 +12,7 @@ Sistema de Turnos — Ordered by Dependency
 
 ### 2. Supabase Setup & Database Schema
 **Description:** Supabase hosted project setup, PostgreSQL foundation schema design, versioned migrations, explicit constraints/relations, and an initial indexing strategy for MVP query patterns (excluding auth flow implementation and full RLS policy design). OpenSpec change archived: `supabase-setup-database-schema`.
-- [x]
+- [x] `supabase-setup-database-schema` (78a6f14)
 
 ### 3. Auth System Setup (Supabase Auth)
 **Description:** Supabase authentication configuration, Google OAuth integration, email/password login, session persistence.
