@@ -116,6 +116,134 @@ Everything needed before starting to build features.
 - **Preview**: `npm run preview` — serve the built distribution locally
 - **Lint**: `npm run lint` — check code quality with ESLint
 
+### Supabase Hosted Project Workflow
+
+Use migration files as the only schema change mechanism.
+
+1. **Configure frontend environment variables**
+
+   Create `.env.local` at the project root:
+
+   ```bash
+   VITE_SUPABASE_URL=https://your-project-id.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key-here
+   ```
+
+   These values connect the frontend to your hosted Supabase project.
+
+2. **Install Supabase CLI (one-time, optional globally)**
+
+   ```bash
+   # Option A (global)
+   brew install supabase/tap/supabase
+
+   # Option B (no global install)
+   npx supabase --version
+   ```
+
+3. **Authenticate the CLI**
+
+   ```bash
+   npx supabase login
+   ```
+
+   Alternative for CI or non-interactive usage:
+
+   ```bash
+   export SUPABASE_ACCESS_TOKEN=your-access-token
+   ```
+
+4. **Link this repo to the hosted Supabase project**
+
+   ```bash
+   npx supabase link --project-ref <your-project-ref>
+   ```
+
+   If needed, provide the remote database password when linking:
+
+   ```bash
+   npx supabase link --project-ref <your-project-ref> -p "<db-password>"
+   ```
+
+5. **Create a new migration file**
+
+   ```bash
+   npx supabase migration new <migration_name>
+   ```
+
+6. **Preview and apply migrations to the hosted project**
+
+   ```bash
+   npx supabase db push --dry-run
+   npx supabase db push
+   ```
+
+   Alternative command for linked-project migration execution:
+
+   ```bash
+   npx supabase migration up --linked
+   ```
+
+### Migration Verification Checklist
+
+After applying migrations to the hosted project, verify the foundation schema using Supabase SQL Editor or a direct database connection:
+
+1. **Tables and constraints exist**
+
+   ```sql
+   select tablename
+   from pg_tables
+   where schemaname = 'public'
+   order by tablename;
+   ```
+
+2. **Indexes exist**
+
+   ```sql
+   select indexname, tablename
+   from pg_indexes
+   where schemaname = 'public'
+   order by tablename, indexname;
+   ```
+
+3. **RLS is enabled on exposed tables**
+
+   ```sql
+   select n.nspname as schema_name, c.relname as table_name, c.relrowsecurity as rls_enabled
+   from pg_class c
+   join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relkind = 'r'
+   order by c.relname;
+   ```
+
+4. **No unintended table privileges for anon/authenticated**
+
+   ```sql
+   select table_name, grantee, privilege_type
+   from information_schema.role_table_grants
+   where table_schema = 'public'
+     and grantee in ('anon', 'authenticated')
+   order by table_name, grantee, privilege_type;
+   ```
+
+5. **Validate index usefulness with representative plans**
+
+   ```sql
+   explain analyze
+   select *
+   from public.appointments
+   where organization_id = '<org-uuid>'
+   order by starts_at
+   limit 20;
+   ```
+
+### Staging and Production Promotion
+
+- Never patch schema manually in Supabase dashboard for shared environments.
+- Promote only through committed SQL migration files.
+- Default rollback strategy is forward-fix with a corrective migration.
+- Use destructive rollback only when explicitly safe and approved for the target environment.
+
 ---
 
 ## 7. Troubleshooting

@@ -1,0 +1,2 @@
+-- Intentionally empty for foundation schema setup.
+-- Add deterministic seed data in future changes when needed.

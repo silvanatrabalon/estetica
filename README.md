@@ -50,6 +50,9 @@ Open http://localhost:5173/ in your browser.
 | `npm run build` | Compile and bundle for production |
 | `npm run preview` | Serve the built distribution locally |
 | `npm run lint` | Check code with ESLint |
+| `npx supabase link --project-ref <ref>` | Link the repo to a hosted Supabase project |
+| `npx supabase db push --dry-run` | Preview remote schema changes from local migrations |
+| `npx supabase db push` | Apply local migrations to the linked Supabase project |
 
 **Expected output from `npm run dev`:**
 ```
