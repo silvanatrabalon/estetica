@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { NavItem } from '../../../features/shell/types'
 import { cn } from '../../../lib'
 
@@ -8,20 +9,11 @@ interface NavLinkProps {
 }
 
 export function NavLink({ item, isActive = false, onNavigate }: NavLinkProps) {
-  const handleClick = () => {
-    onNavigate?.()
-    // Navigate using standard anchor href
-    window.location.href = item.href
-  }
-
   return (
-    <a
-      href={item.href}
+    <Link
+      to={item.href}
       aria-current={isActive ? 'page' : undefined}
-      onClick={(e) => {
-        e.preventDefault()
-        handleClick()
-      }}
+      onClick={() => onNavigate?.()}
       className={cn(
         'transition-micro flex cursor-pointer items-center gap-3 rounded-lg border-l-4 px-3 py-2.5 text-sm font-medium',
         'focus-visible:scale-[1.01] focus-visible:bg-shell-muted',
@@ -33,6 +25,6 @@ export function NavLink({ item, isActive = false, onNavigate }: NavLinkProps) {
     >
       {item.icon && <span className="flex-shrink-0">{item.icon}</span>}
       <span className="flex-1">{item.label}</span>
-    </a>
+    </Link>
   )
 }

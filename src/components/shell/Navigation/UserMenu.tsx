@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import type { User } from '@supabase/supabase-js'
 import { useUser } from '../../../hooks/useUser'
 
@@ -9,13 +10,14 @@ interface UserMenuProps {
 export function UserMenu({ user }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const { signOut } = useUser()
+  const navigate = useNavigate()
   const menuId = 'user-menu-panel'
 
   const handleLogout = async () => {
     try {
       await signOut()
       setIsOpen(false)
-      window.location.href = '/' // Redirect to login/home
+      navigate('/signin', { replace: true })
     } catch (err) {
       console.error('Logout error:', err)
     }
@@ -60,14 +62,14 @@ export function UserMenu({ user }: UserMenuProps) {
           isOpen ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none -translate-y-1 opacity-0'
         ].join(' ')}
       >
-        <a
-          href="/profile"
+        <Link
+          to="/profile"
           role="menuitem"
           onClick={() => setIsOpen(false)}
           className="transition-micro block w-full rounded-t-xl px-4 py-2.5 text-left text-sm text-shell-subtleText hover:bg-shell-muted"
         >
           Profile
-        </a>
+        </Link>
         <button
           onClick={handleLogout}
           role="menuitem"

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { renderHook } from '@testing-library/react'
 import { useNavigation } from '../hooks/useNavigation'
-import { navigationByRole, getNavigationForRole } from '../../../lib/navigation'
+import { navigationByRole } from '../../../lib/navigation'
+import { canAccessRoute, routePolicies } from '../../../lib/routing'
 import type { AppRole } from '../../../context/UserContext'
 
 describe('useNavigation hook', () => {
@@ -149,6 +150,39 @@ describe('useNavigation hook', () => {
       result.current.forEach(item => {
         expect(item.href).toMatch(/^\//)
       })
+    })
+  })
+
+  describe('navigation and route policy coherence', () => {
+    it('should expose only routes accessible by the active role', () => {
+      const roles: AppRole[] = ['customer', 'staff', 'admin']
+
+      for (const role of roles) {
+        const { result } = renderHook(() => useNavigation(role))
+
+        result.current.forEach((item) => {
+          expect(
+            canAccessRoute({
+              path: item.href,
+              isAuthenticated: true,
+              role,
+            }),
+          ).toBe(true)
+        })
+      }
+    })
+
+    it('should keep navigation routes registered in route policy', () => {
+      const roles: AppRole[] = ['customer', 'staff', 'admin']
+      const policyPaths = new Set(routePolicies.map((policy) => policy.path))
+
+      for (const role of roles) {
+        const { result } = renderHook(() => useNavigation(role))
+
+        result.current.forEach((item) => {
+          expect(policyPaths.has(item.href)).toBe(true)
+        })
+      }
     })
   })
 

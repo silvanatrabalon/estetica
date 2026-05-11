@@ -13,18 +13,21 @@ export function TestUserProvider({
   role = null,
   isLoading = false,
   onSignOut = async () => {},
+  onRetryRoleResolution = async () => {},
 }: {
   children: ReactNode
   user?: User | null
   role?: AppRole | null
   isLoading?: boolean
   onSignOut?: () => Promise<void>
+  onRetryRoleResolution?: () => Promise<void>
 }) {
   const value = {
     user,
     role,
     isLoading,
     signOut: onSignOut,
+    retryRoleResolution: onRetryRoleResolution,
   }
 
   return (

@@ -10,11 +10,42 @@ import {
 
 export type AppRole = 'customer' | 'staff' | 'admin'
 
+const appRoles: AppRole[] = ['customer', 'staff', 'admin']
+
+const DEV_ROLE_KEY = '__dev_role_override__'
+
+/**
+ * Dev-only role override. Persists in localStorage so it survives SPA navigation.
+ *
+ * Activate:  ?devRole=admin | staff | customer
+ * Deactivate: ?devRole=off
+ *
+ * Returns null in production or when no override is active.
+ */
+function getDevRoleOverride(): AppRole | null {
+  if (!import.meta.env.DEV) return null
+
+  const param = new URLSearchParams(window.location.search).get('devRole')
+
+  if (param === 'off') {
+    localStorage.removeItem(DEV_ROLE_KEY)
+    return null
+  }
+
+  if (param && appRoles.includes(param as AppRole)) {
+    localStorage.setItem(DEV_ROLE_KEY, param)
+  }
+
+  const stored = localStorage.getItem(DEV_ROLE_KEY)
+  return stored && appRoles.includes(stored as AppRole) ? (stored as AppRole) : null
+}
+
 interface UserContextValue {
   user: User | null
   role: AppRole | null
   isLoading: boolean
   signOut: () => Promise<void>
+  retryRoleResolution: () => Promise<void>
 }
 
 export const UserContext = createContext<UserContextValue | undefined>(undefined)
@@ -56,6 +87,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return
       }
 
+      if (!appRoles.includes(data.role as AppRole)) {
+        console.warn('Invalid role value returned:', data.role)
+        setRole(null)
+        return
+      }
+
+      const devOverride = getDevRoleOverride()
+      if (devOverride) {
+        console.warn(`[DEV] Role override active: "${devOverride}" (DB role: "${data.role}")`)
+        setRole(devOverride)
+        return
+      }
+
       setRole(data.role as AppRole)
     } catch (err) {
       console.error('Error managing user role:', err)
@@ -89,10 +133,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
           return
         }
 
-        // Set user only (fetch role separately to avoid infinite loop)
-        // Keep isLoading = true until role is fetched
+        // Set user and resolve loading lifecycle based on session presence.
         setUser(snapshot.user)
-        // Don't set isLoading=false here - let the role effect do it
+
+        if (!snapshot.user) {
+          setRole(null)
+          setIsLoading(false)
+        }
       } catch (err) {
         console.error('Error initializing session:', err)
         resetAuthState()
@@ -113,8 +160,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      // Update user when session changes
+      // Update user when session changes and clear loading for signed-out state.
       setUser(snapshot.user)
+      if (!snapshot.user) {
+        setRole(null)
+        setIsLoading(false)
+      }
     })
 
     return () => {
@@ -125,15 +176,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // Fetch user role when user changes (separate effect to avoid infinite loop)
   useEffect(() => {
-    // If user is undefined, this might be temporary navigation
-    // Don't reset role here - let it persist until we know for sure it's a logout
     if (!user) {
       return
     }
 
     const load = async () => {
       await fetchUserRole(user.id)
-      setIsLoading(false) // Done loading after role is fetched
+      setIsLoading(false)
     }
 
     void load()
@@ -167,6 +216,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const supabase = initSupabase()
       await supabase.auth.signOut()
       resetAuthState()
+      setIsLoading(false)
       localStorage.removeItem('supabase.auth.token')
     } catch (err) {
       console.error('Error signing out:', err)
@@ -174,11 +224,22 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const retryRoleResolution = async () => {
+    if (!user) {
+      return
+    }
+
+    setIsLoading(true)
+    await fetchUserRole(user.id)
+    setIsLoading(false)
+  }
+
   const value: UserContextValue = {
     user,
     role,
     isLoading,
     signOut,
+    retryRoleResolution,
   }
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>

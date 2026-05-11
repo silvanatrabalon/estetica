@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom'
 import { useShellContext } from '../../../features/shell/hooks/useShellContext'
 import type { NavItem } from '../../../features/shell/types'
 import { NavLink } from './NavLink'
@@ -10,8 +11,8 @@ interface SidebarProps {
 export function Sidebar({ items }: SidebarProps) {
   const { isMobileMenuOpen, closeMobileMenu } = useShellContext()
 
-  // Get current pathname from window.location
-  const currentPathname = typeof window !== 'undefined' ? window.location.pathname : '/'
+  const location = useLocation()
+  const currentPathname = location.pathname
 
   const isActiveRoute = (href: string) => {
     return currentPathname === href || currentPathname.startsWith(href + '/')

@@ -1,51 +1,85 @@
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { UserProvider, useUser } from './context'
-import { ShellProvider } from './features/shell'
-import { AppShell } from './components/shell'
-import { SignInPage } from './pages/SignInPage'
+import {
+  AuthGuard,
+  NullRoleRecovery,
+  ProtectedShellLayout,
+  PublicOnlyGuard,
+  RoleGuard,
+  RouteLoadingState,
+} from './components/routing'
+import { resolveRoleHomePath } from './lib/routing'
+import {
+  AdminReportsPage,
+  AdminServicesPage,
+  AdminUsersPage,
+  AppointmentsPage,
+  BookingPage,
+  DashboardPage,
+  NotFoundPage,
+  ProfilePage,
+  SignInPage,
+  StaffClientsPage,
+  StaffSchedulePage,
+  UnauthorizedPage,
+} from './pages'
 
-/**
- * Inner app component that uses context
- * Separated from outer App() for context access
- */
-function AppContent() {
-  const { user, isLoading } = useUser()
+function RootRedirect() {
+  const { user, role, isLoading, retryRoleResolution } = useUser()
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" />
-          <p className="text-gray-700 font-medium">Loading...</p>
-        </div>
-      </div>
-    )
+    return <RouteLoadingState />
   }
 
   if (!user) {
-    return <SignInPage />
+    return <Navigate to="/signin" replace />
   }
 
+  if (!role) {
+    return <NullRoleRecovery onRetry={retryRoleResolution} />
+  }
+
+  return <Navigate to={resolveRoleHomePath(role)} replace />
+}
+
+function AppContent() {
   return (
-    <ShellProvider>
-      <AppShell>
-        {/* Routes will go here */}
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Welcome to Estetica
-          </h2>
-          <p className="text-gray-600">
-            Shell and navigation system is ready.
-          </p>
-        </div>
-      </AppShell>
-    </ShellProvider>
+    <Routes>
+      <Route path="/" element={<RootRedirect />} />
+
+      <Route element={<PublicOnlyGuard />}>
+        <Route path="/signin" element={<SignInPage />} />
+      </Route>
+
+      <Route element={<AuthGuard />}>
+        <Route element={<ProtectedShellLayout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+          <Route element={<RoleGuard allowedRoles={['customer']} />}>
+            <Route path="/booking" element={<BookingPage />} />
+            <Route path="/appointments" element={<AppointmentsPage />} />
+          </Route>
+
+          <Route element={<RoleGuard allowedRoles={['staff', 'admin']} />}>
+            <Route path="/staff/schedule" element={<StaffSchedulePage />} />
+            <Route path="/staff/clients" element={<StaffClientsPage />} />
+          </Route>
+
+          <Route element={<RoleGuard allowedRoles={['admin']} />}>
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/services" element={<AdminServicesPage />} />
+            <Route path="/admin/reports" element={<AdminReportsPage />} />
+          </Route>
+        </Route>
+      </Route>
+
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
   )
 }
 
-/**
- * Main App component
- * Wraps with UserProvider to provide session context
- */
 export default function App() {
   return (
     <UserProvider>
