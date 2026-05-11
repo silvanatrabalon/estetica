@@ -29,6 +29,11 @@ Everything needed before starting to build features.
 - [ ] Copy the **Client ID** and **Client Secret**
 - [ ] Go to `https://supabase.com/dashboard/project/<your-project-ref>/auth/providers?provider=Google`
 - [ ] Paste Client ID and Client Secret and enable
+- [ ] Keep only Google enabled for this phase (do not enable email/password)
+- [ ] In Supabase go to **Authentication → URL Configuration**
+- [ ] Set **Site URL** to `http://localhost:5173` while developing locally
+- [ ] Add `http://localhost:5173/**` to **Redirect URLs**
+- [ ] Local verification: open the app, click **Continue with Google**, complete consent, and confirm you return to the app as an authenticated user
 
 ---
 
@@ -42,6 +47,12 @@ Everything needed before starting to build features.
   VITE_SUPABASE_ANON_KEY=
   ```
 - [ ] Deploy — Vercel auto-deploys on every push to `main`
+- [ ] Copy your production URL (for example `https://<your-project>.vercel.app`)
+- [ ] Go back to Supabase **Authentication → URL Configuration**
+- [ ] Change **Site URL** to your production URL
+- [ ] Add your production URL with wildcard path to **Redirect URLs**: `https://<your-project>.vercel.app/**`
+- [ ] If you later add a custom domain, add that domain to **Redirect URLs** too
+- [ ] Production verification: click **Continue with Google** on the deployed app and confirm callback/login success without redirect mismatch errors
 
 ---
 

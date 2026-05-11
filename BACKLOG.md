@@ -15,8 +15,8 @@ Sistema de Turnos — Ordered by Dependency
 - [x] `supabase-setup-database-schema` (78a6f14)
 
 ### 3. Auth System Setup (Supabase Auth)
-**Description:** Supabase authentication configuration, Google OAuth integration, email/password login, session persistence.
-- [ ]
+**Description:** Supabase Auth setup with Google OAuth, auth callback handling, and secure auth environment configuration.
+- [x] `auth-system-setup-supabase-auth` (pending-commit)
 
 ### 4. Role System & Row Level Security
 **Description:** Define role model (user/admin/staff), implement RLS policies, permission rules engine.
@@ -191,12 +191,12 @@ Sistema de Turnos — Ordered by Dependency
 ## Summary
 
 **Total Features:** 36  
-**Completed:** 2  
+**Completed:** 3  
 **In Progress:** 0  
-**Pending:** 34
+**Pending:** 33
 
 **Current Phase:** Phase 1 (Foundation & Auth)  
-**Next Feature:** #3 (Auth System Setup)
+**Next Feature:** #4 (Role System & Row Level Security)
 
 ---
 
