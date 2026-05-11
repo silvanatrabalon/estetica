@@ -39,8 +39,10 @@ I want you to:
 2. Propose a concrete and ordered solution.
 3. Indicate if unit tests should be created or updated.
 4. Propose a refined version of the requirement.
+5. Ask me questions if we need to take some decisions.
 
-Do not implement or apply code changes yet.
+Do not implement or apply code changes yet. Do no create changes in the openspec folder, if there are suggestion, must be made on the Backlog.md file.
+
 ```
 
 
