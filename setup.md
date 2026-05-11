@@ -24,6 +24,7 @@ Everything needed before starting to build features.
 
 - [ ] Go to [console.cloud.google.com](https://console.cloud.google.com) → **APIs & Services → Credentials**
 - [ ] **Create Credentials → OAuth 2.0 Client ID** (type: Web application)
+- [ ] In *Authorized JavaScript origins* add: `https://<your-project>.supabase.co` (domain only, no path)
 - [ ] In *Authorized redirect URIs* add: `https://<your-project>.supabase.co/auth/v1/callback`
 - [ ] Copy the **Client ID** and **Client Secret**
 - [ ] Go to `https://supabase.com/dashboard/project/<your-project-ref>/auth/providers?provider=Google`
