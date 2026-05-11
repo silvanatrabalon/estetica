@@ -59,7 +59,30 @@ Sistema de Turnos — Ordered by Dependency
 - Design avoids generic aesthetics: distinctive typography, intentional color choices, purposeful spacing
 - Micro-interactions on nav items, smooth menu transitions
 
-- [ ]
+- [x] `layout-shell-navigation` (25b460a)
+
+### 6a. Test User Roles Setup
+**Description:** Create staff and admin test users in Supabase to validate role-based shell rendering across different user types.
+- [ ] Create staff user with role='staff' in user_roles table
+- [ ] Create admin user with role='admin' in user_roles table
+- [ ] Document test user emails/passwords in CONTRIBUTE.md
+
+### 6b. Main Hooks Unit Tests
+**Description:** Unit test coverage for core context hooks to ensure session + role logic works correctly.
+- [ ] Test `useUser()` hook - verify context access and error handling
+- [ ] Test `useShellContext()` hook - verify sidebar toggle state
+- [ ] Test `useUserRole()` hook - verify role extraction
+- [ ] Test `useNavigation()` hook - verify role-based nav filtering
+- [ ] Achieve >80% coverage for context logic
+
+### 6c. Visual Polish & Design System
+**Description:** Implement distinctive typography, color scheme, transitions, and micro-interactions to elevate aesthetic quality.
+- [ ] Add custom font imports (non-Inter/Roboto) to tailwind.config.js and index.css
+- [ ] Define color palette variables (primary accent, secondary, dark mode)
+- [ ] Implement smooth transitions: 0.3s sidebar, 0.2s backdrop, 0.2s hover effects
+- [ ] Add micro-interactions: NavLink scale on hover, UserMenu fade/slide, Sidebar smooth transform
+- [ ] Review and adjust spacing (p-4 mobile, p-6 desktop) for visual hierarchy
+- [ ] Verify accessibility: contrast ratios, focus indicators, ARIA labels
 
 ### 7. Protected Routes System
 **Description:** Route guards, role-based access control, redirect logic, unauthorized handling.
