@@ -70,8 +70,30 @@ Sistema de Turnos — Ordered by Dependency
 - [x] `visual-polish-design-system` (2a893f2) — mobile-first typography, shared visual tokens, shell transitions, navigation micro-interactions, and accessibility polish
 
 ### 7. Protected Routes System
-**Description:** Route guards, role-based access control, redirect logic, unauthorized handling.
-- [ ]
+**Description:** Implement SPA route protection with authentication and role-based authorization for UI routes. Includes deterministic redirect behavior, dedicated unauthorized experience, and not-found handling. Keeps data authorization in Supabase RLS out of scope.
+
+**Key Deliverables:**
+- Central route access matrix (public, authenticated, role-restricted)
+- Auth guard for protected routes (unauthenticated -> sign-in)
+- Role guard for restricted routes (`customer`, `staff`, `admin`)
+- Deterministic redirects:
+	- authenticated user on sign-in -> role home
+	- role homes: customer `/dashboard`, staff `/staff/schedule`, admin `/admin/users`
+- Unauthorized page at `/unauthorized`
+- Not found route handling for unknown paths
+- Placeholder pages for mapped routes not yet implemented (to validate guards end-to-end)
+
+**Testing Scope:**
+- Unit tests for route access policy and redirect resolution
+- Unit tests for auth/role guards (loading, allowed, denied, null-role recovery)
+- Integration tests with router for protected-route flows (guest, staff, admin)
+- Navigation-vs-route-policy coherence tests to prevent drift
+
+**Out of Scope:**
+- Supabase RLS policy/database permission changes
+- Advanced ACL/resource-level permissions
+- Business feature implementation beyond routing placeholders
+- [x] `protected-routes-system` (4ab5412)
 
 ### 8. User Profile (Create & Update)
 **Description:** User profile creation on first login, profile update form, profile page.
@@ -226,12 +248,12 @@ Sistema de Turnos — Ordered by Dependency
 ## Summary
 
 **Total Features:** 36  
-**Completed:** 8  
+**Completed:** 9  
 **In Progress:** 0  
-**Pending:** 28
+**Pending:** 27
 
 **Current Phase:** Phase 2 (Core Infrastructure)  
-**Next Feature:** #7 (Protected Routes System)
+**Next Feature:** #8 (User Profile)
 
 ---
 
