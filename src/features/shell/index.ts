@@ -1,0 +1,6 @@
+export { ShellProvider } from './context'
+export { useShellContext } from './hooks/useShellContext'
+export { useUserRole } from './hooks/useUserRole'
+export { useNavigation } from './hooks/useNavigation'
+export type { NavItem, AppRole } from './types'
+export { getNavigationForRole } from '../../lib/navigation'

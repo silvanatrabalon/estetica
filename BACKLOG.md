@@ -31,7 +31,34 @@ Sistema de Turnos — Ordered by Dependency
 ## Phase 2: Core Infrastructure
 
 ### 6. Layout Shell & Navigation
-**Description:** App shell component, navigation bar, sidebar, responsive layout structure.
+**Description:** Foundational app shell with responsive navigation that adapts to user role (customer, staff, admin). Includes role-based navigation configuration, UserContext integration with session management, desktop sidebar + mobile menu, and role-specific shells (CustomerShell, StaffShell, AdminShell). Bold SaaS aesthetic with distinctive typography, smooth interactions, and accessible design patterns. Prepares architecture for future Protected Routes feature.
+
+**Key Deliverables:**
+- AppShell component with responsive grid layout (CSS Grid)
+- UserContext for session + role state management
+- ShellContext for navigation UI state (sidebar/mobile menu toggles)
+- Role-based navigation config (`navigationByRole` mapping)
+- Sidebar component (desktop hidden on mobile, full-width drawer on mobile)
+- NavBar with user menu and logout
+- Custom hooks: `useUser()`, `useUserRole()`, `useNavigation()`, `useShellContext()`
+- Responsive design: mobile-first with Tailwind breakpoints
+- Integration with existing Supabase session (App.tsx)
+- Clean folder structure: `components/shell/`, `context/`, `hooks/`, `lib/navigation.ts`
+- Aesthetic: modern SaaS, custom typography, subtle depth, accessible color scheme
+
+**Architecture Decisions:**
+- UserContext co-locates session + role (vertical concern across app)
+- ShellContext isolates navigation UI state (sidebar toggle) - not global
+- Navigation declarative in `lib/navigation.ts` (role → available routes mapping)
+- Shells differentiated by role (different layouts, not just different nav)
+- Prepares scalability for future features without premature abstraction
+
+**Security & Design Considerations:**
+- UI navigation filtered by role (UX) + RLS on BD (actual authorization)
+- No route protection in this feature (that's #7) - only UI preparation
+- Design avoids generic aesthetics: distinctive typography, intentional color choices, purposeful spacing
+- Micro-interactions on nav items, smooth menu transitions
+
 - [ ]
 
 ### 7. Protected Routes System
