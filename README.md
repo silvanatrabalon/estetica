@@ -1,42 +1,103 @@
-# AI Assistant Tools Template (OpenSpec + Agents + Skills)
+# Estetica
 
-This repository is a reusable template for AI assistant tooling and spec-driven workflow setup.
+A reusable SaaS template with runnable application base.
 
-It is not an application and it contains no product source code.
-It is a baseline to bootstrap assistant behaviors, prompts, skills, and OpenSpec conventions.
+This repository combines:
+- A functional application scaffold (React + Vite + TypeScript + TailwindCSS)
+- BaaS-first architecture (Supabase)
+- Spec-driven development workflow (OpenSpec)
+- AI assistant tooling and agent definitions
+
+## Quick Start
+
+### 1. Clone and Install
+
+```bash
+git clone <repository-url>
+cd estetica
+npm install
+```
+
+### 2. Configure Environment
+
+Create `.env.local` in the project root:
+
+```bash
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+Get values from your Supabase project:
+- Go to **Project Settings → API**
+- Copy `Project URL` → `VITE_SUPABASE_URL`
+- Copy `anon public` key → `VITE_SUPABASE_ANON_KEY`
+
+See [setup.md](setup.md) for detailed setup steps.
+
+### 3. Start Development
+
+```bash
+npm run dev
+```
+
+Open http://localhost:5173/ in your browser.
+
+### Commands
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start Vite dev server with hot reload |
+| `npm run build` | Compile and bundle for production |
+| `npm run preview` | Serve the built distribution locally |
+| `npm run lint` | Check code with ESLint |
+
+**Expected output from `npm run dev`:**
+```
+VITE v5.0.7  ready in 234 ms
+
+➜  Local:   http://localhost:5173/
+➜  press h to show help
+```
+
+See [setup.md](setup.md) for troubleshooting and detailed configuration.
+
+---
+
+# Project Information
 
 ## Purpose
 
-This template provides a baseline for:
+This template provides a production-ready foundation for:
 
-- AI assistant instruction systems
-- OpenSpec-based workflow orchestration
-- Agent role definitions
-- Prompt and skill standardization
-- Reusable project governance for future products
+- Functional SaaS applications
+- Spec-driven development with OpenSpec
+- AI-assisted architecture and development
+- MVP-first iteration
+- Reusable product baseline
 
 ## Core Philosophy
 
-This project is built around:
+This template is built on:
 
-- Spec-driven development with OpenSpec
-- MVP-first iteration
-- Feature-based modular architecture
-- Serverless and BaaS-first approach
-- Security-first design with Supabase RLS
-- Reusability across multiple products
+- **Spec-driven development** — Features are defined and reviewed before implementation
+- **MVP-first approach** — Launch fast with core functionality, expand iteratively
+- **Feature-based architecture** — Organized by business domain, not technical layers
+- **BaaS-first** — Supabase for auth, data, and storage; Vercel for hosting
+- **Security-first** — Row-Level Security (RLS) enforced from the foundation
+- **Reusability** — Template works across multiple products; no product-specific defaults
+- **Production-ready** — Bootstrap includes configuration, validation, and error handling
 
-## Scope
+## What's Included
 
-This repository currently includes tooling and documentation only:
+This repository provides:
 
-- AI agent definitions
-- Prompt workflows
-- Skill definitions
-- OpenSpec configuration
-- Architecture and setup documents
-
-This repository does not include source code.
+- **Runnable Application Base** — Scaffold, dependencies, config, and source structure ready for feature development
+- **Environment Validation** — Startup checks for required configuration with actionable error messages
+- **Supabase Integration** — Client bootstrap with readiness verification
+- **OpenSpec Workflow** — Spec-driven development with templates and automation
+- **Architecture Documentation** — Decision records and technical guidelines
+- **AI Agent Definitions** — Assistant roles for architecture, frontend, backend, and QA
+- **Development Tools** — Linting, TypeScript, Tailwind, etc., pre-configured
 
 ## Target Stack (For Projects Created From This Template)
 
@@ -160,25 +221,41 @@ Note: This repository stores the OpenSpec workflow scaffolding itself. No implem
 ## Project Structure
 
 ```text
+src/                # Application source code
+  components/       # Reusable UI components
+  features/         # Feature modules (organized by domain)
+  pages/            # Page/screen components
+  hooks/            # Custom React hooks
+  services/         # API and external integrations
+  lib/              # Utilities, helpers, constants
+  App.tsx           # Main application component
+  main.tsx          # Vite entry point
+  index.css         # Global styles with Tailwind
+
 .github/
-  agents/          # agent definitions (architect, frontend, backend, qa)
-  prompts/         # OpenSpec workflow prompts
-  skills/          # reusable skills
+  agents/           # Agent definitions
+  prompts/          # OpenSpec workflow prompts
+  skills/           # Reusable skills
   copilot-instructions.md
 
 docs/
-  architecture/    # project architecture docs
+  architecture/     # Technical documentation
 
 openspec/
-  config.yaml
-  changes/
-  specs/
+  config.yaml       # OpenSpec configuration
+  changes/          # Active changes
+  specs/            # Capability specifications
+
+index.html          # HTML entry point
+package.json        # Dependencies and scripts
+vite.config.ts      # Vite configuration
+tsconfig.json       # TypeScript configuration
+tailwind.config.js  # Tailwind configuration
+postcss.config.js   # PostCSS configuration
 
 README.md
 setup.md
 ```
-
-Note: There is no src/ directory yet because this template is focused on assistant tooling and process setup.
 
 ## AI Agents
 
