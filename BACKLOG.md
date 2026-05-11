@@ -23,8 +23,8 @@ Sistema de Turnos — Ordered by Dependency
 - [x] `role-system-row-level-security` (8a183a3)
 
 ### 5. User Session Management
-**Description:** Session persistence, token refresh, logout flow, expired session handling.
-- [ ]
+**Description:** Implement Supabase session lifecycle management for authenticated users: deterministic session restoration on app load, token refresh handling (success/failure), explicit logout with local state cleanup, and expired-session recovery (clear state + sign-in redirect), excluding route guards and role authorization logic.
+- [x] `user-session-management`
 
 ---
 
@@ -191,12 +191,12 @@ Sistema de Turnos — Ordered by Dependency
 ## Summary
 
 **Total Features:** 36  
-**Completed:** 4  
+**Completed:** 5  
 **In Progress:** 0  
-**Pending:** 32
+**Pending:** 31
 
 **Current Phase:** Phase 1 (Foundation & Auth)  
-**Next Feature:** #5 (User Session Management)
+**Next Feature:** #6 (Layout Shell & Navigation)
 
 ---
 
