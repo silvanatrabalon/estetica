@@ -17,7 +17,7 @@ interface UserContextValue {
   signOut: () => Promise<void>
 }
 
-const UserContext = createContext<UserContextValue | undefined>(undefined)
+export const UserContext = createContext<UserContextValue | undefined>(undefined)
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)

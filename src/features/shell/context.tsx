@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
 
-interface ShellContextValue {
+export interface ShellContextValue {
   isSidebarOpen: boolean
   toggleSidebar: () => void
   isMobileMenuOpen: boolean
