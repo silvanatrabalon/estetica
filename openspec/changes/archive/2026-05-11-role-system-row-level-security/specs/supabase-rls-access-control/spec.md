@@ -1,0 +1,38 @@
+## ADDED Requirements
+
+### Requirement: Public vs Authenticated Data Separation
+The system SHALL enforce RLS policies that explicitly separate unauthenticated public access from authenticated access. Tables containing sensitive or operational data MUST deny public access unless a policy explicitly permits it.
+
+#### Scenario: Public request to sensitive table is denied
+- **WHEN** an unauthenticated client queries a sensitive table
+- **THEN** no rows are returned unless an explicit public-read policy exists for that table
+
+#### Scenario: Public-readable table is accessible without authentication
+- **WHEN** an unauthenticated client queries a table marked as public-readable
+- **THEN** only data allowed by public-read policy is returned
+
+### Requirement: Role-Aware Privileged Access Control
+The system SHALL enforce role-aware RLS rules so privileged operations are limited to users with appropriate `staff` or `admin` roles. Customer users MUST NOT perform privileged admin or staff operations.
+
+#### Scenario: Customer user attempts staff/admin operation
+- **WHEN** an authenticated user with effective role `customer` performs a privileged write operation
+- **THEN** the operation is denied by RLS
+
+#### Scenario: Staff user performs allowed operational action
+- **WHEN** an authenticated user with effective role `staff` performs a staff-allowed action
+- **THEN** the operation succeeds if all non-role constraints are satisfied
+
+#### Scenario: Admin user performs admin-only action
+- **WHEN** an authenticated user with effective role `admin` performs an admin-only action
+- **THEN** the operation succeeds if all non-role constraints are satisfied
+
+### Requirement: Deny-by-Default Policy Baseline
+The system SHALL apply a deny-by-default authorization baseline for role-protected tables so that access is blocked unless explicitly granted by a policy.
+
+#### Scenario: New role-protected table has no allow policy
+- **WHEN** a query or mutation targets a role-protected table without a matching allow policy
+- **THEN** the action is denied
+
+#### Scenario: Explicit allow policy grants scoped access
+- **WHEN** a matching RLS allow policy exists for the user context and operation
+- **THEN** only the allowed rows and operations are accessible

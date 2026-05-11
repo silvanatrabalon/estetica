@@ -19,8 +19,8 @@ Sistema de Turnos — Ordered by Dependency
 - [x] `auth-system-setup-supabase-auth` (cc42507)
 
 ### 4. Role System & Row Level Security
-**Description:** Define role model (user/admin/staff), implement RLS policies, permission rules engine.
-- [ ]
+**Description:** Define role model (customer/user, admin, staff) and implement Supabase RLS policies to separate public vs admin data access, preparing authorization foundations for protected routes and authenticated booking flows.
+- [x] `role-system-row-level-security`
 
 ### 5. User Session Management
 **Description:** Session persistence, token refresh, logout flow, expired session handling.
