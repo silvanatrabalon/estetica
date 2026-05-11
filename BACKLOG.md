@@ -24,7 +24,7 @@ Sistema de Turnos — Ordered by Dependency
 
 ### 5. User Session Management
 **Description:** Implement Supabase session lifecycle management for authenticated users: deterministic session restoration on app load, token refresh handling (success/failure), explicit logout with local state cleanup, and expired-session recovery (clear state + sign-in redirect), excluding route guards and role authorization logic.
-- [x] `user-session-management`
+- [x] `user-session-management` (c30fa50)
 
 ---
 
