@@ -1,8 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --font-heading: 'Space Grotesk', 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
+  --font-body: 'Manrope', 'SF Pro Text', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  --color-primary: #0f766e;
+  --color-primary-strong: #115e59;
+  --color-secondary: #ea580c;
+
+  --color-surface-base: #f6faf9;
+  --color-surface-elevated: #ffffff;
+  --color-surface-muted: #e6f2ef;
+
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-border-subtle: #d8e6e2;
+
+  --color-focus-ring: #0d9488;
+
+  --color-dark-surface-base: #0b1514;
+  --color-dark-surface-elevated: #14211f;
+  --color-dark-text-primary: #e2f5f1;
+  --color-dark-text-secondary: #9ec6bf;
+
+  --space-shell-mobile: 1rem;
+  --space-shell-desktop: 1.5rem;
+
+  --motion-structural: 300ms;
+  --motion-overlay: 200ms;
+  --motion-micro: 200ms;
+  --motion-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  body {
+    margin: 0;
+    font-family: var(--font-body);
+    background: radial-gradient(circle at top right, #edf8f5 0%, var(--color-surface-base) 35%, #f9fbfb 100%);
+    color: var(--color-text-primary);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .transition-structural {
+    transition-duration: var(--motion-structural);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .transition-overlay {
+    transition-duration: var(--motion-overlay);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .transition-micro {
+    transition-duration: var(--motion-micro);
+    transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .shell-surface {
+    background-color: var(--color-surface-elevated);
+    border-color: var(--color-border-subtle);
+  }
+
+  .shell-padding {
+    padding: var(--space-shell-mobile);
+  }
+
+  @media (min-width: 768px) {
+    .shell-padding {
+      padding: var(--space-shell-desktop);
+    }
+  }
+}
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body);
 }

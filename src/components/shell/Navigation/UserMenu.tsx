@@ -9,6 +9,7 @@ interface UserMenuProps {
 export function UserMenu({ user }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const { signOut } = useUser()
+  const menuId = 'user-menu-panel'
 
   const handleLogout = async () => {
     try {
@@ -33,41 +34,54 @@ export function UserMenu({ user }: UserMenuProps) {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+        className="transition-micro flex items-center gap-2 rounded-xl border border-transparent p-2 hover:border-shell-border hover:bg-shell-muted"
         title={user.email || 'User'}
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        aria-controls={menuId}
       >
         {/* Avatar circle */}
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 text-white text-sm font-semibold">
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary text-sm font-semibold text-white">
           {userInitials}
         </div>
         {/* User email (hidden on mobile) */}
-        <span className="text-sm font-medium text-gray-700 hidden sm:inline max-w-[120px] truncate">
+        <span className="hidden max-w-[120px] truncate text-sm font-medium text-shell-subtleText sm:inline">
           {user.email?.split('@')[0]}
         </span>
       </button>
 
       {/* Dropdown menu */}
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-          <a
-            href="/profile"
-            onClick={() => setIsOpen(false)}
-            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors first:rounded-t-lg"
-          >
-            Profile
-          </a>
-          <button
-            onClick={handleLogout}
-            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors last:rounded-b-lg border-t border-gray-200"
-          >
-            Logout
-          </button>
-        </div>
-      )}
+      <div
+        id={menuId}
+        role="menu"
+        aria-hidden={!isOpen}
+        className={[
+          'shell-surface transition-micro absolute right-0 z-50 mt-2 w-52 rounded-xl border shadow-shell',
+          isOpen ? 'pointer-events-auto translate-y-0 opacity-100' : 'pointer-events-none -translate-y-1 opacity-0'
+        ].join(' ')}
+      >
+        <a
+          href="/profile"
+          role="menuitem"
+          onClick={() => setIsOpen(false)}
+          className="transition-micro block w-full rounded-t-xl px-4 py-2.5 text-left text-sm text-shell-subtleText hover:bg-shell-muted"
+        >
+          Profile
+        </a>
+        <button
+          onClick={handleLogout}
+          role="menuitem"
+          className="transition-micro w-full rounded-b-xl border-t border-shell-border px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+        >
+          Logout
+        </button>
+      </div>
 
       {/* Backdrop to close menu */}
       {isOpen && (
-        <div
+        <button
+          type="button"
+          aria-label="Close user menu"
           className="fixed inset-0 z-40"
           onClick={() => setIsOpen(false)}
         />

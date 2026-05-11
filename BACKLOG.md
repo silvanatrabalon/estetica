@@ -67,12 +67,7 @@ Sistema de Turnos — Ordered by Dependency
 
 ### 6b. Visual Polish & Design System
 **Description:** Implement distinctive typography, color scheme, transitions, and micro-interactions to elevate aesthetic quality.
-- [ ] Add custom font imports (non-Inter/Roboto) to tailwind.config.js and index.css
-- [ ] Define color palette variables (primary accent, secondary, dark mode)
-- [ ] Implement smooth transitions: 0.3s sidebar, 0.2s backdrop, 0.2s hover effects
-- [ ] Add micro-interactions: NavLink scale on hover, UserMenu fade/slide, Sidebar smooth transform
-- [ ] Review and adjust spacing (p-4 mobile, p-6 desktop) for visual hierarchy
-- [ ] Verify accessibility: contrast ratios, focus indicators, ARIA labels
+- [x] `visual-polish-design-system` — mobile-first typography, shared visual tokens, shell transitions, navigation micro-interactions, and accessibility polish
 
 ### 7. Protected Routes System
 **Description:** Route guards, role-based access control, redirect logic, unauthorized handling.
@@ -231,12 +226,12 @@ Sistema de Turnos — Ordered by Dependency
 ## Summary
 
 **Total Features:** 36  
-**Completed:** 5  
+**Completed:** 8  
 **In Progress:** 0  
-**Pending:** 31
+**Pending:** 28
 
-**Current Phase:** Phase 1 (Foundation & Auth)  
-**Next Feature:** #6 (Layout Shell & Navigation)
+**Current Phase:** Phase 2 (Core Infrastructure)  
+**Next Feature:** #7 (Protected Routes System)
 
 ---
 

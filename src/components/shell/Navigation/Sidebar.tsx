@@ -25,35 +25,45 @@ export function Sidebar({ items }: SidebarProps) {
   return (
     <>
       {/* Mobile backdrop */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
-          onClick={closeMobileMenu}
-        />
-      )}
+      <button
+        type="button"
+        aria-label="Close navigation menu"
+        onClick={closeMobileMenu}
+        className={cn(
+          'fixed inset-0 z-30 bg-slate-900/45 opacity-0 md:hidden',
+          'transition-opacity transition-overlay',
+          isMobileMenuOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none'
+        )}
+      />
 
       {/* Sidebar - Desktop: fixed, always visible. Mobile: overlay drawer */}
       <aside
+        id="primary-sidebar"
+        aria-label="Primary navigation"
         className={cn(
-          'fixed md:relative top-16 md:top-0 left-0 h-[calc(100vh-4rem)] md:h-screen w-64 bg-white border-r border-gray-200 overflow-y-auto z-40',
-          'transform transition-transform duration-300 ease-in-out md:transform-none',
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          'shell-surface fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 overflow-y-auto border-r md:relative md:top-0 md:h-screen',
+          'translate-x-[-100%] transform transition-transform transition-structural md:translate-x-0',
+          'shadow-shell md:shadow-none',
+          isMobileMenuOpen && 'translate-x-0'
         )}
       >
-        <nav className="p-4 space-y-2">
+        <nav className="p-4 md:p-6" aria-label="Sidebar links">
           {items.length === 0 ? (
-            <div className="text-center text-gray-500 text-sm py-4">
+            <div className="rounded-xl bg-shell-muted px-3 py-4 text-center text-sm text-shell-subtleText">
               No navigation items
             </div>
           ) : (
-            items.map((item) => (
-              <NavLink
-                key={item.id}
-                item={item}
-                isActive={isActiveRoute(item.href)}
-                onNavigate={handleNavigation}
-              />
-            ))
+            <ul className="space-y-2" role="list">
+              {items.map((item) => (
+                <li key={item.id}>
+                  <NavLink
+                    item={item}
+                    isActive={isActiveRoute(item.href)}
+                    onNavigate={handleNavigation}
+                  />
+                </li>
+              ))}
+            </ul>
           )}
         </nav>
       </aside>

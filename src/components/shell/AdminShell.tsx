@@ -10,11 +10,11 @@ export function AdminShell({ children }: ShellProps) {
   const navItems = useNavigation('admin')
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[250px_1fr] min-h-screen gap-0">
+    <div className="grid min-h-screen grid-cols-1 gap-0 bg-shell-base text-shell-text md:grid-cols-[250px_1fr]">
       <Sidebar items={navItems} />
       <div className="flex flex-col">
         <NavBar />
-        <main className="flex-1 overflow-auto p-4 md:p-6 bg-gray-50">
+        <main className="shell-padding flex-1 overflow-auto bg-shell-base">
           {children}
         </main>
       </div>
