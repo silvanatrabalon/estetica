@@ -18,16 +18,20 @@ Everything needed before starting to build features.
 - [ ] Go to **Project Settings → API** and copy:
   - `Project URL` → `VITE_SUPABASE_URL`
   - `anon public` key → `VITE_SUPABASE_ANON_KEY`
-- [ ] Enable Google OAuth:
-  - Go to **Authentication → Providers → Google**
-  - Create OAuth credentials in [Google Cloud Console](https://console.cloud.google.com) (OAuth 2.0 Client ID)
-  - Paste Client ID and Secret into Supabase
-  - Add redirect URL: `https://<your-vercel-domain>/auth/callback`
-  - Add `http://localhost:5173/auth/callback` for local dev
+---
+
+## 3. Google OAuth
+
+- [ ] Go to [console.cloud.google.com](https://console.cloud.google.com) → **APIs & Services → Credentials**
+- [ ] **Create Credentials → OAuth 2.0 Client ID** (type: Web application)
+- [ ] In *Authorized redirect URIs* add: `https://<your-project>.supabase.co/auth/v1/callback`
+- [ ] Copy the **Client ID** and **Client Secret**
+- [ ] Go to `https://supabase.com/dashboard/project/<your-project-ref>/auth/providers?provider=Google`
+- [ ] Paste Client ID and Client Secret and enable
 
 ---
 
-## 3. Vercel
+## 4. Vercel
 
 - [ ] Create account at vercel.com
 - [ ] Import the GitHub repository
@@ -40,7 +44,7 @@ Everything needed before starting to build features.
 
 ---
 
-## 4. Resend (only when email is needed)
+## 5. Resend (only when email is needed)
 
 - [ ] Create account at resend.com
 - [ ] Verify your sending domain
@@ -49,7 +53,7 @@ Everything needed before starting to build features.
 
 ---
 
-## 5. Local development
+## 6. Local development
 
 Create `.env.local` at the project root (never commit this file):
 
