@@ -99,6 +99,39 @@ This repository provides:
 - **AI Agent Definitions** — Assistant roles for architecture, frontend, backend, and QA
 - **Development Tools** — Linting, TypeScript, Tailwind, etc., pre-configured
 
+## Development Workflow
+
+This project uses a **spec-driven, AI-assisted workflow** for building features systematically.
+
+### Master Reference: BACKLOG.md
+
+[BACKLOG.md](BACKLOG.md) is the **single source of truth** for all features.
+
+- **36 features** ordered by logical dependency (Foundation → Deployment)
+- **Status tracking** with checkboxes ([ ] pending, [x] complete)
+- **OpenSpec mapping** linking each feature to its spec change and git commit
+
+### The Process (Simplified)
+
+```
+1. Pick next feature from BACKLOG.md
+2. Run /opsx:propose to create the spec
+3. Review and refine with Copilot chat
+4. Run /opsx:apply to implement
+5. Commit with conventional-commit skill
+6. Update BACKLOG.md (mark complete)
+```
+
+### For Contributors
+
+See **[CONTRIBUTE.md](CONTRIBUTE.md)** for the complete workflow guide:
+- Step-by-step instructions for each feature
+- OpenSpec commands reference
+- Agent roles (Architect, Backend, Frontend, QA)
+- Best practices and real examples
+
+---
+
 ## Target Stack (For Projects Created From This Template)
 
 ### Frontend
