@@ -15,7 +15,7 @@ The system SHALL protect authenticated routes so unauthenticated users cannot ac
 - **THEN** the system redirects the user to the sign-in route
 
 ### Requirement: Role-Based Route Access Control
-The system SHALL enforce role-based route access for routes restricted to `customer`, `staff`, or `admin` roles.
+The system SHALL enforce role-based route access for routes restricted to `customer`, `staff`, or `admin` roles, including admin-only operational settings routes.
 
 #### Scenario: Authorized role accesses restricted route
 - **WHEN** an authenticated user with a permitted role requests a restricted route
@@ -24,6 +24,10 @@ The system SHALL enforce role-based route access for routes restricted to `custo
 #### Scenario: Non-permitted role accesses restricted route
 - **WHEN** an authenticated user with a non-permitted role requests a restricted route
 - **THEN** the system redirects the user to `/unauthorized`
+
+#### Scenario: Admin accesses business settings route
+- **WHEN** an authenticated user with role `admin` requests the business settings route
+- **THEN** the system renders the admin-only business settings experience
 
 ### Requirement: Deterministic Redirect Rules
 The system SHALL apply deterministic redirect behavior for sign-in and role-home entry points.

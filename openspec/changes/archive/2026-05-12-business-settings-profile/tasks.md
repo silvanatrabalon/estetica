@@ -26,4 +26,6 @@
 ## 5. Completion And Verification
 
 - [x] 5.1 Verify the implemented feature against business-settings-profile scenarios and confirm warning-only readiness behavior
-- [ ] 5.2 Update backlog tracking with the change name and implementation commit reference when complete
+- [x] 5.2 Update backlog tracking with the change name and implementation commit reference when complete
+  - Change name: `business-settings-profile`
+  - Commit: `584acd8` (feat: implement business settings & profile management)
