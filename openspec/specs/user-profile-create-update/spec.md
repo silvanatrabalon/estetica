@@ -1,5 +1,6 @@
-## ADDED Requirements
-
+## Purpose
+Implement user profile creation and update flows to support MVP onboarding with optional profile completion, dedicated setup flows, and lightweight admin editing capabilities.
+## Requirements
 ### Requirement: First Login Profile Bootstrap
 The system MUST ensure a profile record exists for an authenticated user through a frontend upsert flow during first-login bootstrap.
 
@@ -75,7 +76,7 @@ The system MUST exclude advanced admin management and avatar workflows from this
 
 #### Scenario: Advanced admin management request
 - **WHEN** an admin workflow requires role changes, deactivation, or analytics
-- **THEN** those actions are handled outside this capability and not implemented by this change
+- **THEN** those actions are handled by the `admin-user-management-panel` capability and not implemented by this change
 
 ### Requirement: Test Coverage for Profile MVP
 The system MUST include automated test coverage aligned with this capability scope.
@@ -87,3 +88,4 @@ The system MUST include automated test coverage aligned with this capability sco
 #### Scenario: SQL smoke coverage
 - **WHEN** this capability is implemented
 - **THEN** minimum SQL smoke tests validate profile ownership and first-login profile path behavior
+

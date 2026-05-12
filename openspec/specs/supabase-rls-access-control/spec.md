@@ -1,8 +1,6 @@
 ## Purpose
 Define Supabase Row Level Security expectations for public access separation, role-aware authorization, and deny-by-default enforcement.
-
 ## Requirements
-
 ### Requirement: Public vs Authenticated Data Separation
 The system SHALL enforce RLS policies that explicitly separate unauthenticated public access from authenticated access. Tables containing sensitive or operational data MUST deny public access unless a policy explicitly permits it.
 
@@ -15,7 +13,7 @@ The system SHALL enforce RLS policies that explicitly separate unauthenticated p
 - **THEN** only data allowed by public-read policy is returned
 
 ### Requirement: Role-Aware Privileged Access Control
-The system SHALL enforce role-aware RLS rules so privileged operations are limited to users with appropriate `staff` or `admin` roles. Customer users MUST NOT perform privileged admin or staff operations.
+The system SHALL enforce role-aware RLS rules so privileged operations are limited to users with appropriate `staff` or `admin` roles. Customer users MUST NOT perform privileged admin or staff operations. Admin user management mutations (role updates and deactivation/reactivation actions) MUST be admin-only operations denied for non-admin actors.
 
 #### Scenario: Customer user attempts staff/admin operation
 - **WHEN** an authenticated user with effective role `customer` performs a privileged write operation
@@ -29,6 +27,10 @@ The system SHALL enforce role-aware RLS rules so privileged operations are limit
 - **WHEN** an authenticated user with effective role `admin` performs an admin-only action
 - **THEN** the operation succeeds if all non-role constraints are satisfied
 
+#### Scenario: Non-admin attempts admin user management mutation
+- **WHEN** an authenticated actor without effective role `admin` attempts role management or deactivation/reactivation mutation
+- **THEN** the operation is denied by RLS
+
 ### Requirement: Deny-by-Default Policy Baseline
 The system SHALL apply a deny-by-default authorization baseline for role-protected tables so that access is blocked unless explicitly granted by a policy.
 
@@ -39,3 +41,4 @@ The system SHALL apply a deny-by-default authorization baseline for role-protect
 #### Scenario: Explicit allow policy grants scoped access
 - **WHEN** a matching RLS allow policy exists for the user context and operation
 - **THEN** only the allowed rows and operations are accessible
+

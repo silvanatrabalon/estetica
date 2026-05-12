@@ -1,8 +1,6 @@
 ## Purpose
 Define the canonical application role model and default role assignment behavior used as the authorization source of truth.
-
 ## Requirements
-
 ### Requirement: Canonical Application Roles
 The system SHALL define a canonical application role model with exactly three supported roles: `customer`, `staff`, and `admin`. Role identifiers MUST be stored in a normalized and queryable PostgreSQL structure suitable for use in authorization logic.
 
@@ -15,7 +13,7 @@ The system SHALL define a canonical application role model with exactly three su
 - **THEN** the database rejects the write and persists no invalid role value
 
 ### Requirement: Role Assignment Source of Truth
-The system SHALL maintain a single source of truth that maps each authenticated user to an effective application role. Authorization checks MUST resolve role data from this source of truth rather than from client-provided values.
+The system SHALL maintain a single source of truth that maps each authenticated user to an effective application role. Authorization checks MUST resolve role data from this source of truth rather than from client-provided values. Admin-initiated role updates MUST preserve safety invariants that prevent self-demotion and last-admin lockout outcomes.
 
 #### Scenario: Authenticated user has role mapping
 - **WHEN** an authenticated user exists in the system
@@ -24,6 +22,10 @@ The system SHALL maintain a single source of truth that maps each authenticated 
 #### Scenario: Client role claims are ignored for authorization
 - **WHEN** a client request includes a claimed role value that differs from stored role mapping
 - **THEN** authorization decisions are made using stored role mapping, not the client claim
+
+#### Scenario: Admin role update preserves safety invariants
+- **WHEN** an admin operation attempts to update roles in a way that self-demotes the acting admin or leaves zero active admins
+- **THEN** the role update is rejected and the previous valid role mapping remains effective
 
 ### Requirement: Least-Privilege Default Role
 The system SHALL apply least privilege by assigning `customer` as the default effective role for newly onboarded authenticated users unless a privileged role is explicitly granted.
@@ -35,3 +37,4 @@ The system SHALL apply least privilege by assigning `customer` as the default ef
 #### Scenario: Privileged roles require explicit grant
 - **WHEN** a user is expected to act as `staff` or `admin`
 - **THEN** the role mapping reflects an explicit privileged-role assignment action
+

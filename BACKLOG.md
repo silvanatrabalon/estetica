@@ -137,7 +137,7 @@ Sistema de Turnos — Ordered by Dependency
 3. Should self-demotion and "last admin" lockout be blocked?
 4. Does deactivation mean global app access block, and must it be reversible in MVP?
 5. Which exact analytics KPIs are in MVP (for example total users, active vs inactive, role distribution, recent signups)?
-- [ ]
+- [x] `admin-user-management-panel` (51d8109)
 
 ---
 
