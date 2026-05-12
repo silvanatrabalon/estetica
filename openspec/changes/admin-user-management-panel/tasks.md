@@ -27,4 +27,4 @@
 ## 5. Completion And Tracking
 
 - [x] 5.1 Verify implemented behavior against all `admin-user-management-panel` scenarios
-- [ ] 5.2 Update backlog tracking with change name and implementation commit reference when complete
+- [x] 5.2 Update backlog tracking with change name and implementation commit reference when complete
