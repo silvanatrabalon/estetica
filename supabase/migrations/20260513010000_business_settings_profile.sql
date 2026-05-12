@@ -8,6 +8,10 @@ alter table public.organizations
   add column if not exists booking_header_text text,
   add column if not exists booking_subtitle_text text;
 
+-- Restore table-level grants for organizations that were revoked by foundation_schema.
+-- RLS policies control row-level access.
+grant select, insert, update, delete on table public.organizations to authenticated;
+
 create unique index if not exists ux_singleton_organization
   on public.organizations ((true));
 
