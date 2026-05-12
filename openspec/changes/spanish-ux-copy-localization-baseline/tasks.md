@@ -25,4 +25,4 @@
 ## 5. Completion And Tracking
 
 - [x] 5.1 Verify implemented behavior against all scenarios in `spanish-ux-copy-localization-baseline` spec
-- [ ] 5.2 Mark backlog item 8a as complete with commit reference once implementation and checks are done
+- [x] 5.2 Mark backlog item 8a as complete with commit reference once implementation and checks are done
