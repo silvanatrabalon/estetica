@@ -7,6 +7,13 @@ import {
   evaluateSessionHealth,
   clearAuthDependentState,
 } from '../services/session'
+import {
+  ensureProfileOnBootstrap,
+  getMyProfile,
+  type ProfileBootstrapResult,
+  type ProfileRecord,
+} from '../services/profile'
+import { isProfileComplete, type ProfileBootstrapStatus } from '../lib/profile'
 
 export type AppRole = 'customer' | 'staff' | 'admin'
 
@@ -43,9 +50,14 @@ function getDevRoleOverride(): AppRole | null {
 interface UserContextValue {
   user: User | null
   role: AppRole | null
+  profile: ProfileRecord | null
+  profileStatus: ProfileBootstrapStatus
+  profileWarning: string | null
   isLoading: boolean
   signOut: () => Promise<void>
   retryRoleResolution: () => Promise<void>
+  retryProfileBootstrap: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 export const UserContext = createContext<UserContextValue | undefined>(undefined)
@@ -53,6 +65,9 @@ export const UserContext = createContext<UserContextValue | undefined>(undefined
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [role, setRole] = useState<AppRole | null>(null)
+  const [profile, setProfile] = useState<ProfileRecord | null>(null)
+  const [profileStatus, setProfileStatus] = useState<ProfileBootstrapStatus>('incomplete')
+  const [profileWarning, setProfileWarning] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   // Fetch user role from database
@@ -107,10 +122,55 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const applyProfileBootstrapResult = (result: ProfileBootstrapResult) => {
+    setProfile(result.profile)
+    setProfileStatus(result.status)
+    setProfileWarning(result.warning)
+  }
+
+  const bootstrapProfile = async (authenticatedUser: User) => {
+    const result = await ensureProfileOnBootstrap(authenticatedUser)
+    applyProfileBootstrapResult(result)
+  }
+
+  const refreshProfile = async () => {
+    if (!user) {
+      return
+    }
+
+    try {
+      const resolvedProfile = await getMyProfile()
+
+      if (!resolvedProfile) {
+        setProfile(null)
+        setProfileStatus('incomplete')
+        setProfileWarning('Complete your profile setup to keep your account information up to date.')
+        return
+      }
+
+      const complete = isProfileComplete(resolvedProfile)
+      setProfile(resolvedProfile)
+      setProfileStatus(complete ? 'complete' : 'incomplete')
+      setProfileWarning(
+        complete
+          ? null
+          : 'Complete your profile setup to keep your account information up to date.',
+      )
+    } catch {
+      setProfileStatus('load-error')
+      setProfileWarning(
+        'Profile sync is temporarily unavailable. You can continue and retry from profile setup.',
+      )
+    }
+  }
+
   const resetAuthState = () => {
     clearAuthDependentState([
       () => setUser(null),
       () => setRole(null),
+      () => setProfile(null),
+      () => setProfileStatus('incomplete'),
+      () => setProfileWarning(null),
     ])
   }
 
@@ -138,6 +198,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         if (!snapshot.user) {
           setRole(null)
+          setProfile(null)
+          setProfileStatus('incomplete')
+          setProfileWarning(null)
           setIsLoading(false)
         }
       } catch (err) {
@@ -164,6 +227,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setUser(snapshot.user)
       if (!snapshot.user) {
         setRole(null)
+        setProfile(null)
+        setProfileStatus('incomplete')
+        setProfileWarning(null)
         setIsLoading(false)
       }
     })
@@ -181,7 +247,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     const load = async () => {
-      await fetchUserRole(user.id)
+      await Promise.all([
+        fetchUserRole(user.id),
+        bootstrapProfile(user),
+      ])
       setIsLoading(false)
     }
 
@@ -234,12 +303,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
     setIsLoading(false)
   }
 
+  const retryProfileBootstrap = async () => {
+    if (!user) {
+      return
+    }
+
+    await bootstrapProfile(user)
+  }
+
   const value: UserContextValue = {
     user,
     role,
+    profile,
+    profileStatus,
+    profileWarning,
     isLoading,
     signOut,
     retryRoleResolution,
+    retryProfileBootstrap,
+    refreshProfile,
   }
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>

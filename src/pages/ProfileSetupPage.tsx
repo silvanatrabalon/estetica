@@ -1,28 +1,42 @@
-import { FormEvent, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 import { updateMyProfile } from '../services/profile'
-import { normalizePhone, normalizeProfileName, validateProfileInput } from '../lib/profile'
+import {
+  getGooglePreferredName,
+  normalizePhone,
+  normalizeProfileName,
+  validateProfileInput,
+} from '../lib/profile'
 
-export function ProfilePage() {
-  const { profile, profileStatus, refreshProfile } = useUser()
+export function ProfileSetupPage() {
+  const { user, profile, profileStatus, refreshProfile } = useUser()
+  const navigate = useNavigate()
+  const fallbackName = useMemo(() => (user ? getGooglePreferredName(user) : ''), [user])
 
-  const [name, setName] = useState(profile?.name ?? '')
+  const [name, setName] = useState(profile?.name ?? fallbackName)
   const [phone, setPhone] = useState(profile?.phone ?? '')
-  const [nameError, setNameError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [nameError, setNameError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
 
   useEffect(() => {
-    setName(profile?.name ?? '')
-    setPhone(profile?.phone ?? '')
-  }, [profile?.name, profile?.phone])
+    if (profile?.name) {
+      setName(profile.name)
+    } else if (fallbackName) {
+      setName(fallbackName)
+    }
+
+    if (profile?.phone) {
+      setPhone(profile.phone)
+    }
+  }, [fallbackName, profile?.name, profile?.phone])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    setNameError(null)
     setFormError(null)
+    setNameError(null)
     setIsSaved(false)
 
     const validation = validateProfileInput({ name, phone })
@@ -40,8 +54,9 @@ export function ProfilePage() {
       })
       await refreshProfile()
       setIsSaved(true)
+      navigate('/profile', { replace: true })
     } catch {
-      setFormError('Unable to update your profile right now. Please try again.')
+      setFormError('Unable to save profile right now. Please try again.')
     } finally {
       setIsSaving(false)
     }
@@ -50,22 +65,14 @@ export function ProfilePage() {
   return (
     <section className="mx-auto max-w-2xl">
       <div className="shell-surface rounded-2xl border p-6 shadow-sm">
-        <h2 className="font-heading text-2xl font-semibold text-shell-text">Profile</h2>
-        <p className="mt-2 text-sm text-shell-subtleText">Update your basic account details.</p>
-
-        {profileStatus === 'incomplete' ? (
-          <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            Your profile is incomplete. You can also complete it from{' '}
-            <Link to="/profile/setup" className="font-semibold underline">
-              profile setup
-            </Link>
-            .
-          </p>
-        ) : null}
+        <h2 className="font-heading text-2xl font-semibold text-shell-text">Complete Your Profile</h2>
+        <p className="mt-2 text-sm text-shell-subtleText">
+          Add your details so your account information is complete.
+        </p>
 
         {profileStatus === 'load-error' ? (
           <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            We could not load your latest profile. You can still edit and save your details.
+            Profile data could not be loaded. You can still submit this form.
           </p>
         ) : null}
 
@@ -75,17 +82,17 @@ export function ProfilePage() {
 
         {isSaved ? (
           <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-            Profile saved successfully.
+            Profile updated successfully.
           </p>
         ) : null}
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label htmlFor="profile-name" className="mb-1 block text-sm font-semibold text-shell-text">
+            <label htmlFor="profile-setup-name" className="mb-1 block text-sm font-semibold text-shell-text">
               Name
             </label>
             <input
-              id="profile-name"
+              id="profile-setup-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
               autoComplete="name"
@@ -95,11 +102,11 @@ export function ProfilePage() {
           </div>
 
           <div>
-            <label htmlFor="profile-phone" className="mb-1 block text-sm font-semibold text-shell-text">
+            <label htmlFor="profile-setup-phone" className="mb-1 block text-sm font-semibold text-shell-text">
               Phone (optional)
             </label>
             <input
-              id="profile-phone"
+              id="profile-setup-phone"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               autoComplete="tel"
@@ -107,13 +114,13 @@ export function ProfilePage() {
             />
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-3">
             <button
               type="submit"
               disabled={isSaving}
               className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-micro hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSaving ? 'Saving...' : 'Save changes'}
+              {isSaving ? 'Saving...' : 'Save profile'}
             </button>
           </div>
         </form>

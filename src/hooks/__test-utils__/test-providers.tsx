@@ -2,6 +2,7 @@ import { ReactNode } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { UserContext, type AppRole } from '../../context/UserContext'
 import { ShellContext, type ShellContextValue } from '../../features/shell/context'
+import type { ProfileBootstrapStatus, ProfileRecord } from '../../lib/profile'
 
 /**
  * Test provider for UserContext
@@ -12,22 +13,37 @@ export function TestUserProvider({
   user = null,
   role = null,
   isLoading = false,
+  profile = null,
+  profileStatus = 'complete',
+  profileWarning = null,
   onSignOut = async () => {},
   onRetryRoleResolution = async () => {},
+  onRetryProfileBootstrap = async () => {},
+  onRefreshProfile = async () => {},
 }: {
   children: ReactNode
   user?: User | null
   role?: AppRole | null
   isLoading?: boolean
+  profile?: ProfileRecord | null
+  profileStatus?: ProfileBootstrapStatus
+  profileWarning?: string | null
   onSignOut?: () => Promise<void>
   onRetryRoleResolution?: () => Promise<void>
+  onRetryProfileBootstrap?: () => Promise<void>
+  onRefreshProfile?: () => Promise<void>
 }) {
   const value = {
     user,
     role,
+    profile,
+    profileStatus,
+    profileWarning,
     isLoading,
     signOut: onSignOut,
     retryRoleResolution: onRetryRoleResolution,
+    retryProfileBootstrap: onRetryProfileBootstrap,
+    refreshProfile: onRefreshProfile,
   }
 
   return (

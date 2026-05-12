@@ -9,9 +9,12 @@ interface UserMenuProps {
 
 export function UserMenu({ user }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const { signOut } = useUser()
+  const { signOut, profile } = useUser()
   const navigate = useNavigate()
   const menuId = 'user-menu-panel'
+
+  const fallbackName = user.email?.split('@')[0] ?? 'User'
+  const displayName = profile?.name.trim().length ? profile.name : fallbackName
 
   const handleLogout = async () => {
     try {
@@ -23,10 +26,12 @@ export function UserMenu({ user }: UserMenuProps) {
     }
   }
 
-  const userInitials = user.email
-    ? user.email
-        .split('@')[0]
+  const userInitials = displayName
+    ? displayName
         .split('.')
+        .join(' ')
+        .split(' ')
+        .filter(Boolean)
         .map((part) => part[0].toUpperCase())
         .join('')
         .slice(0, 2)
@@ -37,7 +42,7 @@ export function UserMenu({ user }: UserMenuProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="transition-micro flex items-center gap-2 rounded-xl border border-transparent p-2 hover:border-shell-border hover:bg-shell-muted"
-        title={user.email || 'User'}
+        title={displayName}
         aria-expanded={isOpen}
         aria-haspopup="menu"
         aria-controls={menuId}
@@ -46,9 +51,9 @@ export function UserMenu({ user }: UserMenuProps) {
         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary text-sm font-semibold text-white">
           {userInitials}
         </div>
-        {/* User email (hidden on mobile) */}
+        {/* User name (hidden on mobile) */}
         <span className="hidden max-w-[120px] truncate text-sm font-medium text-shell-subtleText sm:inline">
-          {user.email?.split('@')[0]}
+          {displayName}
         </span>
       </button>
 

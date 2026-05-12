@@ -106,7 +106,7 @@ describe('useUser hook', () => {
   })
 
   describe('context value structure', () => {
-    it('should return object with user, role, isLoading, signOut, and retryRoleResolution', () => {
+    it('should return object with user, role, profile state, loading, and actions', () => {
       const wrapper = ({ children }: { children: ReactNode }) => (
         <AllTestContextProviders user={mockSessions.authenticatedCustomer.user}>
           {children}
@@ -117,11 +117,18 @@ describe('useUser hook', () => {
 
       expect(result.current).toHaveProperty('user')
       expect(result.current).toHaveProperty('role')
+      expect(result.current).toHaveProperty('profile')
+      expect(result.current).toHaveProperty('profileStatus')
+      expect(result.current).toHaveProperty('profileWarning')
       expect(result.current).toHaveProperty('isLoading')
       expect(result.current).toHaveProperty('signOut')
       expect(result.current).toHaveProperty('retryRoleResolution')
+      expect(result.current).toHaveProperty('retryProfileBootstrap')
+      expect(result.current).toHaveProperty('refreshProfile')
       expect(typeof result.current.signOut).toBe('function')
       expect(typeof result.current.retryRoleResolution).toBe('function')
+      expect(typeof result.current.retryProfileBootstrap).toBe('function')
+      expect(typeof result.current.refreshProfile).toBe('function')
     })
 
     it('should have correct type structure for authenticated user', () => {

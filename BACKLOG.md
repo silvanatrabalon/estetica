@@ -96,8 +96,12 @@ Sistema de Turnos — Ordered by Dependency
 - [x] `protected-routes-system` (4ab5412)
 
 ### 8. User Profile (Create & Update)
-**Description:** User profile creation on first login, profile update form, profile page.
-- [ ]
+**Description:** Implement profile bootstrap on first authenticated login (frontend upsert), a dedicated setup page (`/profile/setup`), profile update form, and profile page. MVP fields for this item: `name` (required for profile completion, prefilled from Google and editable) and `phone` (optional). Behavior is soft gate: users can continue using the app if profile is incomplete, with warning + CTA to complete setup. If profile load fails, allow app access and surface recoverable warning/CTA. Include basic admin profile editing (simple list + selector, edit name/phone only), explicitly excluding analytics, deactivation, and role management.
+
+**Testing Scope:** Unit + integration tests for setup/update/admin-basic-edit flows, plus minimum SQL smoke coverage for profile ownership/first-login path.
+
+**Out of Scope:** Avatar upload/storage, advanced admin user management, analytics, role changes.
+- [x] `user-profile-create-update`
 
 ### 9. Admin User Management Panel
 **Description:** View all users, manage roles, deactivate users, user analytics.
@@ -248,12 +252,12 @@ Sistema de Turnos — Ordered by Dependency
 ## Summary
 
 **Total Features:** 36  
-**Completed:** 9  
+**Completed:** 10  
 **In Progress:** 0  
-**Pending:** 27
+**Pending:** 26
 
 **Current Phase:** Phase 2 (Core Infrastructure)  
-**Next Feature:** #8 (User Profile)
+**Next Feature:** #9 (Admin User Management Panel)
 
 ---
 

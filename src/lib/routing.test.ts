@@ -55,7 +55,18 @@ describe('routing policy', () => {
 
   it('tracks known route paths', () => {
     expect(isKnownRoute('/profile')).toBe(true)
+    expect(isKnownRoute('/profile/setup')).toBe(true)
     expect(isKnownRoute('/unknown')).toBe(false)
+  })
+
+  it('allows authenticated route access for profile setup', () => {
+    expect(
+      canAccessRoute({
+        path: '/profile/setup',
+        isAuthenticated: true,
+        role: 'customer',
+      }),
+    ).toBe(true)
   })
 })
 

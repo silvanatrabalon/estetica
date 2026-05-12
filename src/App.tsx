@@ -18,6 +18,7 @@ import {
   DashboardPage,
   NotFoundPage,
   ProfilePage,
+  ProfileSetupPage,
   SignInPage,
   StaffClientsPage,
   StaffSchedulePage,
@@ -55,6 +56,7 @@ function AppContent() {
         <Route element={<ProtectedShellLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/profile/setup" element={<ProfileSetupPage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
           <Route element={<RoleGuard allowedRoles={['customer']} />}>

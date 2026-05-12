@@ -3,6 +3,7 @@
 
 export { DashboardPage } from './DashboardPage'
 export { ProfilePage } from './ProfilePage'
+export { ProfileSetupPage } from './ProfileSetupPage'
 export { BookingPage } from './BookingPage'
 export { AppointmentsPage } from './AppointmentsPage'
 export { StaffSchedulePage } from './StaffSchedulePage'
