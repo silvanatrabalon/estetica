@@ -43,9 +43,9 @@ export function Sidebar({ items }: SidebarProps) {
         aria-label="Navegación principal"
         className={cn(
           'shell-surface fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 overflow-y-auto border-r md:relative md:top-0 md:h-screen',
-          'translate-x-[-100%] transform transition-transform transition-structural md:translate-x-0',
+          'transform transition-transform transition-structural md:translate-x-0',
           'shadow-shell md:shadow-none',
-          isMobileMenuOpen && 'translate-x-0'
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         <nav className="p-4 md:p-6" aria-label="Enlaces de navegación">
