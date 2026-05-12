@@ -141,21 +141,39 @@ Sistema de Turnos — Ordered by Dependency
 
 ---
 
-## Phase 3: Multi-Tenant Organization
+## Phase 3: Business Configuration (Single-Tenant)
 
-### 10. Business/Organization Layer
-**Description:** Create business entity, multi-tenant structure, business belongs-to relationship.
+### 10. Business Settings & Profile
+**Description:** Configure the single business through an admin-only settings flow backed by the database as the canonical source of truth. Scope includes business identity, business timezone, weekly business hours, half-day and full-day closure exceptions, and basic branding.
+
+**Scope (MVP):**
+- Admin-only business settings page
+- Single business identity: visible name
+- Business timezone (IANA) used as canonical timezone for the product
+- Weekly business hours for the business only (not per-staff availability)
+- Closure exceptions supporting full-day and half-day closures
+- Basic branding: name, logo, primary brand color, and booking header/subtitle text
+- Readiness warning for incomplete business configuration without blocking the app
+- Singleton business bootstrap/guarantee if no organization record exists yet
+
+**Out of Scope (for this item):**
+- Staff-specific schedules or exceptions
+- Booking slot generation
+- Advanced theming or full design customization
+- Hard blocking reservations based on readiness state
+
+**Testing Scope:**
+- Unit tests for timezone and business-hours validation
+- Unit tests for closure exception validation, including half-day closures
+- Integration tests for admin-only load/update flows and readiness warning states
+- SQL smoke/RLS tests for admin-only writes and canonical singleton business persistence
+- [x] `business-settings-profile` (23eeabf)
+
+### 11. Staff/Professionals Management
+**Description:** Create staff members, assign roles (staff, admin), manage staff profiles and permissions.
 - [ ]
 
-### 11. Business Profile & Settings
-**Description:** Edit business info, branding (logo/name), timezone config, working hours.
-- [ ]
-
-### 12. Staff/Professionals Management
-**Description:** Create staff members, assign roles, staff profile, manage staff within business.
-- [ ]
-
-### 13. Staff Availability Configuration
+### 12. Staff Availability Configuration
 **Description:** Define weekly availability rules, set working hours, block unavailable dates, exception dates (holidays).
 - [ ]
 
@@ -164,7 +182,7 @@ Sistema de Turnos — Ordered by Dependency
 ## Phase 4: Services & Products
 
 ### 14. Services (Offerings)
-**Description:** Create service types (e.g., haircut, consultation), set duration, pricing, assign to staff.
+**Description:** Create service types (e.g., haircut, consultation), set duration, pricing, assign to staff, add pictures.
 - [ ]
 
 ### 15. Service Availability Rules
@@ -188,7 +206,7 @@ Sistema de Turnos — Ordered by Dependency
 - [ ]
 
 ### 19. Booking Confirmation Flow
-**Description:** Confirmation page, email confirmation, booking status system (pending/confirmed/cancelled).
+**Description:** Confirmation page, email confirmation using resend, booking status system (pending/confirmed/cancelled).
 - [ ]
 
 ---
@@ -228,12 +246,9 @@ Sistema de Turnos — Ordered by Dependency
 - [ ]
 
 ### 27. Notifications System
-**Description:** Booking confirmation emails, cancellation emails, reschedule emails, templates.
+**Description:** Booking confirmation emails con resend, cancellation emails, reschedule emails, templates.
 - [ ]
 
-### 28. Reminder System
-**Description:** Automated reminders before appointments, customizable timing, email/SMS.
-- [ ]
 
 ---
 
@@ -283,13 +298,13 @@ Sistema de Turnos — Ordered by Dependency
 
 ## Summary
 
-**Total Features:** 37  
+**Total Features:** 35  
 **Completed:** 11  
 **In Progress:** 0  
-**Pending:** 26
+**Pending:** 24
 
 **Current Phase:** Phase 2 (Core Infrastructure)  
-**Next Feature:** #9 (Admin User Management Panel)
+**Next Feature:** #10 (Business Settings & Profile)
 
 ---
 
