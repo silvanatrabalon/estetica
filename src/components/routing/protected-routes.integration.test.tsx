@@ -27,6 +27,7 @@ function renderProtectedRoutes(initialPath: string, role: 'customer' | 'staff' |
             <Route path="/dashboard" element={<div>Dashboard page</div>} />
 
             <Route element={<RoleGuard allowedRoles={['admin']} />}>
+              <Route path="/admin/settings/business" element={<div>Business settings page</div>} />
               <Route path="/admin/users" element={<div>Admin users page</div>} />
             </Route>
           </Route>
@@ -53,5 +54,11 @@ describe('protected-route integration flows', () => {
     renderProtectedRoutes('/admin/users', 'staff')
 
     expect(screen.getByText('Unauthorized page')).toBeDefined()
+  })
+
+  it('allows admin user on business settings route', () => {
+    renderProtectedRoutes('/admin/settings/business', 'admin')
+
+    expect(screen.getByText('Business settings page')).toBeDefined()
   })
 })

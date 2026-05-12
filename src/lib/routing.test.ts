@@ -48,6 +48,16 @@ describe('routing policy', () => {
     ).toBe(false)
   })
 
+  it('allows admin-only business settings route for admins', () => {
+    expect(
+      canAccessRoute({
+        path: '/admin/settings/business',
+        isAuthenticated: true,
+        role: 'admin',
+      }),
+    ).toBe(true)
+  })
+
   it('handles nested paths with registered prefixes', () => {
     const policy = getRoutePolicy('/staff/schedule/day')
     expect(policy?.path).toBe('/staff/schedule')
@@ -56,6 +66,7 @@ describe('routing policy', () => {
   it('tracks known route paths', () => {
     expect(isKnownRoute('/profile')).toBe(true)
     expect(isKnownRoute('/profile/setup')).toBe(true)
+    expect(isKnownRoute('/admin/settings/business')).toBe(true)
     expect(isKnownRoute('/unknown')).toBe(false)
   })
 

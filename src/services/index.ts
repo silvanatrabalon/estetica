@@ -3,5 +3,6 @@
 
 export * from './adminUsers'
 export * from './auth'
+export * from './businessSettings'
 export * from './profile'
 export * from './session'

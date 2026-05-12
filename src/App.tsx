@@ -14,6 +14,7 @@ import {
   AdminServicesPage,
   AdminUsersPage,
   AppointmentsPage,
+  BusinessSettingsPage,
   BookingPage,
   DashboardPage,
   NotFoundPage,
@@ -70,6 +71,7 @@ function AppContent() {
           </Route>
 
           <Route element={<RoleGuard allowedRoles={['admin']} />}>
+            <Route path="/admin/settings/business" element={<BusinessSettingsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/services" element={<AdminServicesPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />

@@ -20,6 +20,7 @@ export const navigationCopy = {
   appointments: 'Mis turnos',
   schedule: 'Agenda',
   clients: 'Clientes',
+  businessSettings: 'Negocio',
   users: 'Usuarios',
   services: 'Servicios',
   reports: 'Reportes',

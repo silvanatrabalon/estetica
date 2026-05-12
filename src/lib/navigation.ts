@@ -63,6 +63,13 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
   // Admin-specific navigation
   admin: [
     {
+      id: 'business-settings',
+      label: navigationCopy.businessSettings,
+      href: '/admin/settings/business',
+      icon: undefined,
+      roles: ['admin'],
+    },
+    {
       id: 'users',
       label: navigationCopy.users,
       href: '/admin/users',
