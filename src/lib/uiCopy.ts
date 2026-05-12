@@ -22,6 +22,7 @@ export const navigationCopy = {
   clients: 'Clientes',
   businessSettings: 'Negocio',
   users: 'Usuarios',
+  staffProfessionals: 'Profesionales',
   services: 'Servicios',
   reports: 'Reportes',
 } as const

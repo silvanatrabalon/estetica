@@ -77,6 +77,13 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
       roles: ['admin'],
     },
     {
+      id: 'staff-professionals',
+      label: navigationCopy.staffProfessionals,
+      href: '/admin/staff',
+      icon: undefined,
+      roles: ['admin'],
+    },
+    {
       id: 'services',
       label: navigationCopy.services,
       href: '/admin/services',

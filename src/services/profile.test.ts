@@ -68,6 +68,11 @@ describe('profile service', () => {
       user_metadata: {},
     } as User
 
+    client.auth.getUser.mockResolvedValue({
+      data: { user: { id: 'user-1' } },
+      error: null,
+    })
+
     builder.maybeSingle
       .mockResolvedValueOnce({ data: null, error: null })
       .mockResolvedValueOnce({

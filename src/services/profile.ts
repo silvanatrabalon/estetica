@@ -37,9 +37,14 @@ function toProfileRecord(row: ProfileRow): ProfileRecord {
 
 export async function getMyProfile(): Promise<ProfileRecord | null> {
   const supabase = initSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return null
+
   const { data, error } = await supabase
     .from('profiles')
     .select('user_id, full_name, phone')
+    .eq('user_id', user.id)
     .maybeSingle<ProfileRow>()
 
   if (error) {
@@ -106,7 +111,8 @@ export async function ensureProfileOnBootstrap(user: User): Promise<ProfileBoots
         ? null
         : profileCopy.incompleteWarning,
     }
-  } catch {
+  } catch (err) {
+    console.error('[profile] ensureProfileOnBootstrap failed:', err)
     return {
       status: 'load-error',
       profile: null,

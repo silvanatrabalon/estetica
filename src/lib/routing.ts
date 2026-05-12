@@ -27,6 +27,7 @@ export const routePolicies: RoutePolicy[] = [
   { path: '/staff/clients', access: 'role-restricted', allowedRoles: ['staff', 'admin'] },
   { path: '/admin/settings/business', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/users', access: 'role-restricted', allowedRoles: ['admin'] },
+  { path: '/admin/staff', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/services', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/reports', access: 'role-restricted', allowedRoles: ['admin'] },
 ]

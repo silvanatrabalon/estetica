@@ -58,6 +58,26 @@ describe('routing policy', () => {
     ).toBe(true)
   })
 
+  it('allows admin-only staff management route for admins', () => {
+    expect(
+      canAccessRoute({
+        path: '/admin/staff',
+        isAuthenticated: true,
+        role: 'admin',
+      }),
+    ).toBe(true)
+  })
+
+  it('denies admin staff management route for non-admin roles', () => {
+    expect(
+      canAccessRoute({
+        path: '/admin/staff',
+        isAuthenticated: true,
+        role: 'staff',
+      }),
+    ).toBe(false)
+  })
+
   it('handles nested paths with registered prefixes', () => {
     const policy = getRoutePolicy('/staff/schedule/day')
     expect(policy?.path).toBe('/staff/schedule')
@@ -67,6 +87,7 @@ describe('routing policy', () => {
     expect(isKnownRoute('/profile')).toBe(true)
     expect(isKnownRoute('/profile/setup')).toBe(true)
     expect(isKnownRoute('/admin/settings/business')).toBe(true)
+    expect(isKnownRoute('/admin/staff')).toBe(true)
     expect(isKnownRoute('/unknown')).toBe(false)
   })
 
