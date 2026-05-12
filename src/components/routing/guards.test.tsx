@@ -81,7 +81,7 @@ describe('RoleGuard', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
 
     expect(retryRoleResolution).toHaveBeenCalledTimes(1)
   })

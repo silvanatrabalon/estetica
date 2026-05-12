@@ -43,6 +43,8 @@ The project is designed for incremental MVP-first development.
 * Handle loading, empty, and error states properly.
 * Build responsive and accessible interfaces.
 * Prefer composition over deeply nested component hierarchies.
+* All user-facing copy must default to Spanish. This includes navigation labels, buttons, forms, validation messages, empty states, loading states, notices, and notifications for customers, staff, and admins.
+* Internal code, identifiers, tests, migrations, and technical documentation may remain in English unless a task explicitly requires otherwise.
 
 ---
 

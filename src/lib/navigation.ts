@@ -1,4 +1,5 @@
 import type { NavItem } from '../features/shell/types'
+import { navigationCopy } from './uiCopy'
 
 /**
  * Navigation configuration by role
@@ -9,14 +10,14 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
   all: [
     {
       id: 'dashboard',
-      label: 'Dashboard',
+      label: navigationCopy.dashboard,
       href: '/dashboard',
       icon: undefined, // TODO: Add dashboard icon from lucide-react or custom
       roles: ['customer', 'staff', 'admin'],
     },
     {
       id: 'profile',
-      label: 'Profile',
+      label: navigationCopy.profile,
       href: '/profile',
       icon: undefined, // TODO: Add user icon
       roles: ['customer', 'staff', 'admin'],
@@ -27,14 +28,14 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
   customer: [
     {
       id: 'booking',
-      label: 'Book Appointment',
+      label: navigationCopy.booking,
       href: '/booking',
       icon: undefined, // TODO: Add calendar icon
       roles: ['customer'],
     },
     {
       id: 'appointments',
-      label: 'My Appointments',
+      label: navigationCopy.appointments,
       href: '/appointments',
       icon: undefined, // TODO: Add list icon
       roles: ['customer'],
@@ -45,14 +46,14 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
   staff: [
     {
       id: 'schedule',
-      label: 'Schedule',
+      label: navigationCopy.schedule,
       href: '/staff/schedule',
       icon: undefined, // TODO: Add calendar icon
       roles: ['staff', 'admin'],
     },
     {
       id: 'clients',
-      label: 'Clients',
+      label: navigationCopy.clients,
       href: '/staff/clients',
       icon: undefined, // TODO: Add users icon
       roles: ['staff', 'admin'],
@@ -63,21 +64,21 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
   admin: [
     {
       id: 'users',
-      label: 'Users',
+      label: navigationCopy.users,
       href: '/admin/users',
       icon: undefined, // TODO: Add users icon
       roles: ['admin'],
     },
     {
       id: 'services',
-      label: 'Services',
+      label: navigationCopy.services,
       href: '/admin/services',
       icon: undefined, // TODO: Add settings icon
       roles: ['admin'],
     },
     {
       id: 'reports',
-      label: 'Reports',
+      label: navigationCopy.reports,
       href: '/admin/reports',
       icon: undefined, // TODO: Add chart icon
       roles: ['admin'],

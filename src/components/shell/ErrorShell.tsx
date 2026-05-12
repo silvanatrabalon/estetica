@@ -2,7 +2,7 @@ interface ErrorShellProps {
   message?: string
 }
 
-export function ErrorShell({ message = 'An error occurred' }: ErrorShellProps) {
+export function ErrorShell({ message = 'Ocurrió un error' }: ErrorShellProps) {
   return (
     <div className="flex items-center justify-center min-h-screen bg-white">
       <div className="text-center">

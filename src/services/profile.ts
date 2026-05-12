@@ -8,6 +8,7 @@ import {
   normalizePhone,
   normalizeProfileName,
 } from '../lib/profile'
+import { profileCopy } from '../lib/uiCopy'
 
 interface ProfileRow {
   user_id: string
@@ -64,7 +65,7 @@ export async function ensureProfileOnBootstrap(user: User): Promise<ProfileBoots
         profile: existingProfile,
         warning: isProfileComplete(existingProfile)
           ? null
-          : 'Complete your profile setup to keep your account information up to date.',
+          : profileCopy.incompleteWarning,
       }
     }
 
@@ -92,7 +93,7 @@ export async function ensureProfileOnBootstrap(user: User): Promise<ProfileBoots
       return {
         status: 'load-error',
         profile: null,
-        warning: 'Profile sync is temporarily unavailable. You can continue and retry from profile setup.',
+        warning: profileCopy.syncUnavailableWarning,
       }
     }
 
@@ -103,13 +104,13 @@ export async function ensureProfileOnBootstrap(user: User): Promise<ProfileBoots
       profile: createdProfile,
       warning: complete
         ? null
-        : 'Complete your profile setup to keep your account information up to date.',
+        : profileCopy.incompleteWarning,
     }
   } catch {
     return {
       status: 'load-error',
       profile: null,
-      warning: 'Profile sync is temporarily unavailable. You can continue and retry from profile setup.',
+      warning: profileCopy.syncUnavailableWarning,
     }
   }
 }

@@ -9,7 +9,7 @@ export function NavBar() {
   if (!user) return null
 
   return (
-    <nav className="shell-surface sticky top-0 z-30 border-b" aria-label="Top navigation">
+    <nav className="shell-surface sticky top-0 z-30 border-b" aria-label="Navegación superior">
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
         {/* Left: Logo */}
         <div className="flex flex-shrink-0 items-center">
@@ -25,7 +25,7 @@ export function NavBar() {
           <button
             onClick={toggleMobileMenu}
             className="transition-micro rounded-xl border border-transparent p-2 text-shell-text hover:border-shell-border hover:bg-shell-muted focus-visible:border-brand-primary md:hidden"
-            aria-label="Toggle navigation menu"
+            aria-label="Alternar menú de navegación"
             aria-controls="primary-sidebar"
             aria-expanded={isMobileMenuOpen}
             aria-haspopup="true"

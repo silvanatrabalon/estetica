@@ -13,7 +13,7 @@ export function UserMenu({ user }: UserMenuProps) {
   const navigate = useNavigate()
   const menuId = 'user-menu-panel'
 
-  const fallbackName = user.email?.split('@')[0] ?? 'User'
+  const fallbackName = user.email?.split('@')[0] ?? 'Usuario'
   const displayName = profile?.name.trim().length ? profile.name : fallbackName
 
   const handleLogout = async () => {
@@ -73,14 +73,14 @@ export function UserMenu({ user }: UserMenuProps) {
           onClick={() => setIsOpen(false)}
           className="transition-micro block w-full rounded-t-xl px-4 py-2.5 text-left text-sm text-shell-subtleText hover:bg-shell-muted"
         >
-          Profile
+          Perfil
         </Link>
         <button
           onClick={handleLogout}
           role="menuitem"
           className="transition-micro w-full rounded-b-xl border-t border-shell-border px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
         >
-          Logout
+          Cerrar sesión
         </button>
       </div>
 
@@ -88,7 +88,7 @@ export function UserMenu({ user }: UserMenuProps) {
       {isOpen && (
         <button
           type="button"
-          aria-label="Close user menu"
+          aria-label="Cerrar menú de usuario"
           className="fixed inset-0 z-40"
           onClick={() => setIsOpen(false)}
         />

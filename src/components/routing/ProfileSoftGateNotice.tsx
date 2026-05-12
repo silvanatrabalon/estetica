@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useUser } from '../../hooks/useUser'
+import { commonCopy, profileCopy } from '../../lib/uiCopy'
 
 export function ProfileSoftGateNotice() {
   const { profileStatus, profileWarning, retryProfileBootstrap } = useUser()
@@ -27,7 +28,7 @@ export function ProfileSoftGateNotice() {
       aria-live="polite"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p>{profileWarning ?? 'Complete your profile setup to keep account details current.'}</p>
+        <p>{profileWarning ?? profileCopy.incompleteWarning}</p>
         <div className="flex items-center gap-3">
           {isLoadError ? (
             <button
@@ -35,7 +36,7 @@ export function ProfileSoftGateNotice() {
               onClick={() => void retryProfileBootstrap()}
               className="rounded-lg border border-red-300 px-3 py-1.5 font-semibold text-red-700 transition-micro hover:bg-red-100"
             >
-              Retry
+              {commonCopy.retry}
             </button>
           ) : null}
           <Link
@@ -47,7 +48,7 @@ export function ProfileSoftGateNotice() {
                 : 'bg-amber-600 text-white hover:bg-amber-700',
             ].join(' ')}
           >
-            Complete profile
+            Completar perfil
           </Link>
         </div>
       </div>

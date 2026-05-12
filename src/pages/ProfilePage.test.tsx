@@ -31,8 +31,8 @@ describe('ProfilePage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText(/Your profile is incomplete/)).toBeDefined()
-    expect(screen.getByRole('link', { name: 'profile setup' })).toBeDefined()
+    expect(screen.getByText(/Tu perfil está incompleto/)).toBeDefined()
+    expect(screen.getByRole('link', { name: 'configuración de perfil' })).toBeDefined()
   })
 
   it('updates own profile data', async () => {
@@ -44,10 +44,10 @@ describe('ProfilePage', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.change(screen.getByLabelText('Phone (optional)'), {
+    fireEvent.change(screen.getByLabelText('Teléfono (opcional)'), {
       target: { value: '+54 9 11 0000 0000' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     await waitFor(() => {
       expect(mockUpdateMyProfile).toHaveBeenCalled()

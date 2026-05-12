@@ -28,7 +28,7 @@ export function Sidebar({ items }: SidebarProps) {
       {/* Mobile backdrop */}
       <button
         type="button"
-        aria-label="Close navigation menu"
+        aria-label="Cerrar menú de navegación"
         onClick={closeMobileMenu}
         className={cn(
           'fixed inset-0 z-30 bg-slate-900/45 opacity-0 md:hidden',
@@ -40,7 +40,7 @@ export function Sidebar({ items }: SidebarProps) {
       {/* Sidebar - Desktop: fixed, always visible. Mobile: overlay drawer */}
       <aside
         id="primary-sidebar"
-        aria-label="Primary navigation"
+        aria-label="Navegación principal"
         className={cn(
           'shell-surface fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 overflow-y-auto border-r md:relative md:top-0 md:h-screen',
           'translate-x-[-100%] transform transition-transform transition-structural md:translate-x-0',
@@ -48,10 +48,10 @@ export function Sidebar({ items }: SidebarProps) {
           isMobileMenuOpen && 'translate-x-0'
         )}
       >
-        <nav className="p-4 md:p-6" aria-label="Sidebar links">
+        <nav className="p-4 md:p-6" aria-label="Enlaces de navegación">
           {items.length === 0 ? (
             <div className="rounded-xl bg-shell-muted px-3 py-4 text-center text-sm text-shell-subtleText">
-              No navigation items
+              No hay elementos de navegación
             </div>
           ) : (
             <ul className="space-y-2" role="list">

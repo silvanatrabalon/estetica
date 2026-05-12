@@ -65,7 +65,7 @@ export async function restoreSessionOnBootstrap(): Promise<SessionLifecycleSnaps
       'expired',
       null,
       'refresh-failed',
-      'Your session could not be restored. Please sign in again.',
+      'No se pudo restaurar tu sesión. Iniciá sesión nuevamente.',
     )
   }
 
@@ -81,7 +81,7 @@ export async function evaluateSessionHealth(): Promise<SessionLifecycleSnapshot>
       'expired',
       null,
       'refresh-failed',
-      'Your session expired and needs to be refreshed by signing in again.',
+      'Tu sesión expiró y necesitás volver a iniciar sesión para renovarla.',
     )
   }
 
@@ -105,7 +105,7 @@ export function mapAuthChangeToSnapshot(
       'expired',
       null,
       'refresh-failed',
-      'Your session refresh failed. Please sign in again.',
+      'No se pudo renovar tu sesión. Iniciá sesión nuevamente.',
     )
   }
 

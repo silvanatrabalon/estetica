@@ -20,12 +20,12 @@ export function AppShell({ children }: AppShellProps) {
 
   // User not authenticated (should be handled by App.tsx, but just in case)
   if (!user) {
-    return <ErrorShell message="User not authenticated" />
+    return <ErrorShell message="Usuario no autenticado" />
   }
 
   // No role found (fallback error)
   if (!role) {
-    return <ErrorShell message="Unable to determine user role" />
+    return <ErrorShell message="No se pudo determinar el rol del usuario" />
   }
 
   // Render the appropriate shell based on role
@@ -37,6 +37,6 @@ export function AppShell({ children }: AppShellProps) {
     case 'admin':
       return <AdminShell>{children}</AdminShell>
     default:
-      return <ErrorShell message={`Invalid role: ${role}`} />
+      return <ErrorShell message={`Rol inválido: ${role}`} />
   }
 }

@@ -45,10 +45,10 @@ describe('ProfileSetupPage', () => {
       </MemoryRouter>,
     )
 
-    const nameInput = screen.getByLabelText('Name') as HTMLInputElement
+    const nameInput = screen.getByLabelText('Nombre') as HTMLInputElement
     expect(nameInput.value).toBe('Google User')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save profile' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar perfil' }))
 
     await waitFor(() => {
       expect(mockUpdateMyProfile).toHaveBeenCalled()
@@ -70,7 +70,7 @@ describe('ProfileSetupPage', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Profile data could not be loaded. You can still submit this form.')).toBeDefined()
-    expect(screen.getByLabelText('Name')).toBeDefined()
+    expect(screen.getByText('No se pudieron cargar los datos del perfil. Igual podés enviar este formulario.')).toBeDefined()
+    expect(screen.getByLabelText('Nombre')).toBeDefined()
   })
 })

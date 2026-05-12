@@ -103,6 +103,12 @@ Sistema de Turnos — Ordered by Dependency
 **Out of Scope:** Avatar upload/storage, advanced admin user management, analytics, role changes.
 - [x] `user-profile-create-update` (0f5e32f)
 
+### 8a. Spanish UX Copy & Localization Baseline
+**Description:** Translate the current user-facing application copy to Spanish and establish a lightweight localization baseline so future features do not reintroduce English UI text. Scope includes navigation labels, buttons, placeholders, form labels, validation messages, empty states, loading states, soft-gate notices, auth/session feedback, and route-level fallback screens.
+
+**Implementation Notes:** Keep source code, tests, migrations, and technical documentation in English unless a requirement explicitly says otherwise. Prioritize a central copy strategy or shared constants where it reduces future drift, but avoid introducing unnecessary localization infrastructure for this MVP stage.
+- [ ]
+
 ### 9. Admin User Management Panel
 **Description:** View all users, manage roles, deactivate users, user analytics.
 - [ ]
@@ -251,13 +257,13 @@ Sistema de Turnos — Ordered by Dependency
 
 ## Summary
 
-**Total Features:** 36  
+**Total Features:** 37  
 **Completed:** 10  
 **In Progress:** 0  
-**Pending:** 26
+**Pending:** 27
 
 **Current Phase:** Phase 2 (Core Infrastructure)  
-**Next Feature:** #9 (Admin User Management Panel)
+**Next Feature:** #8a (Spanish UX Copy & Localization Baseline)
 
 ---
 

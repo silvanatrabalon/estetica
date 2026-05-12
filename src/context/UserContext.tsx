@@ -14,6 +14,7 @@ import {
   type ProfileRecord,
 } from '../services/profile'
 import { isProfileComplete, type ProfileBootstrapStatus } from '../lib/profile'
+import { profileCopy } from '../lib/uiCopy'
 
 export type AppRole = 'customer' | 'staff' | 'admin'
 
@@ -144,7 +145,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (!resolvedProfile) {
         setProfile(null)
         setProfileStatus('incomplete')
-        setProfileWarning('Complete your profile setup to keep your account information up to date.')
+        setProfileWarning(profileCopy.incompleteWarning)
         return
       }
 
@@ -154,13 +155,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setProfileWarning(
         complete
           ? null
-          : 'Complete your profile setup to keep your account information up to date.',
+          : profileCopy.incompleteWarning,
       )
     } catch {
       setProfileStatus('load-error')
-      setProfileWarning(
-        'Profile sync is temporarily unavailable. You can continue and retry from profile setup.',
-      )
+      setProfileWarning(profileCopy.syncUnavailableWarning)
     }
   }
 

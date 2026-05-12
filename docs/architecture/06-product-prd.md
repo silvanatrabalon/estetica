@@ -16,6 +16,12 @@ Define the business logic and domain for the current SaaS application.
 
 **Estetica** is a SaaS platform for managing beauty and wellness services. It enables beauty studios, spas, and salons to streamline appointment scheduling, staff management, and customer relationships.
 
+## Product Language
+
+- The default product language for end users is Spanish.
+- All customer, staff, and admin interface copy must be written in Spanish, including labels, calls to action, validation messages, notices, loading states, empty states, and notifications.
+- Internal implementation language may remain English for source code, schemas, tests, and technical documentation.
+
 ---
 
 ## Problem

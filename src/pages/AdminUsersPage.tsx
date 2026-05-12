@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react'
 import type { ProfileRecord } from '../services/profile'
 import { listProfilesForAdmin, updateProfileByAdmin } from '../services/profile'
 import { normalizePhone, normalizeProfileName, validateProfileInput } from '../lib/profile'
+import { commonCopy } from '../lib/uiCopy'
 
 export function AdminUsersPage() {
   const [profiles, setProfiles] = useState<ProfileRecord[]>([])
@@ -30,7 +31,7 @@ export function AdminUsersPage() {
         setSelectedUserId('')
       }
     } catch {
-      setErrorMessage('Unable to load user profiles right now.')
+      setErrorMessage('No pudimos cargar los perfiles de usuarios en este momento.')
     } finally {
       setIsLoading(false)
     }
@@ -58,7 +59,7 @@ export function AdminUsersPage() {
     setNameError(null)
 
     if (!selectedProfile) {
-      setErrorMessage('Select a user profile before saving changes.')
+      setErrorMessage('Seleccioná un perfil de usuario antes de guardar cambios.')
       return
     }
 
@@ -79,9 +80,9 @@ export function AdminUsersPage() {
       setProfiles((current) =>
         current.map((item) => (item.userId === updatedProfile.userId ? updatedProfile : item)),
       )
-      setSuccessMessage('User profile updated successfully.')
+      setSuccessMessage('Perfil de usuario actualizado correctamente.')
     } catch {
-      setErrorMessage('Unable to update this user profile right now.')
+      setErrorMessage('No pudimos actualizar este perfil de usuario en este momento.')
     } finally {
       setIsSaving(false)
     }
@@ -90,19 +91,19 @@ export function AdminUsersPage() {
   return (
     <section className="space-y-6">
       <div>
-        <h2 className="font-heading text-2xl font-semibold text-shell-text">Users</h2>
+        <h2 className="font-heading text-2xl font-semibold text-shell-text">Usuarios</h2>
         <p className="mt-2 text-sm text-shell-subtleText">
-          Basic profile editing only (name and phone). Role changes, deactivation, and analytics are out of scope.
+          Edición básica de perfil únicamente (nombre y teléfono). Cambios de rol, desactivación y analítica quedan fuera de alcance.
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(220px,280px)_1fr]">
         <aside className="shell-surface rounded-2xl border p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-shell-text">User selector</h3>
+          <h3 className="text-sm font-semibold text-shell-text">Selector de usuarios</h3>
 
-          {isLoading ? <p className="mt-3 text-sm text-shell-subtleText">Loading users...</p> : null}
+          {isLoading ? <p className="mt-3 text-sm text-shell-subtleText">Cargando usuarios...</p> : null}
           {!isLoading && profiles.length === 0 ? (
-            <p className="mt-3 text-sm text-shell-subtleText">No user profiles available.</p>
+            <p className="mt-3 text-sm text-shell-subtleText">No hay perfiles de usuario disponibles.</p>
           ) : null}
 
           <ul className="mt-3 space-y-2">
@@ -120,7 +121,7 @@ export function AdminUsersPage() {
                         : 'border-shell-border bg-white text-shell-subtleText hover:bg-shell-muted',
                     ].join(' ')}
                   >
-                    <p className="font-semibold">{profile.name || 'Unnamed user'}</p>
+                    <p className="font-semibold">{profile.name || 'Usuario sin nombre'}</p>
                     <p className="truncate text-xs">{profile.userId}</p>
                   </button>
                 </li>
@@ -130,7 +131,7 @@ export function AdminUsersPage() {
         </aside>
 
         <div className="shell-surface rounded-2xl border p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-shell-text">Edit selected profile</h3>
+          <h3 className="text-lg font-semibold text-shell-text">Editar perfil seleccionado</h3>
 
           {errorMessage ? (
             <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>
@@ -144,7 +145,7 @@ export function AdminUsersPage() {
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="admin-profile-name" className="mb-1 block text-sm font-semibold text-shell-text">
-                Name
+                {commonCopy.nameLabel}
               </label>
               <input
                 id="admin-profile-name"
@@ -158,7 +159,7 @@ export function AdminUsersPage() {
 
             <div>
               <label htmlFor="admin-profile-phone" className="mb-1 block text-sm font-semibold text-shell-text">
-                Phone (optional)
+                {commonCopy.phoneOptionalLabel}
               </label>
               <input
                 id="admin-profile-phone"
@@ -175,7 +176,7 @@ export function AdminUsersPage() {
                 disabled={!selectedProfile || isSaving}
                 className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-micro hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSaving ? 'Saving...' : 'Save user profile'}
+                {isSaving ? commonCopy.saving : 'Guardar perfil de usuario'}
               </button>
             </div>
           </form>

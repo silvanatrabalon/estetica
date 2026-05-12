@@ -16,7 +16,7 @@ export function SignInPage() {
     try {
       await signInWithGoogle()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Sign in failed'
+      const message = err instanceof Error ? err.message : 'No se pudo iniciar sesión.'
       setError(message)
       setIsLoading(false)
     }
@@ -26,19 +26,19 @@ export function SignInPage() {
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">Estetica</h1>
-        <p className="text-xl text-gray-600">Appointment Booking System</p>
+        <p className="text-xl text-gray-600">Sistema de reserva de turnos</p>
 
         <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
           {isCallbackFlow ? (
             <p className="text-sm text-gray-600">
-              Completing Google sign-in callback...
+              Completando el acceso con Google...
             </p>
           ) : isLoading ? (
-            <p className="text-sm text-gray-600">Signing in...</p>
+            <p className="text-sm text-gray-600">Iniciando sesión...</p>
           ) : (
             <>
               <p className="text-sm text-gray-700 mb-4">
-                Sign in with Google to continue.
+                Ingresá con Google para continuar.
               </p>
               <button
                 type="button"
@@ -46,7 +46,7 @@ export function SignInPage() {
                 disabled={isLoading}
                 className="inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
               >
-                Continue with Google
+                Continuar con Google
               </button>
             </>
           )}

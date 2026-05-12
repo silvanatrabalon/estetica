@@ -8,6 +8,7 @@ import {
   normalizeProfileName,
   validateProfileInput,
 } from '../lib/profile'
+import { commonCopy } from '../lib/uiCopy'
 
 export function ProfileSetupPage() {
   const { user, profile, profileStatus, refreshProfile } = useUser()
@@ -56,7 +57,7 @@ export function ProfileSetupPage() {
       setIsSaved(true)
       navigate('/profile', { replace: true })
     } catch {
-      setFormError('Unable to save profile right now. Please try again.')
+      setFormError('No pudimos guardar tu perfil en este momento. Intentá nuevamente.')
     } finally {
       setIsSaving(false)
     }
@@ -65,14 +66,14 @@ export function ProfileSetupPage() {
   return (
     <section className="mx-auto max-w-2xl">
       <div className="shell-surface rounded-2xl border p-6 shadow-sm">
-        <h2 className="font-heading text-2xl font-semibold text-shell-text">Complete Your Profile</h2>
+        <h2 className="font-heading text-2xl font-semibold text-shell-text">Completá tu perfil</h2>
         <p className="mt-2 text-sm text-shell-subtleText">
-          Add your details so your account information is complete.
+          Agregá tus datos para completar la información de tu cuenta.
         </p>
 
         {profileStatus === 'load-error' ? (
           <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            Profile data could not be loaded. You can still submit this form.
+            No se pudieron cargar los datos del perfil. Igual podés enviar este formulario.
           </p>
         ) : null}
 
@@ -82,14 +83,14 @@ export function ProfileSetupPage() {
 
         {isSaved ? (
           <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-            Profile updated successfully.
+            Perfil actualizado correctamente.
           </p>
         ) : null}
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div>
             <label htmlFor="profile-setup-name" className="mb-1 block text-sm font-semibold text-shell-text">
-              Name
+              {commonCopy.nameLabel}
             </label>
             <input
               id="profile-setup-name"
@@ -103,7 +104,7 @@ export function ProfileSetupPage() {
 
           <div>
             <label htmlFor="profile-setup-phone" className="mb-1 block text-sm font-semibold text-shell-text">
-              Phone (optional)
+              {commonCopy.phoneOptionalLabel}
             </label>
             <input
               id="profile-setup-phone"
@@ -120,7 +121,7 @@ export function ProfileSetupPage() {
               disabled={isSaving}
               className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-micro hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSaving ? 'Saving...' : 'Save profile'}
+              {isSaving ? commonCopy.saving : 'Guardar perfil'}
             </button>
           </div>
         </form>

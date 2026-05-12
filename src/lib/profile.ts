@@ -44,7 +44,7 @@ export function validateProfileInput(input: { name: string; phone: string }): {
   const errors: { name?: string } = {}
 
   if (normalizeProfileName(input.name).length === 0) {
-    errors.name = 'Name is required.'
+    errors.name = 'El nombre es obligatorio.'
   }
 
   return {
