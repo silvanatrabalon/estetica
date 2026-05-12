@@ -101,7 +101,7 @@ Sistema de Turnos — Ordered by Dependency
 **Testing Scope:** Unit + integration tests for setup/update/admin-basic-edit flows, plus minimum SQL smoke coverage for profile ownership/first-login path.
 
 **Out of Scope:** Avatar upload/storage, advanced admin user management, analytics, role changes.
-- [x] `user-profile-create-update`
+- [x] `user-profile-create-update` (0f5e32f)
 
 ### 9. Admin User Management Panel
 **Description:** View all users, manage roles, deactivate users, user analytics.
