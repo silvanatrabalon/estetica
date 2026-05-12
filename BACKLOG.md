@@ -170,8 +170,37 @@ Sistema de Turnos — Ordered by Dependency
 - [x] `business-settings-profile` (23eeabf)
 
 ### 11. Staff/Professionals Management
-**Description:** Create staff members, assign roles (staff, admin), manage staff profiles and permissions.
-- [ ]
+**Description:** Manage the professional directory through an admin-only panel. Every staff member must be linked to an existing app user account. Creating a staff member requires selecting an existing user; linking automatically assigns the `staff` role if not already set. Includes reversible deactivation and basic display name management.
+
+**Scope (MVP):**
+- Admin-only staff directory with active/inactive status and linked user indicator
+- Create staff member by selecting an existing user and providing a display name
+- Auto-assign `staff` role to the linked user if they don't have it already
+- Edit staff member display name and active status
+- Reversible deactivate/reactivate (no hard deletes)
+- Admin-only RPC functions for all staff operations
+- Spanish user-facing copy for all states and feedback
+
+**Out of Scope (for this item):**
+- Staff members without a linked user account
+- Staff availability and weekly schedules (→ #12)
+- Service-to-staff assignments (→ #14 or later)
+- Creating new user accounts from this panel (uses existing users)
+- Global role management beyond auto-assigning `staff` on link (→ #9)
+- `organization_memberships` management (not needed for single-tenant MVP)
+
+**Architecture Decisions:**
+- `staff_members.profile_user_id` is required (not nullable in this flow)
+- Linking a user assigns `user_roles.role = 'staff'` automatically if not already set
+- Single-tenant: no org selection needed, always scoped to the singleton org
+- Follow RPC pattern from `adminUsers.ts` for service layer
+
+**Testing Scope:**
+- Unit tests for display name validation (required, min 2 chars)
+- Integration tests for admin flows (create, edit, deactivate/reactivate, link user)
+- RLS smoke tests: admin can write, non-admin is denied
+- Guard/authorization regression for non-admin access denial
+- [x] `staff-professionals-management` (9ef6b83)
 
 ### 12. Staff Availability Configuration
 **Description:** Define weekly availability rules, set working hours, block unavailable dates, exception dates (holidays).
