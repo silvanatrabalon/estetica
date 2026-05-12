@@ -11,9 +11,9 @@ import {
   ensureProfileOnBootstrap,
   getMyProfile,
   type ProfileBootstrapResult,
-  type ProfileRecord,
 } from '../services/profile'
-import { isProfileComplete, type ProfileBootstrapStatus } from '../lib/profile'
+import { getCurrentUserActivationStatus } from '../services/adminUsers'
+import { isProfileComplete, type ProfileBootstrapStatus, type ProfileRecord } from '../lib/profile'
 import { profileCopy } from '../lib/uiCopy'
 
 export type AppRole = 'customer' | 'staff' | 'admin'
@@ -77,7 +77,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const supabase = initSupabase()
       const { data, error } = await supabase
         .from('user_roles')
-        .select('role')
+        .select('role, is_active')
         .eq('user_id', userId)
         .maybeSingle()
 
@@ -92,7 +92,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const { error: insertError } = await supabase
           .from('user_roles')
           .insert([{ user_id: userId, role: 'customer' }])
-        
+
         if (insertError) {
           console.warn('Failed to insert default role:', insertError)
           setRole('customer') // Still use default even if insert fails
@@ -100,6 +100,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
         }
 
         setRole('customer')
+        return
+      }
+
+      if (data.is_active === false) {
+        await supabase.auth.signOut()
+        resetAuthState()
+        setIsLoading(false)
         return
       }
 
@@ -246,6 +253,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     const load = async () => {
+      const isActive = await getCurrentUserActivationStatus()
+
+      if (!isActive) {
+        const supabase = initSupabase()
+        await supabase.auth.signOut()
+        resetAuthState()
+        setIsLoading(false)
+        return
+      }
+
       await Promise.all([
         fetchUserRole(user.id),
         bootstrapProfile(user),

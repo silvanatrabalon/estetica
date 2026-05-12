@@ -32,7 +32,7 @@ export function UserMenu({ user }: UserMenuProps) {
         .join(' ')
         .split(' ')
         .filter(Boolean)
-        .map((part) => part[0].toUpperCase())
+        .map((part: string) => part[0].toUpperCase())
         .join('')
         .slice(0, 2)
     : 'U'

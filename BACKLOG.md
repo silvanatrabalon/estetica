@@ -110,7 +110,33 @@ Sistema de Turnos — Ordered by Dependency
 - [x] `spanish-ux-copy-localization-baseline` (d3e086c)
 
 ### 9. Admin User Management Panel
-**Description:** View all users, manage roles, deactivate users, user analytics.
+**Description:** Expand the existing admin users screen into an admin-only user management capability focused on operational essentials: user directory, global role assignment (`customer`, `staff`, `admin`), reversible user deactivation/reactivation, and lightweight operational analytics.
+
+**Scope (MVP):**
+- Admin-only user directory with clear loading, empty, success, and error states
+- Role management for canonical global roles (`customer`, `staff`, `admin`)
+- Reversible deactivate/reactivate flow with explicit confirmation
+- Basic operational analytics (small KPI set for admin decisions)
+- Spanish user-facing copy for panel states and feedback messages
+
+**Out of Scope (for this item):**
+- Advanced analytics/report builder
+- Full audit logging platform (covered in #33)
+- Multi-tenant org-scoped user administration (covered in #10+)
+- Bulk automation workflows
+
+**Testing Scope:**
+- Unit tests for role/deactivation action policies and UI state transitions
+- Integration tests for admin flows (list users, change role, deactivate/reactivate)
+- Guard/authorization regression tests for non-admin access denial
+- SQL smoke/RLS tests for admin-only mutation paths and denied non-admin operations
+
+**Open Decisions (must be confirmed before OpenSpec proposal):**
+1. Should "all users" include accounts without profile rows?
+2. Is role management global-only in this item (not organization membership roles)?
+3. Should self-demotion and "last admin" lockout be blocked?
+4. Does deactivation mean global app access block, and must it be reversible in MVP?
+5. Which exact analytics KPIs are in MVP (for example total users, active vs inactive, role distribution, recent signups)?
 - [ ]
 
 ---

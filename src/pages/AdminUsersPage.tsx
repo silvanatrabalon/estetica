@@ -1,65 +1,130 @@
-import { FormEvent, useEffect, useState } from 'react'
-import type { ProfileRecord } from '../services/profile'
-import { listProfilesForAdmin, updateProfileByAdmin } from '../services/profile'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { normalizePhone, normalizeProfileName, validateProfileInput } from '../lib/profile'
 import { commonCopy } from '../lib/uiCopy'
+import {
+  isLastActiveAdminDeactivation,
+  isLastActiveAdminRoleDemotion,
+  isSelfDemotion,
+} from '../lib/adminUserPolicies'
+import {
+  adminSetUserActive,
+  adminUpdateUserProfile,
+  adminUpdateUserRole,
+  getAdminUserAnalytics,
+  listAdminUsers,
+  type AdminManagedRole,
+  type AdminManagedUser,
+  type AdminUserAnalytics,
+} from '../services/adminUsers'
+import { useUser } from '../hooks/useUser'
+
+function formatRelativeDate(dateValue: string | null): string {
+  if (!dateValue) {
+    return 'Sin registro'
+  }
+
+  const parsed = new Date(dateValue)
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Sin registro'
+  }
+
+  return parsed.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
+
+function roleLabel(role: AdminManagedRole): string {
+  if (role === 'admin') return 'Administrador'
+  if (role === 'staff') return 'Staff'
+  return 'Cliente'
+}
 
 export function AdminUsersPage() {
-  const [profiles, setProfiles] = useState<ProfileRecord[]>([])
+  const { user: currentUser } = useUser()
+  const [users, setUsers] = useState<AdminManagedUser[]>([])
+  const [analytics, setAnalytics] = useState<AdminUserAnalytics | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [role, setRole] = useState<AdminManagedRole>('customer')
+  const [isActive, setIsActive] = useState(true)
   const [isLoading, setIsLoading] = useState(true)
-  const [isSaving, setIsSaving] = useState(false)
+  const [isSavingProfile, setIsSavingProfile] = useState(false)
+  const [isSavingRole, setIsSavingRole] = useState(false)
+  const [isSavingStatus, setIsSavingStatus] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [nameError, setNameError] = useState<string | null>(null)
 
-  const selectedProfile = profiles.find((profile) => profile.userId === selectedUserId) ?? null
+  const selectedUser = useMemo(
+    () => users.find((user) => user.userId === selectedUserId) ?? null,
+    [users, selectedUserId],
+  )
 
-  const loadProfiles = async () => {
+  const activeAdminCount = useMemo(
+    () => users.filter((user) => user.role === 'admin' && user.isActive).length,
+    [users],
+  )
+
+  const loadData = async () => {
     setIsLoading(true)
     setErrorMessage(null)
 
     try {
-      const data = await listProfilesForAdmin()
-      setProfiles(data)
+      const [usersData, analyticsData] = await Promise.all([listAdminUsers(), getAdminUserAnalytics()])
+      setUsers(usersData)
+      setAnalytics(analyticsData)
 
-      if (data.length > 0) {
-        setSelectedUserId((current) => current || data[0].userId)
+      if (usersData.length > 0) {
+        setSelectedUserId((current) => current || usersData[0].userId)
       } else {
         setSelectedUserId('')
       }
     } catch {
-      setErrorMessage('No pudimos cargar los perfiles de usuarios en este momento.')
+      setErrorMessage('No pudimos cargar la gestión de usuarios en este momento.')
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
-    void loadProfiles()
+    void loadData()
   }, [])
 
   useEffect(() => {
-    if (!selectedProfile) {
+    if (!selectedUser) {
       setName('')
       setPhone('')
+      setRole('customer')
+      setIsActive(true)
       return
     }
 
-    setName(selectedProfile.name)
-    setPhone(selectedProfile.phone ?? '')
-  }, [selectedProfile?.name, selectedProfile?.phone, selectedProfile?.userId])
+    setName(selectedUser.name)
+    setPhone(selectedUser.phone ?? '')
+    setRole(selectedUser.role)
+    setIsActive(selectedUser.isActive)
+  }, [selectedUser])
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const refreshAnalytics = async () => {
+    try {
+      const analyticsData = await getAdminUserAnalytics()
+      setAnalytics(analyticsData)
+    } catch {
+      setErrorMessage('No pudimos actualizar la analítica de usuarios.')
+    }
+  }
+
+  const handleProfileSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setSuccessMessage(null)
     setErrorMessage(null)
     setNameError(null)
 
-    if (!selectedProfile) {
-      setErrorMessage('Seleccioná un perfil de usuario antes de guardar cambios.')
+    if (!selectedUser) {
+      setErrorMessage('Seleccioná un usuario antes de guardar cambios.')
       return
     }
 
@@ -69,22 +134,141 @@ export function AdminUsersPage() {
       return
     }
 
-    setIsSaving(true)
+    setIsSavingProfile(true)
 
     try {
-      const updatedProfile = await updateProfileByAdmin(selectedProfile.userId, {
+      const updatedProfile = await adminUpdateUserProfile(selectedUser.userId, {
         name: normalizeProfileName(name),
         phone: normalizePhone(phone) ?? '',
       })
 
-      setProfiles((current) =>
-        current.map((item) => (item.userId === updatedProfile.userId ? updatedProfile : item)),
+      setUsers((current) =>
+        current.map((item) =>
+          item.userId === updatedProfile.userId
+            ? {
+                ...item,
+                name: updatedProfile.name,
+                phone: updatedProfile.phone,
+              }
+            : item,
+        ),
       )
       setSuccessMessage('Perfil de usuario actualizado correctamente.')
     } catch {
-      setErrorMessage('No pudimos actualizar este perfil de usuario en este momento.')
+      setErrorMessage('No pudimos actualizar el perfil del usuario en este momento.')
     } finally {
-      setIsSaving(false)
+      setIsSavingProfile(false)
+    }
+  }
+
+  const handleRoleSave = async () => {
+    if (!selectedUser) {
+      setErrorMessage('Seleccioná un usuario para cambiar su rol.')
+      return
+    }
+
+    if (selectedUser.role === role) {
+      return
+    }
+
+    if (
+      isSelfDemotion({
+        actorUserId: currentUser?.id ?? null,
+        targetUserId: selectedUser.userId,
+        nextRole: role,
+      }) ||
+      isLastActiveAdminRoleDemotion({
+        currentRole: selectedUser.role,
+        nextRole: role,
+        isActive: selectedUser.isActive,
+        activeAdminCount,
+      })
+    ) {
+      setErrorMessage('No podés aplicar ese cambio de rol por una restricción de seguridad.')
+      return
+    }
+
+    const confirmChange = window.confirm('¿Confirmás el cambio de rol para este usuario?')
+    if (!confirmChange) {
+      return
+    }
+
+    setSuccessMessage(null)
+    setErrorMessage(null)
+    setIsSavingRole(true)
+
+    try {
+      const updated = await adminUpdateUserRole(selectedUser.userId, role)
+      setUsers((current) =>
+        current.map((item) =>
+          item.userId === updated.user_id
+            ? {
+                ...item,
+                role: updated.role,
+              }
+            : item,
+        ),
+      )
+      setSuccessMessage('Rol actualizado correctamente.')
+      await refreshAnalytics()
+    } catch {
+      setErrorMessage('No pudimos actualizar el rol. Verificá permisos o restricciones de seguridad.')
+    } finally {
+      setIsSavingRole(false)
+    }
+  }
+
+  const handleActivationToggle = async () => {
+    if (!selectedUser) {
+      setErrorMessage('Seleccioná un usuario para cambiar su estado.')
+      return
+    }
+
+    const nextState = !isActive
+
+    if (
+      isLastActiveAdminDeactivation({
+        role: selectedUser.role,
+        isActive: selectedUser.isActive,
+        nextIsActive: nextState,
+        activeAdminCount,
+      })
+    ) {
+      setErrorMessage('No podés desactivar al último administrador activo.')
+      return
+    }
+
+    const confirmMessage = nextState
+      ? '¿Confirmás reactivar este usuario?'
+      : '¿Confirmás desactivar este usuario?'
+
+    if (!window.confirm(confirmMessage)) {
+      return
+    }
+
+    setSuccessMessage(null)
+    setErrorMessage(null)
+    setIsSavingStatus(true)
+
+    try {
+      const updated = await adminSetUserActive(selectedUser.userId, nextState)
+      setUsers((current) =>
+        current.map((item) =>
+          item.userId === updated.user_id
+            ? {
+                ...item,
+                isActive: updated.is_active,
+              }
+            : item,
+        ),
+      )
+      setIsActive(updated.is_active)
+      setSuccessMessage(updated.is_active ? 'Usuario reactivado correctamente.' : 'Usuario desactivado correctamente.')
+      await refreshAnalytics()
+    } catch {
+      setErrorMessage('No pudimos cambiar el estado del usuario. Verificá permisos o restricciones de seguridad.')
+    } finally {
+      setIsSavingStatus(false)
     }
   }
 
@@ -93,36 +277,86 @@ export function AdminUsersPage() {
       <div>
         <h2 className="font-heading text-2xl font-semibold text-shell-text">Usuarios</h2>
         <p className="mt-2 text-sm text-shell-subtleText">
-          Edición básica de perfil únicamente (nombre y teléfono). Cambios de rol, desactivación y analítica quedan fuera de alcance.
+          Gestión administrativa de usuarios: directorio, roles globales, activación y analítica operativa.
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(220px,280px)_1fr]">
+      {errorMessage ? (
+        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>
+      ) : null}
+      {successMessage ? (
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{successMessage}</p>
+      ) : null}
+
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <article className="shell-surface rounded-xl border p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Total usuarios</p>
+          <p className="mt-2 text-2xl font-semibold text-shell-text">{analytics?.totalUsers ?? 0}</p>
+        </article>
+        <article className="shell-surface rounded-xl border p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Activos / Inactivos</p>
+          <p className="mt-2 text-2xl font-semibold text-shell-text">
+            {analytics?.activeUsers ?? 0} / {analytics?.inactiveUsers ?? 0}
+          </p>
+        </article>
+        <article className="shell-surface rounded-xl border p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Distribución por rol</p>
+          <p className="mt-2 text-sm text-shell-text">
+            Admin: {analytics?.adminUsers ?? 0} · Staff: {analytics?.staffUsers ?? 0} · Clientes: {analytics?.customerUsers ?? 0}
+          </p>
+        </article>
+        <article className="shell-surface rounded-xl border p-4 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Altas (30 días)</p>
+          <p className="mt-2 text-2xl font-semibold text-shell-text">{analytics?.recentSignups30Days ?? 0}</p>
+        </article>
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(260px,320px)_1fr]">
         <aside className="shell-surface rounded-2xl border p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-shell-text">Selector de usuarios</h3>
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-shell-text">Directorio de usuarios</h3>
+            <button
+              type="button"
+              onClick={() => void loadData()}
+              className="rounded-lg border border-shell-border px-2 py-1 text-xs font-semibold text-shell-text transition-micro hover:bg-shell-muted"
+            >
+              {commonCopy.retry}
+            </button>
+          </div>
 
           {isLoading ? <p className="mt-3 text-sm text-shell-subtleText">Cargando usuarios...</p> : null}
-          {!isLoading && profiles.length === 0 ? (
-            <p className="mt-3 text-sm text-shell-subtleText">No hay perfiles de usuario disponibles.</p>
+          {!isLoading && users.length === 0 ? (
+            <p className="mt-3 text-sm text-shell-subtleText">No hay usuarios disponibles para administrar.</p>
           ) : null}
 
           <ul className="mt-3 space-y-2">
-            {profiles.map((profile) => {
-              const active = profile.userId === selectedUserId
+            {users.map((user) => {
+              const selected = user.userId === selectedUserId
               return (
-                <li key={profile.userId}>
+                <li key={user.userId}>
                   <button
                     type="button"
-                    onClick={() => setSelectedUserId(profile.userId)}
+                    onClick={() => setSelectedUserId(user.userId)}
                     className={[
                       'w-full rounded-lg border px-3 py-2 text-left text-sm transition-micro',
-                      active
+                      selected
                         ? 'border-brand-primary bg-teal-50 text-shell-text'
                         : 'border-shell-border bg-white text-shell-subtleText hover:bg-shell-muted',
                     ].join(' ')}
                   >
-                    <p className="font-semibold">{profile.name || 'Usuario sin nombre'}</p>
-                    <p className="truncate text-xs">{profile.userId}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate font-semibold">{user.name || 'Usuario sin nombre'}</p>
+                      <span
+                        className={[
+                          'rounded-full px-2 py-0.5 text-xs font-semibold',
+                          user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700',
+                        ].join(' ')}
+                      >
+                        {user.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
+                    <p className="truncate text-xs">{user.email ?? user.userId}</p>
+                    <p className="mt-1 text-xs">{roleLabel(user.role)}</p>
                   </button>
                 </li>
               )
@@ -131,55 +365,105 @@ export function AdminUsersPage() {
         </aside>
 
         <div className="shell-surface rounded-2xl border p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-shell-text">Editar perfil seleccionado</h3>
+          <h3 className="text-lg font-semibold text-shell-text">Editar usuario seleccionado</h3>
 
-          {errorMessage ? (
-            <p className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>
-          ) : null}
-          {successMessage ? (
-            <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-              {successMessage}
-            </p>
-          ) : null}
+          {!selectedUser ? (
+            <p className="mt-4 text-sm text-shell-subtleText">Seleccioná un usuario para ver sus datos y acciones disponibles.</p>
+          ) : (
+            <>
+              <div className="mt-4 grid gap-4 rounded-lg border border-shell-border p-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Correo</p>
+                  <p className="text-sm text-shell-text">{selectedUser.email ?? 'Sin correo visible'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Último acceso</p>
+                  <p className="text-sm text-shell-text">{formatRelativeDate(selectedUser.lastSignInAt)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Alta</p>
+                  <p className="text-sm text-shell-text">{formatRelativeDate(selectedUser.createdAt)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Estado</p>
+                  <p className="text-sm text-shell-text">{isActive ? 'Activo' : 'Inactivo'}</p>
+                </div>
+              </div>
 
-          <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
-            <div>
-              <label htmlFor="admin-profile-name" className="mb-1 block text-sm font-semibold text-shell-text">
-                {commonCopy.nameLabel}
-              </label>
-              <input
-                id="admin-profile-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                disabled={!selectedProfile}
-                className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-shell-text disabled:cursor-not-allowed disabled:bg-slate-50"
-              />
-              {nameError ? <p className="mt-1 text-xs text-red-600">{nameError}</p> : null}
-            </div>
+              <form className="mt-5 space-y-4" onSubmit={handleProfileSubmit}>
+                <div>
+                  <label htmlFor="admin-profile-name" className="mb-1 block text-sm font-semibold text-shell-text">
+                    {commonCopy.nameLabel}
+                  </label>
+                  <input
+                    id="admin-profile-name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-shell-text"
+                  />
+                  {nameError ? <p className="mt-1 text-xs text-red-600">{nameError}</p> : null}
+                </div>
 
-            <div>
-              <label htmlFor="admin-profile-phone" className="mb-1 block text-sm font-semibold text-shell-text">
-                {commonCopy.phoneOptionalLabel}
-              </label>
-              <input
-                id="admin-profile-phone"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                disabled={!selectedProfile}
-                className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-shell-text disabled:cursor-not-allowed disabled:bg-slate-50"
-              />
-            </div>
+                <div>
+                  <label htmlFor="admin-profile-phone" className="mb-1 block text-sm font-semibold text-shell-text">
+                    {commonCopy.phoneOptionalLabel}
+                  </label>
+                  <input
+                    id="admin-profile-phone"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-shell-text"
+                  />
+                </div>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={!selectedProfile || isSaving}
-                className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-micro hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSaving ? commonCopy.saving : 'Guardar perfil de usuario'}
-              </button>
-            </div>
-          </form>
+                <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <div>
+                    <label htmlFor="admin-user-role" className="mb-1 block text-sm font-semibold text-shell-text">
+                      Rol global
+                    </label>
+                    <select
+                      id="admin-user-role"
+                      value={role}
+                      onChange={(event) => setRole(event.target.value as AdminManagedRole)}
+                      className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-shell-text"
+                    >
+                      <option value="customer">Cliente</option>
+                      <option value="staff">Staff</option>
+                      <option value="admin">Administrador</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void handleRoleSave()}
+                    disabled={isSavingRole}
+                    className="self-end rounded-lg border border-shell-border px-4 py-2 text-sm font-semibold text-shell-text transition-micro hover:bg-shell-muted disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSavingRole ? commonCopy.saving : 'Actualizar rol'}
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleActivationToggle()}
+                    disabled={isSavingStatus}
+                    className="rounded-lg border border-shell-border px-4 py-2 text-sm font-semibold text-shell-text transition-micro hover:bg-shell-muted disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSavingStatus ? commonCopy.saving : isActive ? 'Desactivar usuario' : 'Reactivar usuario'}
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingProfile}
+                    className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-micro hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {isSavingProfile ? commonCopy.saving : 'Guardar perfil de usuario'}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </div>
       </div>
     </section>
