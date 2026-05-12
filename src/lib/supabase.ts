@@ -31,6 +31,11 @@ export function initSupabase(): SupabaseClient {
         detectSessionInUrl: true,
         flowType: 'pkce',
       },
+      global: {
+        headers: {
+          'x-client-info': 'estetica-app/1.0',
+        },
+      },
     }
   )
 

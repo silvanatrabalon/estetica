@@ -9,6 +9,7 @@ import {
 } from '../services/businessSettings'
 import type { BusinessClosureType, BusinessHoursInput } from '../lib/businessSettings'
 import { commonCopy } from '../lib/uiCopy'
+import { useUser } from '../hooks/useUser'
 
 const dayLabels = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
 
@@ -58,6 +59,7 @@ function toDraft(closure: BusinessClosureRecord): ClosureDraft {
 }
 
 export function BusinessSettingsPage() {
+  const { isLoading: isUserLoading } = useUser()
   const [organizationId, setOrganizationId] = useState<string>('')
   const [name, setName] = useState('')
   const [timezone, setTimezone] = useState('UTC')
@@ -84,7 +86,9 @@ export function BusinessSettingsPage() {
     try {
       const data = await getBusinessSettings()
       applyLoadedData(data)
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('Failed to load business settings:', message)
       setErrorMessage('No pudimos cargar la configuracion del negocio en este momento.')
     } finally {
       setIsLoading(false)
@@ -105,8 +109,11 @@ export function BusinessSettingsPage() {
   }
 
   useEffect(() => {
-    void loadBusinessSettings()
-  }, [])
+    // Wait until user session is loaded before attempting to fetch business settings
+    if (!isUserLoading) {
+      void loadBusinessSettings()
+    }
+  }, [isUserLoading])
 
   const handleHourChange = (dayOfWeek: number, field: 'opensAt' | 'closesAt', value: string) => {
     setWeeklyHours((current) =>
