@@ -15,7 +15,7 @@ The system SHALL protect authenticated routes so unauthenticated users cannot ac
 - **THEN** the system redirects the user to the sign-in route
 
 ### Requirement: Role-Based Route Access Control
-The system SHALL enforce role-based route access for routes restricted to `customer`, `staff`, or `admin` roles, including admin-only operational settings routes and admin-only staff management routes.
+The system SHALL enforce role-based route access for routes restricted to `customer`, `staff`, or `admin` roles, including admin-only operational settings routes, admin-only staff management routes, and admin-only staff availability configuration routes.
 
 #### Scenario: Authorized role accesses restricted route
 - **WHEN** an authenticated user with a permitted role requests a restricted route
@@ -32,6 +32,14 @@ The system SHALL enforce role-based route access for routes restricted to `custo
 #### Scenario: Admin accesses staff management route
 - **WHEN** an authenticated user with role `admin` requests the staff management route
 - **THEN** the system renders the admin-only staff management experience
+
+#### Scenario: Admin accesses staff availability configuration route
+- **WHEN** an authenticated user with role `admin` requests the staff availability configuration route
+- **THEN** the system renders the admin-only staff availability configuration experience
+
+#### Scenario: Non-admin attempts staff availability configuration route
+- **WHEN** an authenticated user without role `admin` attempts to access the staff availability configuration route
+- **THEN** the system redirects the user to `/unauthorized`
 
 #### Scenario: Non-admin attempts staff management route
 - **WHEN** an authenticated user without role `admin` attempts to access the staff management route

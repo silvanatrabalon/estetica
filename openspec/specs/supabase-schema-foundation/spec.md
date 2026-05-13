@@ -15,7 +15,7 @@ The system SHALL manage all PostgreSQL schema evolution through ordered, version
 - **THEN** the change is implemented through a new versioned migration file rather than manual dashboard edits
 
 ### Requirement: Foundation Relational Schema
-The system SHALL define an MVP-ready foundation relational schema with explicit primary keys, foreign keys, and integrity constraints. The schema MUST support canonical single-business persistence for the salon, including organization-backed business identity, weekly business hours, and business closure exceptions. Admin-accessible RPC functions MUST be defined for staff member management operations (list, create, update, set active status) including auto-assignment of the `staff` role on staff member creation.
+The system SHALL define an MVP-ready foundation relational schema with explicit primary keys, foreign keys, and integrity constraints. The schema MUST support canonical single-business persistence for the salon, including organization-backed business identity, weekly business hours, and business closure exceptions. Admin-accessible RPC functions MUST be defined for staff member management operations (list, create, update, set active status) including auto-assignment of the `staff` role on staff member creation. The schema MUST also include tables for per-staff recurring availability templates and one-off exception dates, with admin-only SECURITY DEFINER RPC functions for all availability mutations.
 
 #### Scenario: Foundation schema is created
 - **WHEN** foundation migrations are applied
@@ -28,6 +28,10 @@ The system SHALL define an MVP-ready foundation relational schema with explicit 
 #### Scenario: Admin staff RPC functions are created
 - **WHEN** staff-professionals-management schema changes are applied
 - **THEN** the resulting schema includes admin-only SECURITY DEFINER RPC functions for listing staff members joined with profile and user role data, creating a staff member with auto role assignment, updating a staff member's display name, and setting a staff member's active status
+
+#### Scenario: Staff availability schema is created
+- **WHEN** staff-availability-configuration schema changes are applied
+- **THEN** the resulting schema includes `staff_schedules` (recurring weekly template per staff, one row per weekday) and `staff_schedule_exceptions` (one-off date overrides per staff), with integrity constraints and admin-only SECURITY DEFINER RPC functions for all availability mutations
 
 ### Requirement: Initial Index Strategy
 The system MUST include an initial set of indexes based on expected MVP query patterns and uniqueness guarantees.
