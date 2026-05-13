@@ -241,7 +241,7 @@ Sistema de Turnos — Ordered by Dependency
 - Unit tests: `TimeRangeInput` validation (start < end), weekly schedule validation (min one working day), duplicate exception date rejection, `useStaffAvailability` hook state transitions (load, save, add/remove exception, error states)
 - Integration tests: admin can load, edit, and save weekly schedule; admin can add and remove exceptions; dirty-state indicator on unsaved changes; non-admin access denied (RoleGuard regression)
 - SQL smoke/RLS tests: authenticated non-admin can SELECT but cannot directly INSERT/UPDATE/DELETE; admin RPCs succeed; non-admin RPC calls raise permission error; constraint violations on invalid hours
-- [ ]
+- [x] `staff-availability-configuration` (fe52155)
 
 ### 13. Multi-Role Users & Role-at-Login Selection
 **Description:** Allow a single user account to hold multiple roles simultaneously (e.g., `admin` + `staff`). When a user with multiple roles signs in, they are presented with a role selector to choose which context to enter for that session. The active role governs the entire UI experience — navigation, route access, and data visibility — until they switch or sign out. A role switch option is available in the user menu without requiring a full sign-out.
