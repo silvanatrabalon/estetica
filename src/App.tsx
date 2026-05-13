@@ -22,6 +22,7 @@ import {
   ProfilePage,
   ProfileSetupPage,
   SignInPage,
+  StaffAvailabilityPage,
   StaffClientsPage,
   StaffSchedulePage,
   UnauthorizedPage,
@@ -75,6 +76,7 @@ function AppContent() {
             <Route path="/admin/settings/business" element={<BusinessSettingsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/staff" element={<AdminStaffPage />} />
+            <Route path="/admin/staff/:staffId/availability" element={<StaffAvailabilityPage />} />
             <Route path="/admin/services" element={<AdminServicesPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
           </Route>

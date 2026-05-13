@@ -203,7 +203,94 @@ Sistema de Turnos — Ordered by Dependency
 - [x] `staff-professionals-management` (9ef6b83)
 
 ### 12. Staff Availability Configuration
-**Description:** Define weekly availability rules, set working hours, block unavailable dates, exception dates (holidays).
+**Description:** Allow admins to configure each staff member's recurring weekly availability template and one-off exception dates (days off, holidays, custom hours). The weekly template is set once and repeats indefinitely — it only changes when the admin updates it. This data feeds the slot generator (#16) so customers can see per-staff availability when choosing a service slot.
+
+**Scope (MVP):**
+- Recurring weekly template per staff member: which days they work and their start/end time — configured once, applies indefinitely until changed
+- Exception dates per staff member: a specific date is a full day off or has custom hours (overrides the recurring weekly template for that date only)
+- Admin-only configuration: no staff self-service in this MVP
+- New route: `/admin/staff/:staffId/availability` accessible from the staff directory
+- Weekly schedule is saved as a full 7-day unit via admin RPC
+- Exception dates are added/removed individually
+- All mutations via admin-only SECURITY DEFINER RPC functions (following #11 pattern)
+- Spanish user-facing copy for all states and feedback
+
+**Data Model:**
+- New table `staff_schedules`: one row per staff per weekday (mirrors `business_hours` structure — `is_working`, `starts_at`, `ends_at`)
+- New table `staff_schedule_exceptions`: one row per staff per date (`exception_type`: `day_off` or `custom_hours`, optional `starts_at`/`ends_at`)
+- Both tables: authenticated SELECT, no direct DML — all writes through SECURITY DEFINER RPCs
+- Two migrations: `_tables` (tables, indexes, grants, RLS) and `_rpc` (admin functions)
+
+**Admin RPC Functions:**
+- `admin_set_staff_schedule(staff_member_id, schedule_json)` — bulk replace all 7 days atomically
+- `admin_upsert_staff_schedule_exception(staff_member_id, date, type, starts_at, ends_at, reason)` — insert or update one exception
+- `admin_delete_staff_schedule_exception(staff_member_id, date)` — remove one exception
+
+**Slot Generator Integration (for #16):**
+- Slot generator reads: weekly pattern filtered by `is_working = true` + exceptions in the target date range
+- Merge logic: exception wins if present for a date, else fall back to weekly pattern
+- Timezone context: `organizations.timezone` must be used to convert wall-clock `time` values to UTC
+
+**Out of Scope (for this item):**
+- Service-to-staff assignment (→ #14)
+- Slot generation and booking availability (→ #16)
+- Staff self-service schedule editing
+- Break or buffer times within a working day (→ #30)
+
+**Testing Scope:**
+- Unit tests: `TimeRangeInput` validation (start < end), weekly schedule validation (min one working day), duplicate exception date rejection, `useStaffAvailability` hook state transitions (load, save, add/remove exception, error states)
+- Integration tests: admin can load, edit, and save weekly schedule; admin can add and remove exceptions; dirty-state indicator on unsaved changes; non-admin access denied (RoleGuard regression)
+- SQL smoke/RLS tests: authenticated non-admin can SELECT but cannot directly INSERT/UPDATE/DELETE; admin RPCs succeed; non-admin RPC calls raise permission error; constraint violations on invalid hours
+- [ ]
+
+### 13. Multi-Role Users & Role-at-Login Selection
+**Description:** Allow a single user account to hold multiple roles simultaneously (e.g., `admin` + `staff`). When a user with multiple roles signs in, they are presented with a role selector to choose which context to enter for that session. The active role governs the entire UI experience — navigation, route access, and data visibility — until they switch or sign out. A role switch option is available in the user menu without requiring a full sign-out.
+
+**Motivation:**
+Today `user_roles` enforces a single role per user (`user_id PRIMARY KEY`). An owner-operator who is both admin and staff must choose one role permanently, losing access to the other's UI without a role change by another admin. This feature enables the natural workflow of a business owner who administers the app and also works as a practitioner.
+
+**Scope (MVP):**
+- Migrate `user_roles` to a multi-role model: replace the single-row-per-user PK with a composite key `(user_id, role)` — one row per role assignment
+- Admin panel: assign/revoke individual roles per user (replacing the current single-role dropdown)
+- At login, if the authenticated user has exactly one role → enter directly (no selector shown)
+- At login, if the user has multiple roles → show a role selector screen before entering the app
+- Active role stored in session context (not persisted to DB) — resets on sign-out
+- User menu includes a "Cambiar modo" option to switch active role mid-session without signing out
+- All RLS helper functions (`is_admin()`, `is_staff_or_admin()`, `current_app_role()`) updated to work with the new multi-role table
+- All existing RLS policies remain valid — they rely on the helper functions, not the table structure directly
+- Default role on first sign-up remains `customer` (single row insert)
+
+**Data Model Changes:**
+- `user_roles`: drop `PRIMARY KEY (user_id)`, add `PRIMARY KEY (user_id, role)` composite key
+- New unique index `ux_user_roles_user_role` on `(user_id, role)`
+- Keep `granted_by_user_id`, `created_at`, `updated_at` per role assignment row
+- `current_app_role()` remains useful for single-role checks; add `get_user_roles()` to return all assigned roles for the current user
+- `is_admin()` / `is_staff_or_admin()`: update to query for role existence in the multi-row set
+
+**Frontend Changes:**
+- `UserContext`: extend `role` state to hold `activeRole` (the chosen role for this session) alongside `roles` (all assigned roles)
+- New `RoleSelector` component: shown post-authentication when `roles.length > 1`; clean, minimal UI with role cards
+- User menu: add "Cambiar modo" entry visible when `roles.length > 1`; switches `activeRole` in context
+- `RoleGuard`, navigation config, routing policy: use `activeRole` instead of `role` (transparent after context refactor)
+- Admin Users panel: replace role dropdown with multi-role checkboxes; show all assigned roles per user
+
+**Security Considerations:**
+- Active role selection is client-side UX only — RLS always enforces all assigned roles server-side (a user with admin role can always use admin RPCs regardless of which active role they chose)
+- Admin cannot assign roles above their own privilege level
+- "Last admin" lockout: block revoking the `admin` role if the target user is the only remaining admin
+
+**Out of Scope:**
+- Organization-scoped role assignments (multi-tenant)
+- Role inheritance hierarchy (roles remain flat)
+- Per-session role restriction at the DB level (RLS always reflects full assigned roles)
+- Staff self-service role requests
+
+**Testing Scope:**
+- Unit tests: multi-role context state transitions, `RoleSelector` rendering and selection, role switch in user menu
+- Integration tests: login flow with single role (no selector), login flow with multiple roles (selector shown), mid-session role switch
+- RLS smoke tests: multi-role table migration; `is_admin()` and `is_staff_or_admin()` correctness; admin-only RPCs still enforced
+- Admin panel tests: assign second role, revoke role, last-admin lockout
+
 - [ ]
 
 ---
@@ -332,8 +419,8 @@ Sistema de Turnos — Ordered by Dependency
 **In Progress:** 0  
 **Pending:** 24
 
-**Current Phase:** Phase 2 (Core Infrastructure)  
-**Next Feature:** #10 (Business Settings & Profile)
+**Current Phase:** Phase 3 (Business Configuration)  
+**Next Feature:** #12 (Staff Availability Configuration)
 
 ---
 

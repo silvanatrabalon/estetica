@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   adminCreateStaffMember,
   adminSetStaffActive,
@@ -19,6 +20,7 @@ function validateDisplayName(value: string): string | null {
 }
 
 export function AdminStaffPage() {
+  const navigate = useNavigate()
   const [staffMembers, setStaffMembers] = useState<AdminStaffMember[]>([])
   const [allUsers, setAllUsers] = useState<AdminManagedUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -308,6 +310,13 @@ export function AdminStaffPage() {
                         className="text-blue-600 hover:text-blue-800 text-xs font-medium"
                       >
                         Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/admin/staff/${member.id}/availability`)}
+                        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                      >
+                        Disponibilidad
                       </button>
                       <button
                         type="button"
