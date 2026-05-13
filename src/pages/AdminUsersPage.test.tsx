@@ -8,21 +8,23 @@ import { mockSessions } from '../hooks/__test-utils__/fixtures'
 const mockListAdminUsers = vi.fn()
 const mockGetAdminUserAnalytics = vi.fn()
 const mockAdminUpdateUserProfile = vi.fn()
-const mockAdminUpdateUserRole = vi.fn()
+const mockAdminAssignUserRole = vi.fn()
+const mockAdminRevokeUserRole = vi.fn()
 const mockAdminSetUserActive = vi.fn()
 
 vi.mock('../services/adminUsers', () => ({
   listAdminUsers: (...args: unknown[]) => mockListAdminUsers(...args),
   getAdminUserAnalytics: (...args: unknown[]) => mockGetAdminUserAnalytics(...args),
   adminUpdateUserProfile: (...args: unknown[]) => mockAdminUpdateUserProfile(...args),
-  adminUpdateUserRole: (...args: unknown[]) => mockAdminUpdateUserRole(...args),
+  adminAssignUserRole: (...args: unknown[]) => mockAdminAssignUserRole(...args),
+  adminRevokeUserRole: (...args: unknown[]) => mockAdminRevokeUserRole(...args),
   adminSetUserActive: (...args: unknown[]) => mockAdminSetUserActive(...args),
 }))
 
 function renderAdminUsersPage() {
   return render(
     <MemoryRouter>
-      <TestUserProvider user={mockSessions.authenticatedAdmin.user} role="admin" isLoading={false}>
+      <TestUserProvider user={mockSessions.authenticatedAdmin.user} roles={['admin']} activeRole="admin" isLoading={false}>
         <AdminUsersPage />
       </TestUserProvider>
     </MemoryRouter>,
@@ -54,7 +56,7 @@ describe('AdminUsersPage', () => {
         lastSignInAt: null,
         name: 'Ana',
         phone: null,
-        role: 'customer',
+        roles: ['customer'],
         isActive: true,
       },
       {
@@ -64,7 +66,7 @@ describe('AdminUsersPage', () => {
         lastSignInAt: null,
         name: 'Bruno',
         phone: '+54 11 9999 0000',
-        role: 'staff',
+        roles: ['staff'],
         isActive: true,
       },
     ])
@@ -88,7 +90,7 @@ describe('AdminUsersPage', () => {
         lastSignInAt: null,
         name: 'Ana',
         phone: null,
-        role: 'customer',
+        roles: ['customer'],
         isActive: true,
       },
     ])
@@ -113,7 +115,7 @@ describe('AdminUsersPage', () => {
     })
   })
 
-  it('changes global role with confirmation', async () => {
+  it('assigns a role with confirmation', async () => {
     mockListAdminUsers.mockResolvedValue([
       {
         userId: 'u-1',
@@ -122,7 +124,7 @@ describe('AdminUsersPage', () => {
         lastSignInAt: null,
         name: 'Ana',
         phone: null,
-        role: 'customer',
+        roles: ['customer'],
         isActive: true,
       },
       {
@@ -132,29 +134,27 @@ describe('AdminUsersPage', () => {
         lastSignInAt: null,
         name: 'Admin',
         phone: null,
-        role: 'admin',
+        roles: ['admin'],
         isActive: true,
       },
     ])
 
-    mockAdminUpdateUserRole.mockResolvedValue({
-      user_id: 'u-1',
-      role: 'staff',
-      is_active: true,
-    })
+    mockAdminAssignUserRole.mockResolvedValue(undefined)
 
     renderAdminUsersPage()
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Rol global')).toBeDefined()
+      expect(screen.getByText('Roles asignados')).toBeDefined()
     })
 
-    fireEvent.change(screen.getByLabelText('Rol global'), { target: { value: 'staff' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Actualizar rol' }))
+    // Ana is selected by default - check the 'staff' checkbox to assign
+    const checkboxes = screen.getAllByRole('checkbox')
+    // customer checkbox (index 0) should be checked, staff (index 1) unchecked
+    fireEvent.click(checkboxes[1]) // assign staff role
 
     await waitFor(() => {
-      expect(mockAdminUpdateUserRole).toHaveBeenCalledWith('u-1', 'staff')
-      expect(screen.getByText('Rol actualizado correctamente.')).toBeDefined()
+      expect(mockAdminAssignUserRole).toHaveBeenCalledWith('u-1', 'staff')
+      expect(screen.getByText('Roles actualizados correctamente.')).toBeDefined()
     })
   })
 
@@ -167,7 +167,7 @@ describe('AdminUsersPage', () => {
         lastSignInAt: null,
         name: 'Ana',
         phone: null,
-        role: 'customer',
+        roles: ['customer'],
         isActive: true,
       },
       {
@@ -177,7 +177,7 @@ describe('AdminUsersPage', () => {
         lastSignInAt: null,
         name: 'Admin',
         phone: null,
-        role: 'admin',
+        roles: ['admin'],
         isActive: true,
       },
     ])

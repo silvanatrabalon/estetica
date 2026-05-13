@@ -45,10 +45,17 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
   // Staff-specific navigation
   staff: [
     {
+      id: 'staff-appointments',
+      label: navigationCopy.staffAppointments,
+      href: '/staff/appointments',
+      icon: undefined,
+      roles: ['staff', 'admin'],
+    },
+    {
       id: 'schedule',
       label: navigationCopy.schedule,
       href: '/staff/schedule',
-      icon: undefined, // TODO: Add calendar icon
+      icon: undefined,
       roles: ['staff', 'admin'],
     },
     {

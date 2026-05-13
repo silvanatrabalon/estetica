@@ -11,7 +11,7 @@ describe('adminUserPolicies', () => {
       isSelfDemotion({
         actorUserId: 'admin-1',
         targetUserId: 'admin-1',
-        nextRole: 'staff',
+        nextRoles: ['staff'],
       }),
     ).toBe(true)
 
@@ -19,7 +19,7 @@ describe('adminUserPolicies', () => {
       isSelfDemotion({
         actorUserId: 'admin-1',
         targetUserId: 'admin-1',
-        nextRole: 'admin',
+        nextRoles: ['admin'],
       }),
     ).toBe(false)
   })
@@ -27,8 +27,8 @@ describe('adminUserPolicies', () => {
   it('detects last-active-admin demotion', () => {
     expect(
       isLastActiveAdminRoleDemotion({
-        currentRole: 'admin',
-        nextRole: 'customer',
+        currentRoles: ['admin'],
+        nextRoles: ['customer'],
         isActive: true,
         activeAdminCount: 1,
       }),
@@ -36,8 +36,8 @@ describe('adminUserPolicies', () => {
 
     expect(
       isLastActiveAdminRoleDemotion({
-        currentRole: 'admin',
-        nextRole: 'staff',
+        currentRoles: ['admin'],
+        nextRoles: ['staff'],
         isActive: true,
         activeAdminCount: 2,
       }),
@@ -47,7 +47,7 @@ describe('adminUserPolicies', () => {
   it('detects last-active-admin deactivation', () => {
     expect(
       isLastActiveAdminDeactivation({
-        role: 'admin',
+        roles: ['admin'],
         isActive: true,
         nextIsActive: false,
         activeAdminCount: 1,
@@ -56,7 +56,7 @@ describe('adminUserPolicies', () => {
 
     expect(
       isLastActiveAdminDeactivation({
-        role: 'admin',
+        roles: ['admin'],
         isActive: true,
         nextIsActive: false,
         activeAdminCount: 3,

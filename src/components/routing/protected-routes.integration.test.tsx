@@ -16,9 +16,11 @@ function renderProtectedRoutes(initialPath: string, role: 'customer' | 'staff' |
           ? mockSessions.authenticatedAdmin.user
           : null
 
+  const roles = role ? [role] : []
+
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
-      <TestUserProvider user={user} role={role} isLoading={false}>
+      <TestUserProvider user={user} roles={roles} activeRole={role} isLoading={false}>
         <Routes>
           <Route path="/signin" element={<div>Sign in page</div>} />
           <Route path="/unauthorized" element={<div>Unauthorized page</div>} />

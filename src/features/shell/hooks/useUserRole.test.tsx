@@ -11,7 +11,8 @@ describe('useUserRole hook', () => {
       const wrapper = ({ children }: { children: ReactNode }) => (
         <AllTestContextProviders
           user={mockSessions.authenticatedCustomer.user}
-          role="customer"
+          roles={['customer']}
+          activeRole="customer"
         >
           {children}
         </AllTestContextProviders>
@@ -26,7 +27,8 @@ describe('useUserRole hook', () => {
       const wrapper = ({ children }: { children: ReactNode }) => (
         <AllTestContextProviders
           user={mockSessions.authenticatedStaff.user}
-          role="staff"
+          roles={['staff']}
+          activeRole="staff"
         >
           {children}
         </AllTestContextProviders>
@@ -41,7 +43,8 @@ describe('useUserRole hook', () => {
       const wrapper = ({ children }: { children: ReactNode }) => (
         <AllTestContextProviders
           user={mockSessions.authenticatedAdmin.user}
-          role="admin"
+          roles={['admin']}
+          activeRole="admin"
         >
           {children}
         </AllTestContextProviders>
@@ -56,7 +59,7 @@ describe('useUserRole hook', () => {
   describe('when user is not authenticated', () => {
     it('should return null when not authenticated', () => {
       const wrapper = ({ children }: { children: ReactNode }) => (
-        <AllTestContextProviders user={null} role={null}>
+        <AllTestContextProviders user={null} roles={[]} activeRole={null}>
           {children}
         </AllTestContextProviders>
       )
@@ -66,11 +69,12 @@ describe('useUserRole hook', () => {
       expect(result.current).toBeNull()
     })
 
-    it('should return null when user exists but role is null', () => {
+    it('should return null when user exists but activeRole is null', () => {
       const wrapper = ({ children }: { children: ReactNode }) => (
         <AllTestContextProviders
           user={mockSessions.authenticatedCustomer.user}
-          role={null}
+          roles={[]}
+          activeRole={null}
         >
           {children}
         </AllTestContextProviders>
@@ -97,7 +101,8 @@ describe('useUserRole hook', () => {
       const wrapper = ({ children }: { children: ReactNode }) => (
         <AllTestContextProviders
           user={mockSessions.authenticatedCustomer.user}
-          role="customer"
+          roles={['customer']}
+          activeRole="customer"
         >
           {children}
         </AllTestContextProviders>
@@ -112,7 +117,8 @@ describe('useUserRole hook', () => {
       const wrapper = ({ children }: { children: ReactNode }) => (
         <AllTestContextProviders
           user={mockSessions.authenticatedAdmin.user}
-          role="admin"
+          roles={['admin']}
+          activeRole="admin"
         >
           {children}
         </AllTestContextProviders>
@@ -131,7 +137,8 @@ describe('useUserRole hook', () => {
       const wrapper = ({ children }: { children: ReactNode }) => (
         <AllTestContextProviders
           user={mockSessions.authenticatedCustomer.user}
-          role="customer"
+          roles={['customer']}
+          activeRole="customer"
         >
           {children}
         </AllTestContextProviders>

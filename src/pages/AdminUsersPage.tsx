@@ -7,9 +7,10 @@ import {
   isSelfDemotion,
 } from '../lib/adminUserPolicies'
 import {
+  adminAssignUserRole,
+  adminRevokeUserRole,
   adminSetUserActive,
   adminUpdateUserProfile,
-  adminUpdateUserRole,
   getAdminUserAnalytics,
   listAdminUsers,
   type AdminManagedRole,
@@ -41,6 +42,8 @@ function roleLabel(role: AdminManagedRole): string {
   return 'Cliente'
 }
 
+const ALL_ROLES: AdminManagedRole[] = ['customer', 'staff', 'admin']
+
 export function AdminUsersPage() {
   const { user: currentUser } = useUser()
   const [users, setUsers] = useState<AdminManagedUser[]>([])
@@ -48,7 +51,6 @@ export function AdminUsersPage() {
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [role, setRole] = useState<AdminManagedRole>('customer')
   const [isActive, setIsActive] = useState(true)
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingProfile, setIsSavingProfile] = useState(false)
@@ -64,7 +66,7 @@ export function AdminUsersPage() {
   )
 
   const activeAdminCount = useMemo(
-    () => users.filter((user) => user.role === 'admin' && user.isActive).length,
+    () => users.filter((user) => user.roles.includes('admin') && user.isActive).length,
     [users],
   )
 
@@ -97,14 +99,12 @@ export function AdminUsersPage() {
     if (!selectedUser) {
       setName('')
       setPhone('')
-      setRole('customer')
       setIsActive(true)
       return
     }
 
     setName(selectedUser.name)
     setPhone(selectedUser.phone ?? '')
-    setRole(selectedUser.role)
     setIsActive(selectedUser.isActive)
   }, [selectedUser])
 
@@ -161,34 +161,46 @@ export function AdminUsersPage() {
     }
   }
 
-  const handleRoleSave = async () => {
+  const handleRoleToggle = async (toggledRole: AdminManagedRole, shouldAssign: boolean) => {
     if (!selectedUser) {
-      setErrorMessage('Seleccioná un usuario para cambiar su rol.')
+      setErrorMessage('Seleccioná un usuario para cambiar sus roles.')
       return
     }
 
-    if (selectedUser.role === role) {
+    const currentRoles = selectedUser.roles
+    const nextRoles = shouldAssign
+      ? [...new Set([...currentRoles, toggledRole])]
+      : currentRoles.filter((r) => r !== toggledRole)
+
+    // Must have at least one role
+    if (nextRoles.length === 0) {
+      setErrorMessage('El usuario debe tener al menos un rol asignado.')
       return
     }
 
     if (
-      isSelfDemotion({
+      !shouldAssign &&
+      (isSelfDemotion({
         actorUserId: currentUser?.id ?? null,
         targetUserId: selectedUser.userId,
-        nextRole: role,
+        nextRoles,
       }) ||
-      isLastActiveAdminRoleDemotion({
-        currentRole: selectedUser.role,
-        nextRole: role,
-        isActive: selectedUser.isActive,
-        activeAdminCount,
-      })
+        isLastActiveAdminRoleDemotion({
+          currentRoles,
+          nextRoles,
+          isActive: selectedUser.isActive,
+          activeAdminCount,
+        }))
     ) {
       setErrorMessage('No podés aplicar ese cambio de rol por una restricción de seguridad.')
       return
     }
 
-    const confirmChange = window.confirm('¿Confirmás el cambio de rol para este usuario?')
+    const confirmChange = window.confirm(
+      shouldAssign
+        ? `¿Confirmás asignar el rol "${roleLabel(toggledRole)}" a este usuario?`
+        : `¿Confirmás quitar el rol "${roleLabel(toggledRole)}" de este usuario?`,
+    )
     if (!confirmChange) {
       return
     }
@@ -198,18 +210,18 @@ export function AdminUsersPage() {
     setIsSavingRole(true)
 
     try {
-      const updated = await adminUpdateUserRole(selectedUser.userId, role)
+      if (shouldAssign) {
+        await adminAssignUserRole(selectedUser.userId, toggledRole)
+      } else {
+        await adminRevokeUserRole(selectedUser.userId, toggledRole)
+      }
+
       setUsers((current) =>
         current.map((item) =>
-          item.userId === updated.user_id
-            ? {
-                ...item,
-                role: updated.role,
-              }
-            : item,
+          item.userId === selectedUser.userId ? { ...item, roles: nextRoles } : item,
         ),
       )
-      setSuccessMessage('Rol actualizado correctamente.')
+      setSuccessMessage('Roles actualizados correctamente.')
       await refreshAnalytics()
     } catch {
       setErrorMessage('No pudimos actualizar el rol. Verificá permisos o restricciones de seguridad.')
@@ -228,7 +240,7 @@ export function AdminUsersPage() {
 
     if (
       isLastActiveAdminDeactivation({
-        role: selectedUser.role,
+        roles: selectedUser.roles,
         isActive: selectedUser.isActive,
         nextIsActive: nextState,
         activeAdminCount,
@@ -356,7 +368,7 @@ export function AdminUsersPage() {
                       </span>
                     </div>
                     <p className="truncate text-xs">{user.email ?? user.userId}</p>
-                    <p className="mt-1 text-xs">{roleLabel(user.role)}</p>
+                    <p className="mt-1 text-xs">{user.roles.map(roleLabel).join(', ')}</p>
                   </button>
                 </li>
               )
@@ -416,31 +428,28 @@ export function AdminUsersPage() {
                   />
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                  <div>
-                    <label htmlFor="admin-user-role" className="mb-1 block text-sm font-semibold text-shell-text">
-                      Rol global
-                    </label>
-                    <select
-                      id="admin-user-role"
-                      value={role}
-                      onChange={(event) => setRole(event.target.value as AdminManagedRole)}
-                      className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-shell-text"
-                    >
-                      <option value="customer">Cliente</option>
-                      <option value="staff">Staff</option>
-                      <option value="admin">Administrador</option>
-                    </select>
+                <div>
+                  <p className="mb-1 block text-sm font-semibold text-shell-text">Roles asignados</p>
+                  <div className="flex flex-wrap gap-3">
+                    {ALL_ROLES.map((r) => {
+                      const checked = selectedUser.roles.includes(r)
+                      return (
+                        <label
+                          key={r}
+                          className="flex cursor-pointer items-center gap-2 rounded-lg border border-shell-border px-3 py-2 text-sm text-shell-text hover:bg-shell-muted"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={isSavingRole}
+                            onChange={(e) => void handleRoleToggle(r, e.target.checked)}
+                            className="h-4 w-4 rounded accent-teal-600"
+                          />
+                          {roleLabel(r)}
+                        </label>
+                      )
+                    })}
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => void handleRoleSave()}
-                    disabled={isSavingRole}
-                    className="self-end rounded-lg border border-shell-border px-4 py-2 text-sm font-semibold text-shell-text transition-micro hover:bg-shell-muted disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isSavingRole ? commonCopy.saving : 'Actualizar rol'}
-                  </button>
                 </div>
 
                 <div className="flex flex-wrap justify-end gap-2 pt-2">

@@ -1,5 +1,5 @@
 import type { User } from '@supabase/supabase-js'
-import type { AppRole } from '../context/UserContext'
+import type { AppRole } from '../../context/UserContext'
 
 /**
  * Reusable test fixtures for hook testing
@@ -45,31 +45,36 @@ export const mockRoles: Record<string, AppRole> = {
 export const mockSessions = {
   authenticatedCustomer: {
     user: mockUsers.customer,
-    role: 'customer' as AppRole,
+    roles: ['customer'] as AppRole[],
+    activeRole: 'customer' as AppRole,
     isLoading: false,
   },
   
   authenticatedStaff: {
     user: mockUsers.staff,
-    role: 'staff' as AppRole,
+    roles: ['staff'] as AppRole[],
+    activeRole: 'staff' as AppRole,
     isLoading: false,
   },
 
   authenticatedAdmin: {
     user: mockUsers.admin,
-    role: 'admin' as AppRole,
+    roles: ['admin'] as AppRole[],
+    activeRole: 'admin' as AppRole,
     isLoading: false,
   },
 
   unauthenticated: {
     user: null,
-    role: null,
+    roles: [] as AppRole[],
+    activeRole: null,
     isLoading: false,
   },
 
   loading: {
     user: null,
-    role: null,
+    roles: [] as AppRole[],
+    activeRole: null,
     isLoading: true,
   },
 }

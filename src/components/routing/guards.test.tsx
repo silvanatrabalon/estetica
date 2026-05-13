@@ -11,7 +11,7 @@ describe('AuthGuard', () => {
   it('redirects unauthenticated users to sign-in', () => {
     render(
       <MemoryRouter initialEntries={['/dashboard']}>
-        <TestUserProvider user={null} role={null} isLoading={false}>
+        <TestUserProvider user={null} roles={[]} activeRole={null} isLoading={false}>
           <Routes>
             <Route path="/signin" element={<div>Sign in page</div>} />
             <Route element={<AuthGuard />}>
@@ -28,7 +28,7 @@ describe('AuthGuard', () => {
   it('renders protected route when authenticated', () => {
     render(
       <MemoryRouter initialEntries={['/dashboard']}>
-        <TestUserProvider user={mockSessions.authenticatedCustomer.user} role="customer" isLoading={false}>
+        <TestUserProvider user={mockSessions.authenticatedCustomer.user} roles={['customer']} activeRole="customer" isLoading={false}>
           <Routes>
             <Route path="/signin" element={<div>Sign in page</div>} />
             <Route element={<AuthGuard />}>
@@ -47,7 +47,7 @@ describe('RoleGuard', () => {
   it('redirects non-permitted role to unauthorized route', () => {
     render(
       <MemoryRouter initialEntries={['/admin/users']}>
-        <TestUserProvider user={mockSessions.authenticatedStaff.user} role="staff" isLoading={false}>
+        <TestUserProvider user={mockSessions.authenticatedStaff.user} roles={['staff']} activeRole="staff" isLoading={false}>
           <Routes>
             <Route path="/unauthorized" element={<div>Unauthorized</div>} />
             <Route element={<RoleGuard allowedRoles={['admin']} />}>
@@ -68,7 +68,8 @@ describe('RoleGuard', () => {
       <MemoryRouter initialEntries={['/admin/users']}>
         <TestUserProvider
           user={mockSessions.authenticatedAdmin.user}
-          role={null}
+          roles={[]}
+          activeRole={null}
           isLoading={false}
           onRetryRoleResolution={retryRoleResolution}
         >
@@ -91,7 +92,7 @@ describe('PublicOnlyGuard', () => {
   it('redirects authenticated user away from sign-in route', () => {
     render(
       <MemoryRouter initialEntries={['/signin']}>
-        <TestUserProvider user={mockSessions.authenticatedAdmin.user} role="admin" isLoading={false}>
+        <TestUserProvider user={mockSessions.authenticatedAdmin.user} roles={['admin']} activeRole="admin" isLoading={false}>
           <Routes>
             <Route element={<PublicOnlyGuard />}>
               <Route path="/signin" element={<div>Sign in page</div>} />
@@ -108,7 +109,7 @@ describe('PublicOnlyGuard', () => {
   it('renders sign-in route for unauthenticated users', () => {
     render(
       <MemoryRouter initialEntries={['/signin']}>
-        <TestUserProvider user={null} role={null} isLoading={false}>
+        <TestUserProvider user={null} roles={[]} activeRole={null} isLoading={false}>
           <Routes>
             <Route element={<PublicOnlyGuard />}>
               <Route path="/signin" element={<div>Sign in page</div>} />

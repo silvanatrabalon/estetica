@@ -45,7 +45,7 @@ function createSettingsResponse(overrides?: Partial<Awaited<ReturnType<typeof mo
 function renderBusinessSettingsPage() {
   return render(
     <MemoryRouter>
-      <TestUserProvider user={mockSessions.authenticatedAdmin.user} role="admin" isLoading={false}>
+      <TestUserProvider user={mockSessions.authenticatedAdmin.user} roles={['admin']} activeRole="admin" isLoading={false}>
         <BusinessSettingsPage />
       </TestUserProvider>
     </MemoryRouter>,

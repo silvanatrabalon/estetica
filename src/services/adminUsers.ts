@@ -10,7 +10,7 @@ export interface AdminManagedUser {
   lastSignInAt: string | null
   name: string
   phone: string | null
-  role: AdminManagedRole
+  roles: AdminManagedRole[]
   isActive: boolean
 }
 
@@ -31,7 +31,7 @@ interface AdminListUserRow {
   last_sign_in_at: string | null
   full_name: string | null
   phone: string | null
-  role: AdminManagedRole
+  roles: AdminManagedRole[]
   is_active: boolean
 }
 
@@ -59,7 +59,7 @@ function toAdminManagedUser(row: AdminListUserRow): AdminManagedUser {
     lastSignInAt: row.last_sign_in_at,
     name: row.full_name?.trim() ?? '',
     phone: row.phone,
-    role: row.role,
+    roles: row.roles ?? [],
     isActive: row.is_active,
   }
 }
@@ -189,6 +189,7 @@ export async function getCurrentUserActivationStatus(): Promise<boolean> {
     .from('user_roles')
     .select('is_active')
     .eq('user_id', user.id)
+    .limit(1)
     .maybeSingle<{ is_active: boolean | null }>()
 
   if (error) {
@@ -196,4 +197,28 @@ export async function getCurrentUserActivationStatus(): Promise<boolean> {
   }
 
   return data?.is_active ?? true
+}
+
+export async function adminAssignUserRole(userId: string, role: AdminManagedRole): Promise<void> {
+  const supabase = initSupabase()
+  const { error } = await supabase.rpc('admin_assign_user_role', {
+    target_user_id: userId,
+    target_role: role,
+  })
+
+  if (error) {
+    throw error
+  }
+}
+
+export async function adminRevokeUserRole(userId: string, role: AdminManagedRole): Promise<void> {
+  const supabase = initSupabase()
+  const { error } = await supabase.rpc('admin_revoke_user_role', {
+    target_user_id: userId,
+    target_role: role,
+  })
+
+  if (error) {
+    throw error
+  }
 }

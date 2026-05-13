@@ -189,3 +189,69 @@ export async function removeStaffException(
     throw error
   }
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Staff self-service — current user manages their own availability
+// ──────────────────────────────────────────────────────────────────────────────
+
+export async function getMyStaffMemberId(): Promise<string | null> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('get_my_staff_member_id')
+
+  if (error) {
+    // Not found or not a staff member
+    return null
+  }
+
+  return data as string | null
+}
+
+export async function setMyWeeklySchedule(
+  schedule: StaffScheduleDayInput[],
+): Promise<StaffScheduleDay[]> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('staff_set_my_schedule', {
+    p_schedule: schedule,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as StaffScheduleDayRow[]).map(toStaffScheduleDay)
+}
+
+export async function addMyException(
+  exception: StaffExceptionInput,
+): Promise<StaffScheduleException> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('staff_upsert_my_exception', {
+    p_exception_date: exception.exceptionDate,
+    p_exception_type: exception.exceptionType,
+    p_starts_at: exception.startsAt,
+    p_ends_at: exception.endsAt,
+    p_reason: exception.reason,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  const rows = (data ?? []) as StaffScheduleExceptionRow[]
+  if (rows.length === 0) {
+    throw new Error('No se pudo guardar la excepción.')
+  }
+
+  return toStaffScheduleException(rows[0])
+}
+
+export async function removeMyException(exceptionDate: string): Promise<void> {
+  const supabase = initSupabase()
+  const { error } = await supabase.rpc('staff_delete_my_exception', {
+    p_exception_date: exceptionDate,
+  })
+
+  if (error) {
+    throw error
+  }
+}

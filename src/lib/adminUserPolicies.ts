@@ -3,37 +3,37 @@ import type { AppRole } from '../context/UserContext'
 export function isSelfDemotion(params: {
   actorUserId: string | null
   targetUserId: string
-  nextRole: AppRole
+  nextRoles: AppRole[]
 }): boolean {
   if (!params.actorUserId) {
     return false
   }
 
-  return params.actorUserId === params.targetUserId && params.nextRole !== 'admin'
+  return params.actorUserId === params.targetUserId && !params.nextRoles.includes('admin')
 }
 
 export function isLastActiveAdminRoleDemotion(params: {
-  currentRole: AppRole
-  nextRole: AppRole
+  currentRoles: AppRole[]
+  nextRoles: AppRole[]
   isActive: boolean
   activeAdminCount: number
 }): boolean {
   return (
-    params.currentRole === 'admin' &&
-    params.nextRole !== 'admin' &&
+    params.currentRoles.includes('admin') &&
+    !params.nextRoles.includes('admin') &&
     params.isActive &&
     params.activeAdminCount <= 1
   )
 }
 
 export function isLastActiveAdminDeactivation(params: {
-  role: AppRole
+  roles: AppRole[]
   isActive: boolean
   nextIsActive: boolean
   activeAdminCount: number
 }): boolean {
   return (
-    params.role === 'admin' &&
+    params.roles.includes('admin') &&
     params.isActive &&
     !params.nextIsActive &&
     params.activeAdminCount <= 1

@@ -11,7 +11,9 @@ import type { ProfileBootstrapStatus, ProfileRecord } from '../../lib/profile'
 export function TestUserProvider({
   children,
   user = null,
-  role = null,
+  roles = [],
+  activeRole = null,
+  setActiveRole = () => {},
   isLoading = false,
   profile = null,
   profileStatus = 'complete',
@@ -23,7 +25,9 @@ export function TestUserProvider({
 }: {
   children: ReactNode
   user?: User | null
-  role?: AppRole | null
+  roles?: AppRole[]
+  activeRole?: AppRole | null
+  setActiveRole?: (role: AppRole) => void
   isLoading?: boolean
   profile?: ProfileRecord | null
   profileStatus?: ProfileBootstrapStatus
@@ -35,7 +39,9 @@ export function TestUserProvider({
 }) {
   const value = {
     user,
-    role,
+    roles,
+    activeRole,
+    setActiveRole,
     profile,
     profileStatus,
     profileWarning,
@@ -93,18 +99,20 @@ export function TestShellProvider({
 export function AllTestContextProviders({
   children,
   user = null,
-  role = null,
+  roles = [],
+  activeRole = null,
   isLoading = false,
   sidebarOpen = true,
 }: {
   children: ReactNode
   user?: User | null
-  role?: AppRole | null
+  roles?: AppRole[]
+  activeRole?: AppRole | null
   isLoading?: boolean
   sidebarOpen?: boolean
 }) {
   return (
-    <TestUserProvider user={user} role={role} isLoading={isLoading}>
+    <TestUserProvider user={user} roles={roles} activeRole={activeRole} isLoading={isLoading}>
       <TestShellProvider isSidebarOpen={sidebarOpen}>
         {children}
       </TestShellProvider>

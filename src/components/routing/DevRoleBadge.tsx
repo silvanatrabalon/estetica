@@ -11,7 +11,7 @@ const roleColors: Record<AppRole, string> = {
 }
 
 function DevRoleBadgeInner() {
-  const { role } = useUser()
+  const { activeRole: role } = useUser()
   const [open, setOpen] = useState(false)
   const stored = localStorage.getItem('__dev_role_override__') as AppRole | null
   if (!stored) return null

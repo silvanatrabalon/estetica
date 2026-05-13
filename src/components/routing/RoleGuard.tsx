@@ -9,7 +9,7 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ allowedRoles }: RoleGuardProps) {
-  const { user, role, isLoading, retryRoleResolution } = useUser()
+  const { user, roles, activeRole, isLoading, retryRoleResolution } = useUser()
 
   if (isLoading) {
     return <RouteLoadingState />
@@ -19,11 +19,16 @@ export function RoleGuard({ allowedRoles }: RoleGuardProps) {
     return <Navigate to="/signin" replace />
   }
 
-  if (!role) {
+  // Multi-role user with no active selection → send to selector
+  if (roles.length > 1 && !activeRole) {
+    return <Navigate to="/seleccionar-rol" replace />
+  }
+
+  if (!activeRole) {
     return <NullRoleRecovery onRetry={retryRoleResolution} />
   }
 
-  if (!allowedRoles.includes(role)) {
+  if (!allowedRoles.includes(activeRole)) {
     return <Navigate to="/unauthorized" replace />
   }
 

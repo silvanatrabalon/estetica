@@ -116,7 +116,8 @@ describe('useUser hook', () => {
       const { result } = renderHook(() => useUser(), { wrapper })
 
       expect(result.current).toHaveProperty('user')
-      expect(result.current).toHaveProperty('role')
+      expect(result.current).toHaveProperty('roles')
+      expect(result.current).toHaveProperty('activeRole')
       expect(result.current).toHaveProperty('profile')
       expect(result.current).toHaveProperty('profileStatus')
       expect(result.current).toHaveProperty('profileWarning')

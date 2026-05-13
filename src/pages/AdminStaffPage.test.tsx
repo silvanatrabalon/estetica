@@ -26,7 +26,7 @@ vi.mock('../services/adminUsers', () => ({
 function renderAdminStaffPage() {
   return render(
     <MemoryRouter>
-      <TestUserProvider user={mockSessions.authenticatedAdmin.user} role="admin" isLoading={false}>
+      <TestUserProvider user={mockSessions.authenticatedAdmin.user} roles={['admin']} activeRole="admin" isLoading={false}>
         <AdminStaffPage />
       </TestUserProvider>
     </MemoryRouter>,

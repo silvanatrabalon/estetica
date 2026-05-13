@@ -291,7 +291,7 @@ Today `user_roles` enforces a single role per user (`user_id PRIMARY KEY`). An o
 - RLS smoke tests: multi-role table migration; `is_admin()` and `is_staff_or_admin()` correctness; admin-only RPCs still enforced
 - Admin panel tests: assign second role, revoke role, last-admin lockout
 
-- [ ]
+- [x] `multi-role-users-role-at-login`
 
 ---
 

@@ -9,7 +9,7 @@ interface UserMenuProps {
 
 export function UserMenu({ user }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const { signOut, profile } = useUser()
+  const { signOut, profile, roles } = useUser()
   const navigate = useNavigate()
   const menuId = 'user-menu-panel'
 
@@ -75,6 +75,18 @@ export function UserMenu({ user }: UserMenuProps) {
         >
           Perfil
         </Link>
+        {roles.length > 1 && (
+          <button
+            onClick={() => {
+              setIsOpen(false)
+              navigate('/seleccionar-rol')
+            }}
+            role="menuitem"
+            className="transition-micro w-full border-t border-shell-border px-4 py-2.5 text-left text-sm text-shell-subtleText hover:bg-shell-muted"
+          >
+            Cambiar modo
+          </button>
+        )}
         <button
           onClick={handleLogout}
           role="menuitem"

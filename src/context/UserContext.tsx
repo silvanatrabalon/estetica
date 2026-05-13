@@ -50,7 +50,9 @@ function getDevRoleOverride(): AppRole | null {
 
 interface UserContextValue {
   user: User | null
-  role: AppRole | null
+  roles: AppRole[]
+  activeRole: AppRole | null
+  setActiveRole: (role: AppRole) => void
   profile: ProfileRecord | null
   profileStatus: ProfileBootstrapStatus
   profileWarning: string | null
@@ -65,68 +67,51 @@ export const UserContext = createContext<UserContextValue | undefined>(undefined
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [role, setRole] = useState<AppRole | null>(null)
+  const [roles, setRoles] = useState<AppRole[]>([])
+  const [activeRole, setActiveRoleState] = useState<AppRole | null>(null)
   const [profile, setProfile] = useState<ProfileRecord | null>(null)
   const [profileStatus, setProfileStatus] = useState<ProfileBootstrapStatus>('incomplete')
   const [profileWarning, setProfileWarning] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch user role from database
-  const fetchUserRole = async (userId: string) => {
+  const setActiveRole = (role: AppRole) => {
+    setActiveRoleState(role)
+  }
+
+  // Fetch all roles for a user via get_user_roles() RPC
+  const fetchUserRoles = async () => {
     try {
       const supabase = initSupabase()
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('role, is_active')
-        .eq('user_id', userId)
-        .maybeSingle()
+      const { data, error } = await supabase.rpc('get_user_roles')
 
       if (error) {
-        console.warn('Error querying user role:', error)
-        setRole('customer') // Safe default
+        console.warn('Error fetching user roles:', error)
+        setRoles(['customer'])
+        setActiveRoleState('customer')
         return
       }
 
-      // If no role record exists, insert default role
-      if (!data) {
-        const { error: insertError } = await supabase
-          .from('user_roles')
-          .insert([{ user_id: userId, role: 'customer' }])
-
-        if (insertError) {
-          console.warn('Failed to insert default role:', insertError)
-          setRole('customer') // Still use default even if insert fails
-          return
-        }
-
-        setRole('customer')
-        return
-      }
-
-      if (data.is_active === false) {
-        await supabase.auth.signOut()
-        resetAuthState()
-        setIsLoading(false)
-        return
-      }
-
-      if (!appRoles.includes(data.role as AppRole)) {
-        console.warn('Invalid role value returned:', data.role)
-        setRole(null)
-        return
-      }
+      const fetchedRoles = (data ?? ['customer']) as AppRole[]
 
       const devOverride = getDevRoleOverride()
       if (devOverride) {
-        console.warn(`[DEV] Role override active: "${devOverride}" (DB role: "${data.role}")`)
-        setRole(devOverride)
+        console.warn(`[DEV] Role override active: "${devOverride}"`)
+        setRoles([devOverride])
+        setActiveRoleState(devOverride)
         return
       }
 
-      setRole(data.role as AppRole)
+      setRoles(fetchedRoles)
+      // Single role → set immediately; multi-role → leave null so selector shows
+      if (fetchedRoles.length === 1) {
+        setActiveRoleState(fetchedRoles[0])
+      } else {
+        setActiveRoleState(null)
+      }
     } catch (err) {
-      console.error('Error managing user role:', err)
-      setRole('customer') // Safe default
+      console.error('Error fetching user roles:', err)
+      setRoles(['customer'])
+      setActiveRoleState('customer')
     }
   }
 
@@ -173,7 +158,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const resetAuthState = () => {
     clearAuthDependentState([
       () => setUser(null),
-      () => setRole(null),
+      () => setRoles([]),
+      () => setActiveRoleState(null),
       () => setProfile(null),
       () => setProfileStatus('incomplete'),
       () => setProfileWarning(null),
@@ -203,7 +189,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUser(snapshot.user)
 
         if (!snapshot.user) {
-          setRole(null)
+          setRoles([])
+          setActiveRoleState(null)
           setProfile(null)
           setProfileStatus('incomplete')
           setProfileWarning(null)
@@ -232,7 +219,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       // Update user when session changes and clear loading for signed-out state.
       setUser(snapshot.user)
       if (!snapshot.user) {
-        setRole(null)
+        setRoles([])
+        setActiveRoleState(null)
         setProfile(null)
         setProfileStatus('incomplete')
         setProfileWarning(null)
@@ -264,7 +252,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
 
       await Promise.all([
-        fetchUserRole(user.id),
+        fetchUserRoles(),
         bootstrapProfile(user),
       ])
       setIsLoading(false)
@@ -315,7 +303,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
 
     setIsLoading(true)
-    await fetchUserRole(user.id)
+    await fetchUserRoles()
     setIsLoading(false)
   }
 
@@ -329,7 +317,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const value: UserContextValue = {
     user,
-    role,
+    roles,
+    activeRole,
+    setActiveRole,
     profile,
     profileStatus,
     profileWarning,
@@ -352,6 +342,6 @@ export function useUser() {
 }
 
 export function useUserRole() {
-  const { role } = useUser()
-  return role
+  const { activeRole } = useUser()
+  return activeRole
 }

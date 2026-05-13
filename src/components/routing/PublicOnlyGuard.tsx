@@ -5,7 +5,7 @@ import { RouteLoadingState } from './RouteLoadingState'
 import { NullRoleRecovery } from './NullRoleRecovery'
 
 export function PublicOnlyGuard() {
-  const { user, role, isLoading, retryRoleResolution } = useUser()
+  const { user, roles, activeRole, isLoading, retryRoleResolution } = useUser()
   const location = useLocation()
 
   if (isLoading) {
@@ -13,13 +13,18 @@ export function PublicOnlyGuard() {
   }
 
   if (user) {
-    if (!role) {
+    // Multi-role user with no selection → send to selector
+    if (roles.length > 1 && !activeRole) {
+      return <Navigate to="/seleccionar-rol" replace />
+    }
+
+    if (!activeRole) {
       return <NullRoleRecovery onRetry={retryRoleResolution} />
     }
 
     const redirectTo = resolveAuthenticatedSignInRedirect({
       isAuthenticated: true,
-      role,
+      role: activeRole,
       currentPath: location.pathname,
     })
 
