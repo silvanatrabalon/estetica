@@ -476,7 +476,7 @@ alter table public.organizations
 1. For 15a: if a service has past dates listed, should they be auto-removed or kept for historical reference? (affects admin UX — show or hide past dates in the list)
 2. For 15b: when a service is at capacity for a time slot, should that slot be hidden entirely in the booking UI (#16) or shown as "sin disponibilidad"?
 
-- [ ]
+- [x] `service-booking-configuration` (7894e7f)
 
 ---
 
