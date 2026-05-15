@@ -4,6 +4,7 @@ import {
   getBusinessSettings,
   saveBusinessClosure,
   saveBusinessSettings,
+  updateBookingPolicy,
   type BusinessClosureRecord,
   type BusinessHoursRecord,
 } from '../services/businessSettings'
@@ -67,6 +68,9 @@ export function BusinessSettingsPage() {
   const [primaryColor, setPrimaryColor] = useState('')
   const [bookingHeaderText, setBookingHeaderText] = useState('')
   const [bookingSubtitleText, setBookingSubtitleText] = useState('')
+  const [bookingMinNoticeMinutes, setBookingMinNoticeMinutes] = useState(60)
+  const [bookingMaxHorizonDays, setBookingMaxHorizonDays] = useState(60)
+  const [bookingPolicyError, setBookingPolicyError] = useState<string | null>(null)
   const [weeklyHours, setWeeklyHours] = useState<BusinessHoursRecord[]>([])
   const [closures, setClosures] = useState<BusinessClosureRecord[]>([])
   const [closureDraft, setClosureDraft] = useState<ClosureDraft>(emptyClosureDraft())
@@ -74,6 +78,7 @@ export function BusinessSettingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [isSavingClosure, setIsSavingClosure] = useState(false)
+  const [isSavingPolicy, setIsSavingPolicy] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
@@ -103,6 +108,8 @@ export function BusinessSettingsPage() {
     setPrimaryColor(data.primaryColor ?? '')
     setBookingHeaderText(data.bookingHeaderText ?? '')
     setBookingSubtitleText(data.bookingSubtitleText ?? '')
+    setBookingMinNoticeMinutes(data.bookingMinNoticeMinutes)
+    setBookingMaxHorizonDays(data.bookingMaxHorizonDays)
     setWeeklyHours(data.weeklyHours)
     setClosures(data.closures)
     setMissingReadiness(data.readiness.missing)
@@ -212,6 +219,33 @@ export function BusinessSettingsPage() {
       setSuccessMessage('Cierre excepcional eliminado correctamente.')
     } catch {
       setErrorMessage('No pudimos eliminar el cierre excepcional.')
+    }
+  }
+
+  const handleSaveBookingPolicy = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setBookingPolicyError(null)
+    setSuccessMessage(null)
+
+    if (bookingMinNoticeMinutes < 0 || bookingMinNoticeMinutes > 10080) {
+      setBookingPolicyError('La anticipación mínima debe estar entre 0 y 10080 minutos.')
+      return
+    }
+
+    if (bookingMaxHorizonDays < 1 || bookingMaxHorizonDays > 365) {
+      setBookingPolicyError('El horizonte de reservas debe estar entre 1 y 365 días.')
+      return
+    }
+
+    setIsSavingPolicy(true)
+
+    try {
+      await updateBookingPolicy(bookingMinNoticeMinutes, bookingMaxHorizonDays)
+      setSuccessMessage('Política de reservas actualizada.')
+    } catch {
+      setBookingPolicyError('No se pudo guardar la configuración.')
+    } finally {
+      setIsSavingPolicy(false)
     }
   }
 
@@ -492,6 +526,59 @@ export function BusinessSettingsPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="shell-surface rounded-2xl border p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-shell-text">Configuración de reservas</h3>
+        <p className="mt-1 text-sm text-shell-subtleText">
+          Define la anticipación mínima para nuevas reservas y el horizonte máximo de disponibilidad.
+        </p>
+
+        {bookingPolicyError ? (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {bookingPolicyError}
+          </p>
+        ) : null}
+
+        <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={(e) => void handleSaveBookingPolicy(e)}>
+          <label className="text-sm text-shell-text">
+            Anticipación mínima (minutos)
+            <span className="ml-1 text-xs text-shell-subtleText">(0–10080)</span>
+            <input
+              aria-label="Anticipación mínima (minutos)"
+              className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+              min={0}
+              max={10080}
+              onChange={(event) => setBookingMinNoticeMinutes(Number(event.target.value))}
+              type="number"
+              value={bookingMinNoticeMinutes}
+            />
+          </label>
+
+          <label className="text-sm text-shell-text">
+            Horizonte de reservas (días)
+            <span className="ml-1 text-xs text-shell-subtleText">(1–365)</span>
+            <input
+              aria-label="Horizonte de reservas (días)"
+              className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+              min={1}
+              max={365}
+              onChange={(event) => setBookingMaxHorizonDays(Number(event.target.value))}
+              type="number"
+              value={bookingMaxHorizonDays}
+            />
+          </label>
+
+          <div className="md:col-span-2 flex justify-end">
+            <button
+              className="rounded-lg bg-shell-text px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+              disabled={isSavingPolicy}
+              type="submit"
+            >
+              {isSavingPolicy ? commonCopy.saving : 'Guardar política de reservas'}
+            </button>
+          </div>
+        </form>
       </section>
     </section>
   )

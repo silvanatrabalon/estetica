@@ -9,12 +9,14 @@ const mockGetBusinessSettings = vi.fn()
 const mockSaveBusinessSettings = vi.fn()
 const mockSaveBusinessClosure = vi.fn()
 const mockDeleteBusinessClosure = vi.fn()
+const mockUpdateBookingPolicy = vi.fn()
 
 vi.mock('../services/businessSettings', () => ({
   getBusinessSettings: (...args: unknown[]) => mockGetBusinessSettings(...args),
   saveBusinessSettings: (...args: unknown[]) => mockSaveBusinessSettings(...args),
   saveBusinessClosure: (...args: unknown[]) => mockSaveBusinessClosure(...args),
   deleteBusinessClosure: (...args: unknown[]) => mockDeleteBusinessClosure(...args),
+  updateBookingPolicy: (...args: unknown[]) => mockUpdateBookingPolicy(...args),
 }))
 
 function createSettingsResponse(overrides?: Partial<Awaited<ReturnType<typeof mockGetBusinessSettings>>>) {
@@ -38,6 +40,8 @@ function createSettingsResponse(overrides?: Partial<Awaited<ReturnType<typeof mo
     ],
     closures: [],
     readiness: { isReady: true, missing: [] },
+    bookingMinNoticeMinutes: 60,
+    bookingMaxHorizonDays: 60,
     ...overrides,
   }
 }
@@ -129,6 +133,84 @@ describe('BusinessSettingsPage', () => {
         reason: 'Capacitacion',
       })
       expect(screen.getByText('Cierre excepcional guardado correctamente.')).toBeDefined()
+    })
+  })
+
+  describe('Configuración de reservas section', () => {
+    it('renders with current booking policy values', async () => {
+      mockGetBusinessSettings.mockResolvedValue(
+        createSettingsResponse({ bookingMinNoticeMinutes: 120, bookingMaxHorizonDays: 90 }),
+      )
+      renderBusinessSettingsPage()
+
+      await waitFor(() => {
+        expect(screen.getByText('Configuración de reservas')).toBeDefined()
+        expect(screen.getByLabelText('Anticipación mínima (minutos)')).toBeDefined()
+        expect(screen.getByLabelText('Horizonte de reservas (días)')).toBeDefined()
+      })
+
+      const noticeInput = screen.getByLabelText('Anticipación mínima (minutos)') as HTMLInputElement
+      const horizonInput = screen.getByLabelText('Horizonte de reservas (días)') as HTMLInputElement
+      expect(noticeInput.value).toBe('120')
+      expect(horizonInput.value).toBe('90')
+    })
+
+    it('shows validation error when notice is above max', async () => {
+      renderBusinessSettingsPage()
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Anticipación mínima (minutos)')).toBeDefined()
+      })
+
+      const noticeInput = screen.getByLabelText('Anticipación mínima (minutos)')
+      fireEvent.change(noticeInput, { target: { value: '10081' } })
+      fireEvent.submit(noticeInput.closest('form')!)
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('La anticipación mínima debe estar entre 0 y 10080 minutos.'),
+        ).toBeDefined()
+      })
+    })
+
+    it('shows validation error when horizon is 0', async () => {
+      renderBusinessSettingsPage()
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Horizonte de reservas (días)')).toBeDefined()
+      })
+
+      const horizonInput = screen.getByLabelText('Horizonte de reservas (días)')
+      fireEvent.change(horizonInput, { target: { value: '0' } })
+      fireEvent.submit(horizonInput.closest('form')!)
+
+      await waitFor(() => {
+        expect(
+          screen.getByText('El horizonte de reservas debe estar entre 1 y 365 días.'),
+        ).toBeDefined()
+      })
+    })
+
+    it('calls updateBookingPolicy and shows success message on valid save', async () => {
+      mockUpdateBookingPolicy.mockResolvedValue(undefined)
+      renderBusinessSettingsPage()
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Anticipación mínima (minutos)')).toBeDefined()
+      })
+
+      fireEvent.change(screen.getByLabelText('Anticipación mínima (minutos)'), {
+        target: { value: '30' },
+      })
+      fireEvent.change(screen.getByLabelText('Horizonte de reservas (días)'), {
+        target: { value: '90' },
+      })
+      fireEvent.submit(screen.getByLabelText('Horizonte de reservas (días)').closest('form')!)
+
+      await waitFor(() => {
+        expect(mockUpdateBookingPolicy).toHaveBeenCalledWith(30, 90)
+        expect(screen.getByText('Política de reservas actualizada.')).toBeDefined()
+      })
     })
   })
 })

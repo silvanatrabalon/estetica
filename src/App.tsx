@@ -12,6 +12,7 @@ import { RoleSelector } from './components/auth/RoleSelector'
 import { resolveRoleHomePath } from './lib/routing'
 import {
   AdminReportsPage,
+  AdminServiceAvailabilityPage,
   AdminServicesPage,
   AdminStaffPage,
   AdminStaffServicesPage,
@@ -91,6 +92,7 @@ function AppContent() {
             <Route path="/admin/staff/:staffId/availability" element={<StaffAvailabilityPage />} />
             <Route path="/admin/staff/:staffId/services" element={<AdminStaffServicesPage />} />
             <Route path="/admin/services" element={<AdminServicesPage />} />
+            <Route path="/admin/services/:serviceId/availability" element={<AdminServiceAvailabilityPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
           </Route>
         </Route>

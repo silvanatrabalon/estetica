@@ -40,6 +40,7 @@ const mockService = {
   priceCents: 500000,
   imageUrl: null,
   isActive: true,
+  maxConcurrentBookings: null,
   createdAt: '2026-01-01T00:00:00.000Z',
 }
 
@@ -175,6 +176,7 @@ describe('AdminServicesPage', () => {
         durationMinutes: 60,
         priceCents: 500000,
         imageUrl: null,
+        maxConcurrentBookings: null,
       })
       expect(screen.getByText('Servicio creado correctamente.')).toBeDefined()
     })
@@ -253,5 +255,85 @@ describe('AdminServicesPage', () => {
         screen.getByText('No pudimos cargar el catálogo de servicios en este momento.'),
       ).toBeDefined()
     })
+  })
+
+  it('capacity field renders in service create form', async () => {
+    mockListServices.mockResolvedValue([])
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Agregar servicio')).toBeDefined()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Capacidad simult/)).toBeDefined()
+    })
+  })
+
+  it('shows validation error when capacity is 0', async () => {
+    mockListServices.mockResolvedValue([])
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Agregar servicio')).toBeDefined()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Nombre')).toBeDefined()
+    })
+
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte' } })
+    fireEvent.change(screen.getByLabelText('Duración (minutos)'), { target: { value: '60' } })
+    fireEvent.change(screen.getByLabelText(/Capacidad simult/), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('La capacidad debe ser un número entero mayor a cero.'),
+      ).toBeDefined()
+    })
+  })
+
+  it('submitting with blank capacity passes null to createService', async () => {
+    mockListServices.mockResolvedValue([])
+    mockCreateService.mockResolvedValue({ ...mockService, maxConcurrentBookings: null })
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Agregar servicio')).toBeDefined()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Nombre')).toBeDefined()
+    })
+
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte de cabello' } })
+    fireEvent.change(screen.getByLabelText('Duración (minutos)'), { target: { value: '60' } })
+    fireEvent.change(screen.getByLabelText('Precio (centavos)'), { target: { value: '500000' } })
+    // leave capacity blank
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => {
+      expect(mockCreateService).toHaveBeenCalledWith(
+        expect.objectContaining({ maxConcurrentBookings: null }),
+      )
+    })
+  })
+
+  it('renders Gestionar disponibilidad button per service row', async () => {
+    mockListServices.mockResolvedValue([mockService])
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Corte de cabello')).toBeDefined()
+    })
+
+    expect(screen.getByRole('button', { name: 'Gestionar disponibilidad' })).toBeDefined()
   })
 })

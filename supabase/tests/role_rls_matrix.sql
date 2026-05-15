@@ -154,4 +154,71 @@ select set_config('request.jwt.claim.sub', current_setting('app.test.staff_user_
 --   current_setting('app.test.service_id')::uuid
 -- );
 
+-- ---------------------------------------------------------------------------
+-- Scenario F: service_available_dates RLS matrix (service-booking-configuration)
+-- ---------------------------------------------------------------------------
+
+-- F1: Authenticated non-admin can SELECT from service_available_dates.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.staff_user_id'), true);
+select count(*) as service_available_dates_visible_by_staff from public.service_available_dates;
+
+-- F2: Non-admin direct INSERT on service_available_dates is rejected by RLS (no INSERT policy).
+-- Uncomment to verify failure:
+-- insert into public.service_available_dates (service_id, organization_id, available_date)
+-- values (
+--   current_setting('app.test.service_id')::uuid,
+--   current_setting('app.test.organization_id')::uuid,
+--   current_date
+-- );
+
+-- F3: CHECK constraint on services.max_concurrent_bookings rejects 0 and negatives; accepts null and >= 1.
+-- Uncomment to verify failure (0 and negative rejected):
+-- update public.services set max_concurrent_bookings = 0
+-- where id = current_setting('app.test.service_id')::uuid;
+-- update public.services set max_concurrent_bookings = -1
+-- where id = current_setting('app.test.service_id')::uuid;
+-- Verify success:
+-- update public.services set max_concurrent_bookings = null
+-- where id = current_setting('app.test.service_id')::uuid;
+-- update public.services set max_concurrent_bookings = 1
+-- where id = current_setting('app.test.service_id')::uuid;
+
+-- F4: PK on (service_id, available_date) rejects duplicate inserts.
+-- (Requires admin role and existing service to verify.)
+-- Uncomment to verify failure:
+-- select public.admin_add_service_available_date(
+--   current_setting('app.test.service_id')::uuid, current_date
+-- );
+-- select public.admin_add_service_available_date(  -- duplicate → should raise unique_violation
+--   current_setting('app.test.service_id')::uuid, current_date
+-- );
+
+-- F5: Admin RPC admin_add_service_available_date succeeds for admin; raises "No autorizado" for non-admin.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Uncomment to verify admin success:
+-- select public.admin_add_service_available_date(
+--   current_setting('app.test.service_id')::uuid, current_date + 1
+-- );
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.staff_user_id'), true);
+-- Uncomment to verify non-admin failure (should raise "No autorizado"):
+-- select public.admin_add_service_available_date(
+--   current_setting('app.test.service_id')::uuid, current_date + 2
+-- );
+
+-- F6: CHECK constraints on organizations.booking_min_notice_minutes and booking_max_horizon_days
+-- reject out-of-range values.
+-- Uncomment to verify failure:
+-- update public.organizations set booking_min_notice_minutes = -1
+-- where id = current_setting('app.test.organization_id')::uuid;
+-- update public.organizations set booking_min_notice_minutes = 10081
+-- where id = current_setting('app.test.organization_id')::uuid;
+-- update public.organizations set booking_max_horizon_days = 0
+-- where id = current_setting('app.test.organization_id')::uuid;
+-- update public.organizations set booking_max_horizon_days = 366
+-- where id = current_setting('app.test.organization_id')::uuid;
+
 rollback;

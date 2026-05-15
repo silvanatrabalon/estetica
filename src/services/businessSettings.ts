@@ -40,6 +40,8 @@ export interface BusinessSettingsRecord {
   primaryColor: string | null
   bookingHeaderText: string | null
   bookingSubtitleText: string | null
+  bookingMinNoticeMinutes: number
+  bookingMaxHorizonDays: number
   weeklyHours: BusinessHoursRecord[]
   closures: BusinessClosureRecord[]
   readiness: {
@@ -57,6 +59,8 @@ interface OrganizationRow {
   brand_primary_color: string | null
   booking_header_text: string | null
   booking_subtitle_text: string | null
+  booking_min_notice_minutes: number | null
+  booking_max_horizon_days: number | null
   created_at: string
 }
 
@@ -88,6 +92,8 @@ const ORGANIZATION_SELECT = [
   'brand_primary_color',
   'booking_header_text',
   'booking_subtitle_text',
+  'booking_min_notice_minutes',
+  'booking_max_horizon_days',
   'created_at',
 ].join(', ')
 
@@ -144,6 +150,8 @@ function toBusinessSettingsRecord(
     primaryColor: organization.brand_primary_color,
     bookingHeaderText: organization.booking_header_text,
     bookingSubtitleText: organization.booking_subtitle_text,
+    bookingMinNoticeMinutes: organization.booking_min_notice_minutes ?? 60,
+    bookingMaxHorizonDays: organization.booking_max_horizon_days ?? 60,
     weeklyHours,
     closures,
     readiness: computeBusinessReadiness({
@@ -395,6 +403,21 @@ export async function deleteBusinessClosure(closureId: string): Promise<void> {
     .from('business_closure_exceptions')
     .delete()
     .eq('id', closureId)
+
+  if (error) {
+    throw error
+  }
+}
+
+export async function updateBookingPolicy(
+  minNoticeMinutes: number,
+  maxHorizonDays: number,
+): Promise<void> {
+  const supabase = initSupabase()
+  const { error } = await supabase.rpc('admin_update_booking_policy', {
+    p_min_notice_minutes: minNoticeMinutes,
+    p_max_horizon_days: maxHorizonDays,
+  })
 
   if (error) {
     throw error

@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { formatPriceARS } from '../lib/formatPrice'
 import {
   createService,
@@ -15,6 +16,7 @@ interface FormData {
   durationMinutes: string
   priceCents: string
   imageUrl: string
+  maxConcurrentBookings: string
 }
 
 const EMPTY_FORM: FormData = {
@@ -22,6 +24,7 @@ const EMPTY_FORM: FormData = {
   durationMinutes: '',
   priceCents: '0',
   imageUrl: '',
+  maxConcurrentBookings: '',
 }
 
 interface ValidationErrors {
@@ -29,6 +32,7 @@ interface ValidationErrors {
   durationMinutes?: string
   priceCents?: string
   imageUrl?: string
+  maxConcurrentBookings?: string
 }
 
 function validateForm(data: FormData): ValidationErrors {
@@ -56,6 +60,13 @@ function validateForm(data: FormData): ValidationErrors {
     }
   }
 
+  if (data.maxConcurrentBookings.trim() !== '') {
+    const capacity = Number(data.maxConcurrentBookings)
+    if (!Number.isInteger(capacity) || capacity < 1) {
+      errors.maxConcurrentBookings = 'La capacidad debe ser un número entero mayor a cero.'
+    }
+  }
+
   return errors
 }
 
@@ -64,6 +75,7 @@ function hasErrors(errors: ValidationErrors): boolean {
 }
 
 export function AdminServicesPage() {
+  const navigate = useNavigate()
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -110,6 +122,8 @@ export function AdminServicesPage() {
       durationMinutes: String(service.durationMinutes),
       priceCents: String(service.priceCents),
       imageUrl: service.imageUrl ?? '',
+      maxConcurrentBookings:
+        service.maxConcurrentBookings !== null ? String(service.maxConcurrentBookings) : '',
     })
     setFormErrors({})
     setSuccessMessage(null)
@@ -142,6 +156,10 @@ export function AdminServicesPage() {
     setIsSaving(true)
 
     const imageUrl = formData.imageUrl.trim() === '' ? null : formData.imageUrl.trim()
+    const maxConcurrentBookings =
+      formData.maxConcurrentBookings.trim() === ''
+        ? null
+        : Number(formData.maxConcurrentBookings)
 
     try {
       if (formMode === 'create') {
@@ -150,6 +168,7 @@ export function AdminServicesPage() {
           durationMinutes: Number(formData.durationMinutes),
           priceCents: Number(formData.priceCents),
           imageUrl,
+          maxConcurrentBookings,
         })
         setServices((current) =>
           [...current, created].sort((a, b) => a.name.localeCompare(b.name)),
@@ -163,6 +182,7 @@ export function AdminServicesPage() {
           durationMinutes: Number(formData.durationMinutes),
           priceCents: Number(formData.priceCents),
           imageUrl,
+          maxConcurrentBookings,
         })
         setServices((current) => current.map((s) => (s.id === updated.id ? updated : s)))
         setSuccessMessage('Servicio actualizado correctamente.')
@@ -337,6 +357,28 @@ export function AdminServicesPage() {
               )}
             </div>
 
+            <div className="mb-4">
+              <label
+                htmlFor="service-capacity"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Capacidad simult&aacute;nea{' '}
+                <span className="text-gray-400 font-normal">(opcional)</span>
+              </label>
+              <input
+                id="service-capacity"
+                type="number"
+                min="1"
+                value={formData.maxConcurrentBookings}
+                onChange={handleField('maxConcurrentBookings')}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Dejar vacío = sin límite"
+              />
+              {formErrors.maxConcurrentBookings && (
+                <p className="mt-1 text-sm text-red-600">{formErrors.maxConcurrentBookings}</p>
+              )}
+            </div>
+
             <div className="flex gap-3">
               <button
                 type="submit"
@@ -373,6 +415,7 @@ export function AdminServicesPage() {
                 <th className="pb-3 pr-4 font-medium">Nombre</th>
                 <th className="pb-3 pr-4 font-medium">Duración</th>
                 <th className="pb-3 pr-4 font-medium">Precio</th>
+                <th className="pb-3 pr-4 font-medium">Capacidad</th>
                 <th className="pb-3 pr-4 font-medium">Estado</th>
                 <th className="pb-3 font-medium">Acciones</th>
               </tr>
@@ -386,6 +429,11 @@ export function AdminServicesPage() {
                   <td className="py-3 pr-4 font-medium text-gray-900">{service.name}</td>
                   <td className="py-3 pr-4 text-gray-600">{service.durationMinutes} min</td>
                   <td className="py-3 pr-4 text-gray-600">{formatPriceARS(service.priceCents)}</td>
+                  <td className="py-3 pr-4 text-gray-600">
+                    {service.maxConcurrentBookings !== null
+                      ? `Cap: ${service.maxConcurrentBookings}`
+                      : 'Sin límite'}
+                  </td>
                   <td className="py-3 pr-4">
                     <span
                       className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -412,6 +460,15 @@ export function AdminServicesPage() {
                         className="text-gray-600 hover:text-gray-800 text-xs font-medium"
                       >
                         {service.isActive ? 'Desactivar' : 'Reactivar'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(`/admin/services/${service.id}/availability`)
+                        }
+                        className="text-purple-600 hover:text-purple-800 text-xs font-medium"
+                      >
+                        Gestionar disponibilidad
                       </button>
                     </div>
                   </td>

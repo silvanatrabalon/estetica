@@ -405,8 +405,77 @@ RLS: SELECT to `authenticated`; no direct DML — all writes through admin RPCs.
 
 - [x] `staff-service-assignment` (1d7810a)
 
-### 15. Service Availability Rules
-**Description:** Define which services are available when, service-specific availability logic.
+### 15. Service Booking Configuration
+**Description:** Introduce three configurable constraints that govern when and how services can be booked: per-service specific date availability (for equipment- or resource-limited services), per-service concurrent booking capacity, and global booking policy windows (minimum advance notice and maximum booking horizon). All three are read by the slot generator (#16) and booking flow (#17) to determine valid appointment slots. All three are prerequisites for a correctly specified #16.
+
+**Scope (MVP):**
+
+*15a — Per-service specific date availability:*
+- New table `service_available_dates`: admin adds specific calendar dates when a service is available (e.g., the days the laser machine is on-site)
+- Semantic: if the table has **no entries** for a service → no date restriction (service bookable any day, subject to other constraints); if it has entries → service is only bookable on those listed dates
+- New admin sub-route `/admin/services/:serviceId/availability` with a date picker to add/remove dates
+- "Gestionar disponibilidad" link per service row in `AdminServicesPage` (mirrors the availability link pattern in `AdminStaffPage`)
+- All mutations via SECURITY DEFINER admin RPCs
+
+*15b — Per-service concurrent booking capacity:*
+- Add nullable `max_concurrent_bookings integer` column to `services` (null = no limit; ≥1 when set)
+- Surface in the service create/edit form in `AdminServicesPage`
+- Slot generator (#16) and booking flow (#17) enforce it: count existing bookings for the same `service_id` in overlapping slots and block if at capacity
+
+*15c — Global booking policy (business-wide):*
+- Add `booking_min_notice_minutes integer default 60` and `booking_max_horizon_days integer default 60` to `organizations`
+- Expose in the Business Settings admin page under a new "Configuración de reservas" section
+- Slot generator (#16) uses these as the query time boundaries
+- Validation: notice 0–10080 minutes (0 = same-day allowed, max = 1 week); horizon 1–365 days
+
+**Data Model:**
+```sql
+-- 15a: per-service specific date whitelist
+create table public.service_available_dates (
+  service_id       uuid NOT NULL REFERENCES public.services(id) ON DELETE CASCADE,
+  organization_id  uuid NOT NULL REFERENCES public.organizations(id),
+  available_date   date NOT NULL,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (service_id, available_date)
+);
+-- RLS: authenticated SELECT; no direct DML — all writes through admin RPCs
+
+-- 15b: capacity limit on services
+alter table public.services
+  add column if not exists max_concurrent_bookings integer
+    check (max_concurrent_bookings is null or max_concurrent_bookings >= 1);
+
+-- 15c: booking policy on organizations
+alter table public.organizations
+  add column if not exists booking_min_notice_minutes integer default 60
+    check (booking_min_notice_minutes >= 0 and booking_min_notice_minutes <= 10080),
+  add column if not exists booking_max_horizon_days integer default 60
+    check (booking_max_horizon_days >= 1 and booking_max_horizon_days <= 365);
+```
+
+**Admin RPC Functions (15a, SECURITY DEFINER, admin-only):**
+- `admin_list_service_available_dates(p_service_id)` — returns all configured dates for a service
+- `admin_add_service_available_date(p_service_id, p_date)` — adds a specific date
+- `admin_remove_service_available_date(p_service_id, p_date)` — removes a specific date
+
+**Out of Scope:**
+- Per-service recurring weekly availability (already covered implicitly by staff schedules + staff-service assignment)
+- Per-service booking policy overrides (MVP is global only)
+- Customer-facing display of service date constraints
+- Capacity waitlist
+- Buffer/cleanup time between bookings (→ #30)
+
+**Testing Scope:**
+- Unit tests: `max_concurrent_bookings` validation (null or ≥1); notice/horizon boundary validation (0 and 10080; 1 and 365)
+- Integration tests (15a): admin can add and remove dates; date list renders correctly; empty state shown with correct Spanish copy
+- Integration tests (15b): capacity field renders in service create/edit form; saved value reflects in service list
+- Integration tests (15c): "Configuración de reservas" section in Business Settings; validation errors shown in Spanish
+- SQL smoke: CHECK constraint rejects invalid capacity values; PK rejects duplicate `(service_id, available_date)`; admin RPCs succeed; non-admin direct write denied
+
+**Open Decisions:**
+1. For 15a: if a service has past dates listed, should they be auto-removed or kept for historical reference? (affects admin UX — show or hide past dates in the list)
+2. For 15b: when a service is at capacity for a time slot, should that slot be hidden entirely in the booking UI (#16) or shown as "sin disponibilidad"?
+
 - [ ]
 
 ---
@@ -466,7 +535,7 @@ RLS: SELECT to `authenticated`; no direct DML — all writes through admin RPCs.
 - [ ]
 
 ### 27. Notifications System
-**Description:** Booking confirmation emails con resend, cancellation emails, reschedule emails, templates.
+**Description:** Booking confirmation emails whit resend, cancellation emails, reschedule emails, templates.
 - [ ]
 
 
@@ -519,12 +588,12 @@ RLS: SELECT to `authenticated`; no direct DML — all writes through admin RPCs.
 ## Summary
 
 **Total Features:** 38
-**Completed:** 15
+**Completed:** 18
 **In Progress:** 0
-**Pending:** 23
+**Pending:** 20
 
 **Current Phase:** Phase 4 (Services & Products)
-**Next Feature:** #13b (Fix Role Switcher) / #14b (Staff–Service Assignment)
+**Next Feature:** #13b (Fix Role Switcher) / #15 (Service Booking Configuration)
 
 ---
 

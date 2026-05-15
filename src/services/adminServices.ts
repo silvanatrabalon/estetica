@@ -8,6 +8,7 @@ export interface Service {
   priceCents: number
   imageUrl: string | null
   isActive: boolean
+  maxConcurrentBookings: number | null
   createdAt: string
 }
 
@@ -19,6 +20,7 @@ interface ServiceRow {
   price_cents: number
   image_url: string | null
   is_active: boolean
+  max_concurrent_bookings: number | null
   created_at: string
 }
 
@@ -31,6 +33,7 @@ function toService(row: ServiceRow): Service {
     priceCents: row.price_cents,
     imageUrl: row.image_url,
     isActive: row.is_active,
+    maxConcurrentBookings: row.max_concurrent_bookings ?? null,
     createdAt: row.created_at,
   }
 }
@@ -51,6 +54,7 @@ export async function createService(params: {
   durationMinutes: number
   priceCents: number
   imageUrl: string | null
+  maxConcurrentBookings?: number | null
 }): Promise<Service> {
   const supabase = initSupabase()
   const { data, error } = await supabase.rpc('admin_create_service', {
@@ -58,6 +62,7 @@ export async function createService(params: {
     p_duration_minutes: params.durationMinutes,
     p_price_cents: params.priceCents,
     p_image_url: params.imageUrl,
+    p_max_concurrent_bookings: params.maxConcurrentBookings ?? null,
   })
 
   if (error) {
@@ -78,6 +83,7 @@ export async function updateService(params: {
   durationMinutes: number
   priceCents: number
   imageUrl: string | null
+  maxConcurrentBookings?: number | null
 }): Promise<Service> {
   const supabase = initSupabase()
   const { data, error } = await supabase.rpc('admin_update_service', {
@@ -86,6 +92,7 @@ export async function updateService(params: {
     p_duration_minutes: params.durationMinutes,
     p_price_cents: params.priceCents,
     p_image_url: params.imageUrl,
+    p_max_concurrent_bookings: params.maxConcurrentBookings ?? null,
   })
 
   if (error) {
