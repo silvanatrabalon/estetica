@@ -557,7 +557,7 @@ No new tables. New DB function: `get_available_slots`. A `slot_interval_minutes`
 - Unit tests: `formatSlotTime` covering DST dates in `America/Argentina/Buenos_Aires`; hook state transitions (loading, success, error, re-fetch); service layer RPC parameter mapping
 - Integration tests: full BookingPage wizard steps, loading/empty/error states in Spanish, date picker respects horizon
 
-- [ ]
+- [x] `availability-slot-generation` (7aab9f1)
 
 ### 17. Appointment Booking (Core Flow)
 **Description:** Implement the appointment creation flow that closes the booking wizard. The wizard delivers `{ serviceId, startsAt }` from Step 3 (#16). This item adds Step 4 (review/confirm screen) and the actual appointment INSERT, double-booking prevention, error handling, and post-booking navigation.
