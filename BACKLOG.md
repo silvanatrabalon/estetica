@@ -632,14 +632,14 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 - TypeScript unit tests: `createAppointment()` maps RPC response to `NewAppointment`; `isConflictError()` correctly identifies `23P01`, `P0001` variants, and `23505`; error codes translate to correct Spanish messages
 - Integration tests: Step 4 renders service name, formatted date/time; "Confirmar reserva" calls service function; success navigates to `/booking/confirmation/:id`; conflict shows Spanish inline error and back CTA
 
-- [ ]
+- [x] `appointment-booking` (da3af57)
 
 ### 18. Prevent Double Booking
 **Description:** Implemented as part of #17 (`appointment-booking` OpenSpec change). See #17 scope items 17b/18a for the `btree_gist` exclusion constraint and 17d for the `isConflictError()` TypeScript helper. The constraint ensures no two `pending/confirmed` appointments can occupy overlapping time ranges for the same staff member, using atomic GIST index locking that eliminates the race condition where two concurrent INSERTs would otherwise both succeed.
 
 **Architecture Decision:** #17 and #18 are a single OpenSpec change. Deploying `create_appointment` without the exclusion constraint would create a live double-booking window — they must be in the same migration batch.
 
-- [ ]
+- [x] `appointment-booking` (da3af57)
 
 ### 19. Booking Confirmation Page
 **Description:** Implement the post-booking confirmation experience: a dedicated page showing the confirmed appointment details and providing the customer with a clear booking reference and next-step navigation. Email notification is deferred to #27 (Notifications System).
