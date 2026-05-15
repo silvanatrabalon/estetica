@@ -483,19 +483,204 @@ alter table public.organizations
 ## Phase 5: Appointment Core
 
 ### 16. Availability System (Time Slot Generation)
-**Description:** Dynamic availability calculation, time slot generator, timezone normalization, availability overlay.
+**Description:** Implement a slot generator that computes all bookable time windows for a given service and calendar date. The generator is the single source of truth for "what is bookable" — it is the prerequisite for booking creation (#17) and double-booking prevention (#18).
+
+**Scope (MVP):**
+
+*16a — PostgreSQL RPC: core slot generator*
+- New SECURITY DEFINER function `get_available_slots(p_service_id uuid, p_date date)` — granted to `authenticated`
+- Returns `TABLE(starts_at timestamptz, ends_at timestamptz)` (UTC); a slot is returned if at least one active, assigned staff member is free at that time (any-staff model — no `p_staff_member_id` parameter)
+- For each assigned staff member (`staff_services` joined to `staff_members WHERE is_active = true`), resolves their working window for `p_date`:
+  - `staff_schedule_exceptions` wins if present: `day_off` → no slots for this staff; `custom_hours` → use exception times
+  - Falls back to `staff_schedules WHERE day_of_week = extract(dow from p_date)`: `is_working = false` → skip; `is_working = true` → use schedule times
+  - No schedule rows for this staff → skip (unavailable)
+- Intersects each resolved staff window with `business_hours` for `day_of_week`:
+  - `business_hours` row absent for that day → treat as business closed; return no slots
+  - `is_closed = true` → return no slots for the date
+  - Clip staff window to `[max(staff_start, business_opens), min(staff_end, business_closes)]`
+- Applies `business_closure_exceptions` for `p_date`:
+  - `full_day` → return no slots (entire date blocked)
+  - `half_day` → remove the closure sub-window from the available range before clipping
+- Converts the effective wall-clock window to UTC via `(p_date + wall_clock_time) AT TIME ZONE organizations.timezone`
+- Generates candidate slots by stepping through the window at **30-minute intervals** (constant hardcoded in function); emits only slots where `slot_start + duration_minutes interval ≤ window_end` (overflow protection)
+- Drops any slot where a `pending` or `confirmed` appointment for the same staff overlaps `[slot_start, slot_end)` using `starts_at < slot_end AND ends_at > slot_start`
+- A slot is included in the result if at least one staff member survives all the above filters for that slot window
+
+*16b — DB: service constraint filters*
+- Extends 16a: if `service_available_dates` has any rows for `p_service_id`, only dates in the whitelist are eligible (empty = no date restriction)
+- Extends 16a: if `services.max_concurrent_bookings IS NOT NULL`, count all `pending/confirmed` appointments for the service that overlap `[slot_start, slot_end)` across all staff; drop slot if count ≥ limit
+
+*16c — DB + frontend: booking policy window and timezone display*
+- Extends 16a: drops slots outside the booking policy window:
+  - Earliest valid start = `now() + booking_min_notice_minutes minutes` evaluated in org timezone
+  - Latest valid date = today (in org timezone) + `booking_max_horizon_days` days
+- Frontend: `formatSlotTime(isoUtc: string, orgTimezone: string): string` utility using `Intl.DateTimeFormat` (no third-party date library); renders times in the business's IANA timezone
+
+*16d — TypeScript: service layer and hooks*
+- `src/services/availability.ts`:
+  - `getAvailableSlots(serviceId: string, date: string): Promise<AvailableSlot[]>` — calls the RPC
+  - `AvailableSlot { starts_at: string; ends_at: string }`
+- `useAvailableSlots(serviceId, date)` hook — loading / error / slots state; re-fetches when deps change
+- `useActiveServices()` hook — direct SELECT from `services WHERE is_active = true` for the booking wizard service selector
+
+*16e — UI: customer booking wizard (slot selection)*
+- Implements `/booking` route as a multi-step wizard:
+  - Step 1 `ServiceSelector`: list of active services (name, duration, price in ARS)
+  - Step 2 `BookingDatePicker`: calendar constrained to booking policy horizon; days outside `[today + min_notice, today + max_horizon]` are non-selectable
+  - Step 3 `SlotGrid`: time slots for the selected date; slots displayed in org timezone using `formatSlotTime`
+- Spanish copy for all UI states: loading, no slots available, service unavailable on date, error, no active services
+- Selecting a slot navigates to booking creation step (#17 scope), passing `{ serviceId, startsAt, endsAt }`
+
+**Architecture Decisions (resolved):**
+- Slot interval: **30 minutes** (hardcoded constant in RPC — document as future config candidate)
+- Staff model: **any staff** — `get_available_slots` aggregates across all assigned active staff; no customer-facing staff selection; auto-assignment happens at booking creation (#17)
+- Business hours gate: **hard gate** — staff availability is always clipped to business open hours; missing `business_hours` row for a `day_of_week` = business closed (no slots)
+- No staff schedule rows: treated as fully unavailable (no slots emitted for that staff)
+- Slot conflict model: **optimistic** — no slot reservation; #17/#18 handle conflict detection atomically at INSERT time; customer re-selects on conflict
+
+**Data Model:**
+No new tables. New DB function: `get_available_slots`. A `slot_interval_minutes` constant (30) lives inside the RPC.
+
+**Dependencies (all implemented and migrated):**
+`staff_schedules` + `staff_schedule_exceptions` (#12) · `business_hours` + `business_closure_exceptions` (#10) · `service_available_dates` + `services.max_concurrent_bookings` (#15a/15b) · `organizations.booking_min_notice_minutes` + `booking_max_horizon_days` (#15c) · `staff_services` (#14b) · `appointments` (foundation schema)
+
+**Out of Scope:**
+- Booking creation and confirmation (#17)
+- Double-booking atomicity and race condition prevention (#18)
+- Customer-facing staff preference selection (any-staff model is sufficient for MVP)
+- Break or buffer times within a working day (#30)
+- Real-time slot refresh via Supabase Realtime (re-query on interaction is sufficient)
+- Customer timezone preference (slots always displayed in org timezone)
+
+**Testing Scope:**
+- SQL tests: all schedule/exception permutations, slot overflow enforcement, cancelled appointments do NOT block slots, whitelist semantics (empty = unrestricted), capacity range overlap arithmetic, booking policy window boundaries, business closure exceptions, no-schedule-rows fallback, missing-business-hours-row = closed
+- Unit tests: `formatSlotTime` covering DST dates in `America/Argentina/Buenos_Aires`; hook state transitions (loading, success, error, re-fetch); service layer RPC parameter mapping
+- Integration tests: full BookingPage wizard steps, loading/empty/error states in Spanish, date picker respects horizon
+
 - [ ]
 
 ### 17. Appointment Booking (Core Flow)
-**Description:** View available slots, select service/staff/date/time, create booking, validation rules.
+**Description:** Implement the appointment creation flow that closes the booking wizard. The wizard delivers `{ serviceId, startsAt }` from Step 3 (#16). This item adds Step 4 (review/confirm screen) and the actual appointment INSERT, double-booking prevention, error handling, and post-booking navigation.
+
+**Note:** #17 and #18 are implemented as a single OpenSpec change `appointment-booking`. The exclusion constraint (#18) must be migrated in the same batch as the `create_appointment` RPC (#17) — deploying the RPC without the constraint would leave a live double-booking window.
+
+**Scope (MVP):**
+
+*17a — DB: `appointments` grants and RLS*
+- `GRANT SELECT ON public.appointments TO authenticated`
+- Customer SELECT policy: `customer_user_id = auth.uid()`
+- Staff/admin SELECT policy: `is_staff_or_admin() AND organization_id = singleton org`
+- No direct INSERT/UPDATE/DELETE — all writes through SECURITY DEFINER RPCs
+
+*17b / 18a — DB: double-booking exclusion constraint (prerequisite for 17c)*
+- `CREATE EXTENSION IF NOT EXISTS btree_gist`
+- Drop existing `ux_appointments_staff_exact_slot` unique index (superseded)
+- Add exclusion constraint `excl_appointments_staff_no_overlap` using GIST on `(staff_member_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&)` WHERE `status IN ('pending', 'confirmed')`
+- Half-open interval `[)` semantics: back-to-back bookings (A ends 11:00, B starts 11:00) are allowed
+- `cancelled`, `completed`, `no_show` appointments do NOT block new bookings in the same window
+
+*17c — DB: `create_appointment` SECURITY DEFINER RPC*
+- Function signature: `create_appointment(p_service_id uuid, p_starts_at timestamptz)` — granted to `authenticated`
+- Computes `ends_at` server-side as `p_starts_at + service.duration_minutes` (never trusts client-passed value)
+- Validates: service is active; slot is within booking policy window (`booking_min_notice_minutes`, `booking_max_horizon_days` from `organizations`)
+- Enforces `max_concurrent_bookings`: `COUNT(*)` of overlapping `pending/confirmed` appointments for the service across all staff; raises `BOOKING_CAPACITY_EXCEEDED` if at limit
+- Auto-assigns staff: selects the first active `staff_members` row assigned to the service (via `staff_services`) that has no overlapping `pending/confirmed` appointment for the slot, ordered by `staff_members.created_at ASC` for determinism; raises `BOOKING_NO_STAFF_AVAILABLE` if none found
+- INSERTs with `status = 'confirmed'` (auto-confirmed — no manual approval step)
+- Returns the created appointment row (`id`, `service_id`, `staff_member_id`, `starts_at`, `ends_at`, `status`, `created_at`)
+- The exclusion constraint (17b/18a) provides atomic race protection at the index level
+
+*17d — TypeScript: `src/services/appointments.ts`*
+- `createAppointment(params: { serviceId: string; startsAt: string }): Promise<NewAppointment>`
+- `NewAppointment { id, serviceId, staffMemberId, startsAt, endsAt, status, createdAt }`
+- Error translation:
+  - `23P01` (exclusion violation) → "El horario seleccionado ya no está disponible. Por favor, seleccioná otro turno."
+  - `P0001:BOOKING_NO_STAFF_AVAILABLE` → same message as above
+  - `P0001:BOOKING_CAPACITY_EXCEEDED` → "El turno seleccionado ya no tiene disponibilidad. Por favor, elegí otro."
+  - `P0001:BOOKING_OUTSIDE_POLICY_WINDOW` → "Este horario ya no está dentro del rango de reservas permitido."
+  - `P0001:BOOKING_SERVICE_NOT_FOUND` → "El servicio seleccionado no está disponible."
+- `isConflictError(err)` helper: detects `23P01`, `23505`, and `P0001` with message match
+
+*17e — Frontend: BookingPage Step 4 + routing*
+- Add Step 4 to `BookingPage.tsx`: review screen showing service name, formatted date and time (org timezone via `formatSlotTime`), duration, price; "Confirmar reserva" primary CTA; back button to Step 3 to change slot
+- No notes field
+- On success: `navigate('/booking/confirmation/:appointmentId')`
+- On conflict or no-staff error: inline Spanish error message + "Elegir otro turno" CTA back to Step 3
+- Register `/booking/confirmation/:appointmentId` in `routing.ts` as `role-restricted` for `customer`; register stub route in `App.tsx` (full page implemented in #19)
+- All copy in Spanish
+
+**Architecture Decisions (resolved):**
+- Status on creation: **confirmed** (no manual approval step; the business sees bookings as immediately active)
+- Notes field: **excluded** from the booking wizard
+- Staff assignment: **first available by `created_at` ASC** (deterministic, simple, fair enough for MVP)
+- `ends_at`: always computed server-side; client-passed value is discarded
+- `#17 + #18` deployed as one OpenSpec change `appointment-booking`
+
+**Data Model:**
+No new tables. New DB function: `create_appointment`. New constraint: `excl_appointments_staff_no_overlap`. Existing `ux_appointments_staff_exact_slot` dropped.
+
+**Dependencies:** #16 (`get_available_slots`, `BookingPage` steps 1–3, `formatSlotTime`) · #15 (`max_concurrent_bookings`, `booking_min_notice_minutes`, `booking_max_horizon_days`) · #14b (`staff_services`)
+
+**Out of Scope:**
+- Confirmation page content (#19)
+- Email notifications (#27)
+- Admin/staff appointment views (#20, #23)
+- Customer cancellation (#22)
+- Reschedule (#21)
+
+**Testing Scope:**
+- SQL smoke tests: successful booking returns `confirmed` appointment; `ends_at` equals `starts_at + duration_minutes`; unauthenticated caller denied; `BOOKING_NO_STAFF_AVAILABLE` raised when no staff is free; `BOOKING_CAPACITY_EXCEEDED` raised at capacity; `BOOKING_OUTSIDE_POLICY_WINDOW` raised for past or beyond-horizon slots; customer can SELECT own appointments; customer cannot SELECT other customers' appointments; staff/admin can SELECT all org appointments; exclusion constraint blocks concurrent overlapping bookings for same staff; back-to-back bookings at exact boundary both succeed; `cancelled` appointment does NOT block new booking in same window; `completed` appointment does NOT block; two different staff can have overlapping slots; capacity-null service has no limit enforced
+- TypeScript unit tests: `createAppointment()` maps RPC response to `NewAppointment`; `isConflictError()` correctly identifies `23P01`, `P0001` variants, and `23505`; error codes translate to correct Spanish messages
+- Integration tests: Step 4 renders service name, formatted date/time; "Confirmar reserva" calls service function; success navigates to `/booking/confirmation/:id`; conflict shows Spanish inline error and back CTA
+
 - [ ]
 
 ### 18. Prevent Double Booking
-**Description:** Overlap detection algorithm, concurrency-safe booking logic, race condition prevention.
+**Description:** Implemented as part of #17 (`appointment-booking` OpenSpec change). See #17 scope items 17b/18a for the `btree_gist` exclusion constraint and 17d for the `isConflictError()` TypeScript helper. The constraint ensures no two `pending/confirmed` appointments can occupy overlapping time ranges for the same staff member, using atomic GIST index locking that eliminates the race condition where two concurrent INSERTs would otherwise both succeed.
+
+**Architecture Decision:** #17 and #18 are a single OpenSpec change. Deploying `create_appointment` without the exclusion constraint would create a live double-booking window — they must be in the same migration batch.
+
 - [ ]
 
-### 19. Booking Confirmation Flow
-**Description:** Confirmation page, email confirmation using resend, booking status system (pending/confirmed/cancelled).
+### 19. Booking Confirmation Page
+**Description:** Implement the post-booking confirmation experience: a dedicated page showing the confirmed appointment details and providing the customer with a clear booking reference and next-step navigation. Email notification is deferred to #27 (Notifications System).
+
+**Scope (MVP):**
+
+*19a — DB: `get_appointment` SECURITY DEFINER RPC*
+- Function signature: `get_appointment(p_appointment_id uuid)` — granted to `authenticated`
+- Returns a single row joined with: `services.name`, `services.duration_minutes`, `services.price_cents`; `staff_members.display_name`; `organizations.name`, `organizations.timezone`
+- Authorization: returns data only when `customer_user_id = auth.uid()` OR `is_staff_or_admin()`; returns empty result if not found or unauthorized (no error raised — prevents ID enumeration)
+
+*19b — Frontend: `BookingConfirmationPage.tsx`*
+- Route: `/booking/confirmation/:appointmentId` (registered as stub in #17e; this task completes it)
+- On mount: calls `get_appointment` RPC with `appointmentId` from route params
+- Success state: service name; date formatted in org timezone; time formatted in org timezone (`formatSlotTime`); duration in minutes; staff display name; business name; status badge ("Confirmado"); booking reference (last 8 characters of the UUID)
+- Loading state: spinner with "Cargando tu turno..."
+- Not found / unauthorized state: "No encontramos tu turno. Verificá que el enlace sea correcto."
+- Error state: "Ocurrió un error al cargar tu turno. Intentá de nuevo."
+- CTAs: "Ver mis turnos" → `/appointments`; "Hacer otra reserva" → `/booking`
+- Page is refreshable (appointment ID in route param, not navigation state)
+- All copy in Spanish
+
+**Architecture Decisions (resolved):**
+- Email deferred to #27 — no Edge Function, no `pg_net`, no Resend integration in this item
+- `get_appointment` RPC (not direct SELECT + JOIN from frontend) — avoids needing broad `staff_members` READ grants for customers
+- Status shown as "Confirmado" (auto-confirmed per #17 decision; no "pendiente" state to handle)
+- Email recipients and Resend integration design belong to #27
+
+**Dependencies:** #17 (`create_appointment`, `/booking/confirmation` route stub, `appointments` SELECT RLS) · #16 (`formatSlotTime` utility)
+
+**Out of Scope:**
+- Email confirmation (#27)
+- Customer cancellation action (#22)
+- Staff/admin status management (#20, #23)
+- Reschedule (#21)
+
+**Testing Scope:**
+- SQL smoke tests: `get_appointment` returns correct joined data for the owning customer; `get_appointment` returns empty for a different customer's appointment; `get_appointment` returns data for staff/admin; unauthenticated caller denied
+- TypeScript unit tests: `BookingConfirmationPage` renders service name, formatted date/time, staff name, status badge, booking reference correctly; loading state renders spinner; not-found state renders Spanish error message; "Ver mis turnos" navigates to `/appointments`
+- Integration tests: page fetches appointment by ID on mount; shows confirmed status copy; CTAs navigate correctly
+
 - [ ]
 
 ---
@@ -588,12 +773,12 @@ alter table public.organizations
 ## Summary
 
 **Total Features:** 38
-**Completed:** 18
+**Completed:** 19
 **In Progress:** 0
-**Pending:** 20
+**Pending:** 19
 
-**Current Phase:** Phase 4 (Services & Products)
-**Next Feature:** #13b (Fix Role Switcher) / #15 (Service Booking Configuration)
+**Current Phase:** Phase 5 (Booking & Scheduling)
+**Next Feature:** #16 (Availability System — Time Slot Generation)
 
 ---
 

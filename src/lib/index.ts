@@ -3,6 +3,7 @@
 
 export * from './businessSettings'
 export { cn } from './cn'
+export { formatSlotTime } from './formatSlotTime'
 export {
   canAccessRoute,
   getRoutePolicy,
