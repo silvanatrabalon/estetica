@@ -687,20 +687,180 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 ## Phase 6: Appointment Management
 
-### 20. View Appointments
-**Description:** User view own appointments, staff view assigned appointments, calendar integration.
+### 20. View Appointments (Customer & Staff)
+**Description:** Customer views their own appointments at `/appointments`; staff views their assigned appointments at `/staff/appointments`. Both views include a chronological list and a calendar UI (weekly + monthly views with toggle). Calendar integration scoped here; drag-and-drop reschedule deferred to #25.
+
+**Scope (MVP):**
+
+*20a — DB: `list_appointments()` SECURITY DEFINER RPC*
+- Function signature: `list_appointments()` — no params, role-aware internally — granted to `authenticated`
+- Returns appointments joined with: `services.name`, `services.duration_minutes`, `services.price_cents`; `staff_members.display_name`; `organizations.name`, `organizations.timezone`; `profiles.full_name` as `customer_name` (for staff/admin view)
+- Customer caller: returns own appointments (`customer_user_id = auth.uid()`)
+- Staff/admin caller: returns appointments where `staff_members.profile_user_id = auth.uid()` (staff) or all org appointments (admin)
+- Hard limit: 200 rows ordered by `starts_at DESC`; no cursor pagination in MVP
+
+*20b — Frontend: `AppointmentsPage` (customer — `/appointments`)*
+- Two tabs: **Próximos** (`pending`/`confirmed`, `starts_at > now()`) and **Historial** (past + `cancelled`/`completed`/`no_show`)
+- Appointment card: service name, date/time formatted in org timezone, staff display name, status badge, booking reference (last 8 chars UUID)
+- Card links to `/booking/confirmation/:id` (read-only detail)
+- View toggle: **Lista** (tab-based list) ↔ **Calendario** (weekly/monthly calendar with toggle between week and month)
+- Weekly calendar: columns per day, appointments as time blocks
+- Monthly calendar: month grid, appointments as dots/event chips per day
+- Loading, empty (per tab/view), and error states in Spanish
+
+*20c — Frontend: `StaffAppointmentsPage` (staff — `/staff/appointments`)*
+- Same tab and calendar structure as 20b
+- Card shows customer name (from `profiles.full_name`) instead of staff name
+- Staff-only fields visible: customer name, service, date/time, status badge
+
+**Architecture Decisions:**
+- SECURITY DEFINER RPC required — customers must not have direct SELECT grants on `staff_members` or `profiles`
+- Consistent with `get_appointment` pattern (already in production)
+- Calendar UI is read-only; reschedule via calendar drag deferred to #25
+
+**Dependencies:** #17 (`appointments` table, RLS, SELECT grants) · #19 (`get_appointment`, `BookingConfirmationPage` — linked from each card) · #16 (`formatSlotTime` utility)
+
+**Out of Scope:**
+- Drag-and-drop reschedule → #25
+- iCal / Google Calendar export
+- Status filter controls (list-level)
+- Cursor/offset pagination (add when volume requires)
+
+**Testing Scope:**
+- SQL smoke tests: customer sees only own appointments; staff sees assigned appointments; non-owner gets no data; admin sees all; joined fields correct
+- TypeScript: `useAppointments` hook loading/success/error/empty transitions
+- Page tests: lista tab switching, calendar renders correct week/month, empty state per tab/view in Spanish
+
 - [ ]
 
 ### 21. Reschedule Appointment
-**Description:** Change date/time, validation, conflict detection, notification.
+**Description:** Customer, staff, and admin can reschedule `pending`/`confirmed` appointments to a new time slot. Entry point: "Reprogramar" CTA on the appointment card (from #20), which navigates to a dedicated `/appointments/:id/reschedule` route that reuses the slot picker from #16.
+
+**Scope (MVP):**
+
+*21a — DB: `reschedule_appointment(p_appointment_id uuid, p_new_starts_at timestamptz)` SECURITY DEFINER RPC*
+- Granted to `authenticated`
+- Authorization: customer can reschedule own (`customer_user_id = auth.uid()`); staff can reschedule assigned; admin can reschedule any
+- Status guard: only `pending` or `confirmed` appointments — raises error for `cancelled`, `completed`, `no_show`
+- Policy enforcement: for customer callers, validate `p_new_starts_at >= now() + org.booking_min_notice_minutes`; staff/admin bypass this check
+- Conflict detection: `ends_at` recomputed server-side as `p_new_starts_at + service.duration_minutes`; existing `excl_appointments_staff_no_overlap` exclusion constraint enforces no overlap automatically on UPDATE
+- Atomically updates `starts_at`, `ends_at`, `updated_at` in one transaction
+- Returns updated appointment row on success; raises named error on policy/conflict violation
+
+*21b — Frontend: `/appointments/:id/reschedule` route*
+- RoleGuard: `customer`, `staff`, `admin`
+- Loads existing appointment via `get_appointment(id)` on mount
+- Pre-selects the same service and (if possible) same staff member in slot picker
+- Reuses `BookingDatePicker` + `SlotGrid` components from #16
+- On slot selection → confirmation step → calls `reschedule_appointment` RPC
+- Success: navigates to `/booking/confirmation/:id` (shows updated details)
+- Conflict error: inline Spanish message + "Elegir otro turno" CTA
+- Policy window error: "No podés reprogramar con tan poca anticipación. Elegí un horario con al menos X horas de anticipación."
+- Loading and error states in Spanish
+
+**Architecture Decisions:**
+- Separate route (not modal) for reschedule — allows direct link and browser back navigation
+- `ends_at` always recomputed server-side — client cannot set it
+- Notifications: NOT included in this item. Add a `// TODO(#27): trigger reschedule notification` comment at the hookup point in the RPC
+
+**Dependencies:** #20 (`AppointmentsPage` provides entry CTA) · #16 (`get_available_slots`, `SlotGrid`, `BookingDatePicker` reused) · #17 (exclusion constraint, `appointments` UPDATE RLS)
+
+**Out of Scope:**
+- Email/SMS notification → #27
+- Changing service or staff during reschedule (same service + same staff, new slot only)
+- Admin force-reschedule with `bypass_policy` flag
+- Reschedule limit (max N reschedules per appointment)
+
+**Testing Scope:**
+- SQL smoke tests: customer reschedules own confirmed appointment; customer cannot reschedule another's; policy window rejects too-soon slot for customer; staff bypasses policy; exclusion constraint blocks conflicting slot; `ends_at` equals `new_starts_at + duration`; cannot reschedule `cancelled` appointment
+- TypeScript: `rescheduleAppointment()` error mapping to Spanish
+- Page tests: slot picker renders pre-selected service; success navigates to confirmation; conflict error renders inline; policy window error renders with correct copy
+
 - [ ]
 
 ### 22. Cancel Appointment
-**Description:** Cancellation flow, soft delete, notification to staff/user.
+**Description:** Customer, staff, and admin can cancel `pending`/`confirmed` appointments. Status is set to `cancelled` (no record deleted). Cancellations respect `booking_min_notice_minutes` for customers. Notifications deferred to #27.
+
+**Scope (MVP):**
+
+*22a — DB: `cancel_appointment(p_appointment_id uuid)` SECURITY DEFINER RPC*
+- Granted to `authenticated`
+- Authorization: customer can cancel own (`customer_user_id = auth.uid()`); staff can cancel assigned; admin can cancel any
+- Status guard: only `pending` or `confirmed` — raises named error for already-`cancelled`, `completed`, `no_show`
+- Cancellation policy: for customer callers, validate `appointment.starts_at >= now() + org.booking_min_notice_minutes`; staff/admin bypass this check
+- Atomically updates `status = 'cancelled'`, `updated_at = now()`
+- Returns updated appointment row on success; raises named error on policy/status violation
+
+*22b — Frontend: Confirmation dialog (inline, not a new route)*
+- "Cancelar" button on appointment card (from #20 list) opens a dialog
+- Dialog copy: "¿Cancelar este turno? Esta acción no se puede deshacer." → "Sí, cancelar" / "Volver"
+- On confirm: calls `cancel_appointment` RPC → optimistically updates status badge to "Cancelado" in list
+- Policy window error: "No podés cancelar con tan poca anticipación. Podés cancelarlo con al menos X horas de anticipación."
+- Cancelled appointments remain visible in **Historial** tab with "Cancelado" badge
+- Error state renders in Spanish
+
+**Architecture Decisions:**
+- Status transition only — no record deletion. The `status = 'cancelled'` value already exists in the schema's CHECK constraint.
+- Notifications: NOT included in this item. Add a `// TODO(#27): trigger cancellation notification` comment at the hookup point in the RPC
+- No `cancellation_note` field in MVP (can be added later)
+- Using same `booking_min_notice_minutes` for cancellation — no separate column needed in MVP
+
+**Dependencies:** #20 (`AppointmentsPage` provides the "Cancelar" CTA on each card) · #17 (`appointments` table, UPDATE RLS, `booking_min_notice_minutes` in organizations)
+
+**Out of Scope:**
+- Email/SMS notification → #27
+- Staff cancellation reason/notes field
+- Admin-level force-cancel bypassing policy
+- Separate `cancellation_min_notice_minutes` org config (reuses `booking_min_notice_minutes` for now)
+
+**Testing Scope:**
+- SQL smoke tests: customer cancels own confirmed appointment → status becomes `cancelled`; cannot cancel another's; policy window rejects cancellation too close to start; staff/admin bypass policy; cannot cancel already-cancelled appointment
+- TypeScript: `cancelAppointment()` error mapping to Spanish
+- Page/component tests: confirmation dialog renders; "Sí, cancelar" triggers service call; success updates status badge; policy error renders correct copy; error state in Spanish
+
 - [ ]
 
 ### 23. Admin View All Appointments
-**Description:** System-wide appointment overview, filtering, search, analytics.
+**Description:** Admin views all organization appointments at a new `/admin/appointments` route (separate from `/admin/reports`). Includes list view with server-side filtering by status and date range, and offset pagination. Analytics and KPIs deferred to #26.
+
+**Scope (MVP):**
+
+*23a — DB: `admin_list_appointments(p_statuses text[], p_date_from timestamptz, p_date_to timestamptz, p_page integer, p_page_size integer)` SECURITY DEFINER RPC*
+- Granted to `authenticated`
+- Authorization: raises permission error if caller is not admin (`is_admin()`)
+- Returns all org appointments filtered by provided params (NULLs = no filter)
+- Columns: `id`, `starts_at`, `ends_at`, `status`, `service_name`, `staff_display_name`, `customer_name` (from `profiles.full_name`, fallback to email or "—" if incomplete), `created_at`
+- Default page size: 50; ordered by `starts_at DESC`
+- Returns `total_count` for pagination UI
+
+*23b — Frontend: `AdminAppointmentsPage` at `/admin/appointments`*
+- New page registered in App.tsx under `RoleGuard allowedRoles={['admin']}`
+- Table/list layout with columns: cliente, servicio, profesional, fecha/hora, estado
+- Filters panel: status (multi-select chips), date range (two date inputs)
+- Pagination: previous/next controls, current page indicator
+- Status badges consistent with #20 color system
+- Loading, empty, and error states in Spanish
+- Navigation link added in admin sidebar/nav
+
+**Architecture Decisions:**
+- Separate route from `/admin/reports` — appointments management and reporting/analytics are distinct concerns
+- SECURITY DEFINER RPC with server-side filtering prevents full table scans from the client
+- Offset pagination (not cursor) — simpler for MVP volume; can migrate to cursor if needed
+- `customer_name` from `profiles.full_name` — requires `profiles` SELECT inside SECURITY DEFINER context
+
+**Dependencies:** #20 (`AppointmentSummary` TypeScript interface reused) · #17 (`appointments` table, admin SELECT RLS already covers this but RPC is safer for joins)
+
+**Out of Scope:**
+- Full-text search (requires `pg_trgm` or Supabase search — post-MVP)
+- Analytics / KPIs → #26 Admin Dashboard
+- CSV export
+- Appointment detail inline expansion (link to `/booking/confirmation/:id` is sufficient)
+
+**Testing Scope:**
+- SQL smoke tests: admin sees all org appointments; non-admin raises permission error; status filter returns only matching rows; date range filter correct; pagination returns correct page; `customer_name` joined correctly; fallback for missing profile
+- TypeScript: filter params map to RPC args; camelCase mapping; pagination state
+- Page tests: list renders; status filter updates results; date range triggers re-fetch; pagination controls; empty state in Spanish; error state
+
 - [ ]
 
 ---
