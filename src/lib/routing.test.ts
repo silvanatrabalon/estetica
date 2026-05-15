@@ -68,6 +68,32 @@ describe('routing policy', () => {
     ).toBe(true)
   })
 
+  it('returns role-restricted customer policy for booking confirmation path', () => {
+    const policy = getRoutePolicy('/booking/confirmation/some-uuid')
+    expect(policy?.access).toBe('role-restricted')
+    expect(policy?.allowedRoles).toContain('customer')
+  })
+
+  it('denies booking confirmation path for unauthenticated users', () => {
+    expect(
+      canAccessRoute({
+        path: '/booking/confirmation/some-uuid',
+        isAuthenticated: false,
+        role: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('allows booking confirmation path for customer role', () => {
+    expect(
+      canAccessRoute({
+        path: '/booking/confirmation/some-uuid',
+        isAuthenticated: true,
+        role: 'customer',
+      }),
+    ).toBe(true)
+  })
+
   it('denies admin staff management route for non-admin roles', () => {
     expect(
       canAccessRoute({

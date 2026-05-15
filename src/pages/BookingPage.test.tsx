@@ -29,6 +29,24 @@ vi.mock('../lib/supabase', () => ({
   }),
 }))
 
+const mockNavigate = vi.fn()
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>()
+  return { ...actual, useNavigate: () => mockNavigate }
+})
+
+const mockCreateAppointment = vi.fn()
+
+vi.mock('../services/appointments', () => ({
+  createAppointment: (...args: unknown[]) => mockCreateAppointment(...args),
+  isConflictError: (err: unknown) => {
+    if (!err || typeof err !== 'object') return false
+    const e = err as { code?: string }
+    return e.code === '23P01' || e.code === '23505' || e.code === 'CONFLICT'
+  },
+}))
+
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
 const mockService: Service = {
@@ -227,7 +245,7 @@ describe('BookingPage', () => {
       await waitFor(() => expect(screen.getByText(/horarios/)).toBeDefined())
     })
 
-    it('stores selected slot and shows confirmation message', async () => {
+    it('clicking a slot advances to step 4 (review screen)', async () => {
       mockGetAvailableSlots.mockResolvedValueOnce([mockSlot])
       await goToStep3()
 
@@ -242,7 +260,7 @@ describe('BookingPage', () => {
       fireEvent.click(slotButtons[0])
 
       await waitFor(() =>
-        expect(screen.getByText(/Horario seleccionado/)).toBeDefined(),
+        expect(screen.getByText(/Revisá tu reserva/)).toBeDefined(),
       )
     })
   })
@@ -260,6 +278,119 @@ describe('BookingPage', () => {
       expect(screen.getByText('Servicio')).toBeDefined()
       expect(screen.getByText('Fecha')).toBeDefined()
       expect(screen.getByText('Horario')).toBeDefined()
+      expect(screen.getByText('Confirmar')).toBeDefined()
+    })
+  })
+
+  describe('Step 4 — Review and confirm', () => {
+    async function goToStep4() {
+      mockSupabaseFrom.mockReturnValueOnce(
+        buildQueryChain({ data: [mockServiceRow], error: null }),
+      )
+      mockGetAvailableSlots.mockResolvedValueOnce([mockSlot])
+      renderPage()
+
+      await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
+      fireEvent.click(screen.getByText('Corte de cabello'))
+
+      const input = document.querySelector('input[type="date"]') as HTMLInputElement
+      fireEvent.change(input, { target: { value: '2025-06-10' } })
+
+      await waitFor(() => {
+        const buttons = screen.getAllByRole('button')
+        const slotButtons = buttons.filter((b) => b.textContent?.match(/\d+:\d+/))
+        expect(slotButtons.length).toBeGreaterThan(0)
+      })
+
+      const buttons = screen.getAllByRole('button')
+      const slotButtons = buttons.filter((b) => b.textContent?.match(/\d+:\d+/))
+      fireEvent.click(slotButtons[0])
+
+      await waitFor(() => expect(screen.getByText(/Revisá tu reserva/)).toBeDefined())
+    }
+
+    it('renders service name on review screen', async () => {
+      await goToStep4()
+      expect(screen.getByText('Corte de cabello')).toBeDefined()
+    })
+
+    it('renders duration in minutes', async () => {
+      await goToStep4()
+      expect(screen.getByText(/60 min/)).toBeDefined()
+    })
+
+    it('renders price formatted in pesos', async () => {
+      await goToStep4()
+      // 5000 cents = $50.00
+      expect(screen.getByText(/50/)).toBeDefined()
+    })
+
+    it('"Confirmar reserva" calls createAppointment with correct params', async () => {
+      mockCreateAppointment.mockResolvedValueOnce({ id: 'appt-new' })
+      await goToStep4()
+
+      const confirmBtn = screen.getByText('Confirmar reserva')
+      fireEvent.click(confirmBtn)
+
+      await waitFor(() =>
+        expect(mockCreateAppointment).toHaveBeenCalledWith({
+          serviceId: 'svc-1',
+          startsAt: mockSlot.starts_at,
+        }),
+      )
+    })
+
+    it('navigates to /booking/confirmation/:id on success', async () => {
+      mockCreateAppointment.mockResolvedValueOnce({ id: 'appt-new' })
+      await goToStep4()
+
+      fireEvent.click(screen.getByText('Confirmar reserva'))
+
+      await waitFor(() =>
+        expect(mockNavigate).toHaveBeenCalledWith('/booking/confirmation/appt-new'),
+      )
+    })
+
+    it('shows inline Spanish error message on booking failure', async () => {
+      const err = new Error('El turno seleccionado ya no tiene disponibilidad. Por favor, elegí otro.')
+      mockCreateAppointment.mockRejectedValueOnce(err)
+      await goToStep4()
+
+      fireEvent.click(screen.getByText('Confirmar reserva'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/El turno seleccionado ya no tiene disponibilidad/)).toBeDefined(),
+      )
+    })
+
+    it('"Elegir otro turno" returns user to step 3 after conflict error', async () => {
+      const err = new Error('El horario seleccionado ya no está disponible. Por favor, seleccioná otro turno.')
+      Object.assign(err, { code: '23P01' })
+      mockCreateAppointment.mockRejectedValueOnce(err)
+      await goToStep4()
+
+      fireEvent.click(screen.getByText('Confirmar reserva'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/Elegir otro turno/)).toBeDefined(),
+      )
+
+      fireEvent.click(screen.getByText('Elegir otro turno'))
+
+      await waitFor(() =>
+        expect(screen.getByText(/Elegí un horario/)).toBeDefined(),
+      )
+    })
+
+    it('"← Volver" from step 4 returns to step 3', async () => {
+      await goToStep4()
+
+      const backButtons = screen.getAllByText('← Volver')
+      fireEvent.click(backButtons[0])
+
+      await waitFor(() =>
+        expect(screen.getByText(/Elegí un horario/)).toBeDefined(),
+      )
     })
   })
 })

@@ -22,6 +22,7 @@ export const routePolicies: RoutePolicy[] = [
   { path: '/profile/setup', access: 'authenticated' },
   { path: '/seleccionar-rol', access: 'authenticated' },
   { path: '/unauthorized', access: 'authenticated' },
+  { path: '/booking/confirmation', access: 'role-restricted', allowedRoles: ['customer'] },
   { path: '/booking', access: 'role-restricted', allowedRoles: ['customer'] },
   { path: '/appointments', access: 'role-restricted', allowedRoles: ['customer'] },
   { path: '/staff/appointments', access: 'role-restricted', allowedRoles: ['staff', 'admin'] },

@@ -18,8 +18,9 @@ import {
   AdminStaffServicesPage,
   AdminUsersPage,
   AppointmentsPage,
-  BusinessSettingsPage,
+  BookingConfirmationPage,
   BookingPage,
+  BusinessSettingsPage,
   DashboardPage,
   NotFoundPage,
   ProfilePage,
@@ -76,6 +77,7 @@ function AppContent() {
 
           <Route element={<RoleGuard allowedRoles={['customer']} />}>
             <Route path="/booking" element={<BookingPage />} />
+            <Route path="/booking/confirmation/:appointmentId" element={<BookingConfirmationPage />} />
             <Route path="/appointments" element={<AppointmentsPage />} />
           </Route>
 

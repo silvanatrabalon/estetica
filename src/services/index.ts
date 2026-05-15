@@ -3,6 +3,7 @@
 
 export * from './adminServiceAvailability'
 export * from './adminServices'
+export * from './appointments'
 export * from './adminStaffServices'
 export * from './adminUsers'
 export * from './adminStaff'
