@@ -293,12 +293,91 @@ Today `user_roles` enforces a single role per user (`user_id PRIMARY KEY`). An o
 
 - [x] `multi-role-users-role-at-login` (163ec00)
 
+### 13b. Fix: Role Switcher Excludes "Cliente" Role
+**Description:** When an admin assigns the `customer` role to a user who also has `staff` or `admin`, the "Cambiar modo" menu in the app shell does not show the `customer` option — only `staff` and `admin` appear. The user cannot switch to the customer experience without signing out.
+
+**Root Cause (suspected):** The `RoleSelector` or the "Cambiar modo" menu filters out `customer` from the switchable roles list, likely treating it as a non-switchable default role.
+
+**Scope:**
+- Show all assigned roles (including `customer`) in the "Cambiar modo" menu
+- Switching to `customer` active role must redirect to the customer home (`/dashboard`) and apply the customer navigation and route guards
+- No DB or RLS changes needed — this is a frontend context/navigation fix
+
+- [ ]
+
 ---
 
 ## Phase 4: Services & Products
 
-### 14. Services (Offerings)
-**Description:** Create service types (e.g., haircut, consultation), set duration, pricing, assign to staff, add pictures.
+### 14. Services Catalog — Admin Management
+**Description:** Implement admin-only CRUD for the service catalog. Services define what the business offers: name, duration, price, and an optional image URL. This is the canonical data source for the booking flow (#16).
+
+**Scope (MVP):**
+- Admin can create, edit, deactivate, and reactivate services (no hard deletes)
+- Fields: `name` (required, ≥2 chars, unique per org), `duration_minutes` (required, 1–480), `price_cents` (required, ≥0), `image_url` (optional URL string), `is_active`
+- Price of zero displays as `$0.00`; currency hardcoded as ARS in the frontend
+- Active services are readable by all authenticated roles (customer, staff, admin) via RLS SELECT policy
+- All mutations are admin-only via SECURITY DEFINER RPC functions
+- `AdminServicesPage.tsx`: replace placeholder — service list with name, duration, price, image indicator, status badge; inline create/edit form (following `AdminStaffPage` pattern); deactivate/reactivate toggle
+- `src/services/adminServices.ts`: TypeScript service layer with typed interfaces and mapper functions
+- Spanish copy for all UI states
+
+**Data Model:**
+- No new tables — `services` table already exists in the foundation schema
+- Schema addition: `image_url text` nullable column on `services`
+- Two migrations: `_tables_grants_rls` (add `image_url` column + grants + RLS policies) and `_admin_rpc` (SECURITY DEFINER functions)
+
+**RPC Functions (SECURITY DEFINER, admin-only):**
+- `admin_list_services()` — returns all services for the org including `image_url`
+- `admin_create_service(p_name, p_duration_minutes, p_price_cents, p_image_url)` — create new service
+- `admin_update_service(p_service_id, p_name, p_duration_minutes, p_price_cents, p_image_url)` — update fields
+- `admin_set_service_active(p_service_id, p_is_active)` — deactivate/reactivate
+
+**Testing Scope:**
+- Unit tests: field validation (name min 2 chars, duration 1–480, price ≥0, image_url optional/valid URL format)
+- Integration tests: admin CRUD flows (create, edit, deactivate, reactivate, with and without image_url); non-admin access denied (RoleGuard regression)
+- SQL smoke/RLS tests: admin RPCs succeed; non-admin RPC raises permission error; authenticated non-admin can SELECT but cannot DML directly; unique constraint enforced
+
+**Architecture Decisions (resolved):**
+- Staff-service assignment deferred → booking flow (#16) allows any active staff for any active service
+- Currency hardcoded as ARS in the frontend (no `currency_code` column)
+- Images via nullable `image_url text` column (URL only, no Supabase Storage upload)
+- Price zero shown as `$0.00`
+
+**Out of Scope (deferred):**
+- Staff-service assignment (`staff_services` junction table) → new item between #14 and #16
+- Image file upload (Supabase Storage) → post-MVP
+- Customer-facing service catalog → part of #16
+- Service categories/grouping → post-MVP
+- Manual sort ordering → post-MVP
+- Price ranges or multi-currency → post-MVP
+
+- [ ]
+
+### 14b. Staff–Service Assignment
+**Description:** Define which services each staff member offers. Not all staff provide the same services — a customer selecting a service should only be offered staff members who are assigned to that service. This is a prerequisite for the booking flow (#16).
+
+**Scope (MVP):**
+- New junction table `staff_services` (`staff_member_id` ↔ `service_id`), with `is_active` flag
+- Admin can assign/unassign services to each staff member from the staff detail view
+- Only active services can be assigned
+- The booking flow (#16) must filter staff by the selected service using this table
+- Admin-only mutations via SECURITY DEFINER RPC functions
+- Spanish copy for all UI states
+
+**Data Model:**
+- New table `staff_services`: `staff_member_id uuid`, `service_id uuid`, `is_active boolean`, composite PK `(staff_member_id, service_id)`
+- Authenticated SELECT (for booking flow), no direct DML — all writes through admin RPCs
+
+**Out of Scope:**
+- Per-staff pricing overrides (→ post-MVP)
+- Staff self-service assignment
+
+**Testing Scope:**
+- Integration tests: admin can assign and unassign services to a staff member
+- RLS smoke tests: authenticated can SELECT, non-admin cannot DML directly
+- Booking flow integration: slot generator only returns staff assigned to selected service
+
 - [ ]
 
 ### 15. Service Availability Rules
@@ -414,13 +493,13 @@ Today `user_roles` enforces a single role per user (`user_id PRIMARY KEY`). An o
 
 ## Summary
 
-**Total Features:** 35  
-**Completed:** 11  
-**In Progress:** 0  
+**Total Features:** 38
+**Completed:** 14
+**In Progress:** 0
 **Pending:** 24
 
-**Current Phase:** Phase 3 (Business Configuration)  
-**Next Feature:** #12 (Staff Availability Configuration)
+**Current Phase:** Phase 4 (Services & Products)
+**Next Feature:** #14b (Staff–Service Assignment)
 
 ---
 
