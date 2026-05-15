@@ -320,6 +320,13 @@ export function AdminStaffPage() {
                       </button>
                       <button
                         type="button"
+                        onClick={() => navigate(`/admin/staff/${member.id}/services`)}
+                        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                      >
+                        Servicios
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => void handleToggleActive(member)}
                         className="text-gray-600 hover:text-gray-800 text-xs font-medium"
                       >

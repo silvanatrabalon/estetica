@@ -358,25 +358,50 @@ Today `user_roles` enforces a single role per user (`user_id PRIMARY KEY`). An o
 **Description:** Define which services each staff member offers. Not all staff provide the same services — a customer selecting a service should only be offered staff members who are assigned to that service. This is a prerequisite for the booking flow (#16).
 
 **Scope (MVP):**
-- New junction table `staff_services` (`staff_member_id` ↔ `service_id`), with `is_active` flag
-- Admin can assign/unassign services to each staff member from the staff detail view
-- Only active services can be assigned
-- The booking flow (#16) must filter staff by the selected service using this table
-- Admin-only mutations via SECURITY DEFINER RPC functions
-- Spanish copy for all UI states
+- New junction table `staff_services` (`staff_member_id` ↔ `service_id`) — no `is_active` flag; assignment exists or it doesn't
+- Admin assigns/removes services per staff member via a dedicated sub-route `/admin/staff/:staffId/services`, consistent with the existing `/admin/staff/:staffId/availability` pattern
+- "Gestionar servicios" link added per staff row in `AdminStaffPage` (alongside the availability link)
+- Assignment panel shows: list of currently assigned services with a per-row "Quitar" button; a dropdown of active services not yet assigned with an "Asignar" button
+- Unassignment = hard DELETE from the junction (no soft-delete)
+- Only active services can be assigned; if a service is deleted, the FK CASCADE removes the junction row automatically
+- All mutations via SECURITY DEFINER RPC functions (admin-only)
+- Spanish copy for all UI states (loading, empty, success, error)
 
 **Data Model:**
-- New table `staff_services`: `staff_member_id uuid`, `service_id uuid`, `is_active boolean`, composite PK `(staff_member_id, service_id)`
-- Authenticated SELECT (for booking flow), no direct DML — all writes through admin RPCs
+```
+staff_services (
+  staff_member_id  uuid NOT NULL REFERENCES staff_members(id) ON DELETE CASCADE,
+  service_id       uuid NOT NULL REFERENCES services(id) ON DELETE CASCADE,
+  organization_id  uuid NOT NULL REFERENCES organizations(id),
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (staff_member_id, service_id)
+)
+```
+Indexes: `(service_id, staff_member_id)` for booking flow reads; `(staff_member_id)` for admin panel reads.
+RLS: SELECT to `authenticated`; no direct DML — all writes through admin RPCs.
+
+**RPC Functions (SECURITY DEFINER, admin-only):**
+- `admin_list_staff_services(p_staff_member_id)` — returns services currently assigned to the staff member
+- `admin_list_assignable_services(p_staff_member_id)` — returns active services NOT yet assigned (for the selector)
+- `admin_assign_service_to_staff(p_staff_member_id, p_service_id)` — inserts junction row
+- `admin_unassign_service_from_staff(p_staff_member_id, p_service_id)` — hard deletes junction row
+
+**Architecture Decisions:**
+- No `is_active` on the junction — assignment is binary (exists or doesn't)
+- Dedicated sub-route `/admin/staff/:staffId/services` (not inline panel in staff list)
+- One service assigned/removed per action (no batch in MVP)
+- Booking flow (#16) filters eligible staff by joining `staff_services` on `service_id`
 
 **Out of Scope:**
 - Per-staff pricing overrides (→ post-MVP)
 - Staff self-service assignment
+- Batch assign/unassign
+- Booking flow integration test (→ deferred to #16)
 
 **Testing Scope:**
-- Integration tests: admin can assign and unassign services to a staff member
-- RLS smoke tests: authenticated can SELECT, non-admin cannot DML directly
-- Booking flow integration: slot generator only returns staff assigned to selected service
+- Unit tests: service layer parameter passing and camelCase mapping for all 4 RPCs
+- Integration tests: loading state, empty state (no assignments), empty state (no assignable services), assign action calls RPC and updates list, unassign action calls RPC and removes row, RPC error shows Spanish error message
+- RLS smoke tests: authenticated non-admin can SELECT; non-admin cannot directly INSERT/DELETE; admin RPCs succeed; non-admin RPC call raises "No autorizado"
 
 - [ ]
 

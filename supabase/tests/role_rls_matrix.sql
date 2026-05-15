@@ -109,4 +109,49 @@ set role = 'customer'::public.app_role,
 	updated_at = now()
 where user_id = current_setting('app.test.customer_user_id')::uuid;
 
+-- ---------------------------------------------------------------------------
+-- Scenario E: staff_services RLS matrix
+-- ---------------------------------------------------------------------------
+
+-- Replace with real IDs that exist in staff_members and services.
+select set_config('app.test.staff_member_id', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', true);
+select set_config('app.test.service_id',      'cccccccc-cccc-cccc-cccc-cccccccccccc', true);
+
+-- E1: Authenticated non-admin can SELECT from staff_services.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.staff_user_id'), true);
+select count(*) as staff_services_visible_by_staff from public.staff_services;
+
+-- E2: Non-admin direct INSERT on staff_services is rejected by RLS (no INSERT policy).
+-- Uncomment to verify failure:
+-- insert into public.staff_services (staff_member_id, service_id, organization_id)
+-- values (
+--   current_setting('app.test.staff_member_id')::uuid,
+--   current_setting('app.test.service_id')::uuid,
+--   current_setting('app.test.organization_id')::uuid
+-- );
+
+-- E3: Non-admin direct DELETE on staff_services is rejected by RLS (no DELETE policy).
+-- Uncomment to verify failure:
+-- delete from public.staff_services
+-- where staff_member_id = current_setting('app.test.staff_member_id')::uuid;
+
+-- E4: Admin calling admin_assign_service_to_staff succeeds.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Expect the RPC to run without error when valid staff + service IDs exist.
+-- select public.admin_assign_service_to_staff(
+--   current_setting('app.test.staff_member_id')::uuid,
+--   current_setting('app.test.service_id')::uuid
+-- );
+
+-- E5: Non-admin calling admin_assign_service_to_staff raises 'No autorizado'.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.staff_user_id'), true);
+-- Uncomment to verify failure:
+-- select public.admin_assign_service_to_staff(
+--   current_setting('app.test.staff_member_id')::uuid,
+--   current_setting('app.test.service_id')::uuid
+-- );
+
 rollback;

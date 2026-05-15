@@ -2,6 +2,7 @@
 // Handles communication with Supabase, external APIs, etc.
 
 export * from './adminServices'
+export * from './adminStaffServices'
 export * from './adminUsers'
 export * from './adminStaff'
 export * from './auth'

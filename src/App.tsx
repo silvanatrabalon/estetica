@@ -14,6 +14,7 @@ import {
   AdminReportsPage,
   AdminServicesPage,
   AdminStaffPage,
+  AdminStaffServicesPage,
   AdminUsersPage,
   AppointmentsPage,
   BusinessSettingsPage,
@@ -88,6 +89,7 @@ function AppContent() {
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/staff" element={<AdminStaffPage />} />
             <Route path="/admin/staff/:staffId/availability" element={<StaffAvailabilityPage />} />
+            <Route path="/admin/staff/:staffId/services" element={<AdminStaffServicesPage />} />
             <Route path="/admin/services" element={<AdminServicesPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
           </Route>
