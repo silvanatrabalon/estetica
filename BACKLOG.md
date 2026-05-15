@@ -352,7 +352,7 @@ Today `user_roles` enforces a single role per user (`user_id PRIMARY KEY`). An o
 - Manual sort ordering → post-MVP
 - Price ranges or multi-currency → post-MVP
 
-- [ ]
+- [x] `services-catalog-admin` (da36d46)
 
 ### 14b. Staff–Service Assignment
 **Description:** Define which services each staff member offers. Not all staff provide the same services — a customer selecting a service should only be offered staff members who are assigned to that service. This is a prerequisite for the booking flow (#16).
@@ -494,12 +494,12 @@ Today `user_roles` enforces a single role per user (`user_id PRIMARY KEY`). An o
 ## Summary
 
 **Total Features:** 38
-**Completed:** 14
+**Completed:** 15
 **In Progress:** 0
-**Pending:** 24
+**Pending:** 23
 
 **Current Phase:** Phase 4 (Services & Products)
-**Next Feature:** #14b (Staff–Service Assignment)
+**Next Feature:** #13b (Fix Role Switcher) / #14b (Staff–Service Assignment)
 
 ---
 
