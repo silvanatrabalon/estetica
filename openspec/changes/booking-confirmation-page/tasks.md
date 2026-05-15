@@ -41,5 +41,5 @@
 ## 6. Validation & Commit
 
 - [x] 6.1 Run `npx vitest run` and confirm all tests pass
-- [ ] 6.2 Commit all changes with conventional commit message
-- [ ] 6.3 Update `BACKLOG.md` — mark #19 `[x] booking-confirmation-page (<hash>)`
+- [x] 6.2 Commit all changes with conventional commit message
+- [x] 6.3 Update `BACKLOG.md` — mark #19 `[x] booking-confirmation-page (<hash>)`

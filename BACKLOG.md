@@ -681,13 +681,13 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 - TypeScript unit tests: `BookingConfirmationPage` renders service name, formatted date/time, staff name, status badge, booking reference correctly; loading state renders spinner; not-found state renders Spanish error message; "Ver mis turnos" navigates to `/appointments`
 - Integration tests: page fetches appointment by ID on mount; shows confirmed status copy; CTAs navigate correctly
 
-- [ ]
+- [x] `booking-confirmation-page` (e31e44e)
 
 ---
 
 ## Phase 6: Appointment Management
 
-### 20. View Appointments (User & Staff)
+### 20. View Appointments
 **Description:** User view own appointments, staff view assigned appointments, calendar integration.
 - [ ]
 
