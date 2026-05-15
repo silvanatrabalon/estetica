@@ -403,7 +403,7 @@ RLS: SELECT to `authenticated`; no direct DML — all writes through admin RPCs.
 - Integration tests: loading state, empty state (no assignments), empty state (no assignable services), assign action calls RPC and updates list, unassign action calls RPC and removes row, RPC error shows Spanish error message
 - RLS smoke tests: authenticated non-admin can SELECT; non-admin cannot directly INSERT/DELETE; admin RPCs succeed; non-admin RPC call raises "No autorizado"
 
-- [ ]
+- [x] `staff-service-assignment` (1d7810a)
 
 ### 15. Service Availability Rules
 **Description:** Define which services are available when, service-specific availability logic.

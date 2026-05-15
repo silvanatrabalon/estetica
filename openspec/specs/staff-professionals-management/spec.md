@@ -1,11 +1,12 @@
-## ADDED Requirements
-
+## Purpose
+Admin capability to manage staff professionals: create, edit, deactivate/reactivate staff members linked to existing users, and navigate to per-member availability and service assignment sub-pages.
+## Requirements
 ### Requirement: Admin-Only Staff Directory
-The system MUST provide an admin-only staff directory that displays all staff members with their active/inactive status and linked user information.
+The system MUST provide an admin-only staff directory that displays all staff members with their active/inactive status, linked user information, and action links to manage availability and assigned services.
 
 #### Scenario: Admin opens staff management page
 - **WHEN** an authenticated admin navigates to the staff management page
-- **THEN** the system loads and displays all staff members with their display name, active status, and linked user name
+- **THEN** the system loads and displays all staff members with their display name, active status, linked user name, a link to manage availability, and a link to manage assigned services
 
 #### Scenario: Non-admin attempts staff management access
 - **WHEN** an authenticated non-admin user attempts to access the staff management page
@@ -81,3 +82,4 @@ The system MUST include automated test coverage for critical staff management be
 #### Scenario: RLS smoke coverage
 - **WHEN** database smoke tests run for staff management
 - **THEN** admin-only mutation paths are validated and non-admin denial is confirmed
+
