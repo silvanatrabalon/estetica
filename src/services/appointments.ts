@@ -1,5 +1,35 @@
 import { initSupabase } from '../lib/supabase'
 
+export interface AppointmentDetail {
+  id: string
+  startsAt: string
+  endsAt: string
+  status: string
+  createdAt: string
+  customerUserId: string
+  serviceName: string
+  serviceDurationMinutes: number
+  servicePriceCents: number
+  staffDisplayName: string
+  orgName: string
+  orgTimezone: string
+}
+
+interface AppointmentDetailRow {
+  id: string
+  starts_at: string
+  ends_at: string
+  status: string
+  created_at: string
+  customer_user_id: string
+  service_name: string
+  service_duration_minutes: number
+  service_price_cents: number
+  staff_display_name: string
+  org_name: string
+  org_timezone: string
+}
+
 export interface NewAppointment {
   id: string
   serviceId: string
@@ -106,5 +136,40 @@ export async function createAppointment(params: {
     endsAt: row.ends_at,
     status: row.status,
     createdAt: row.created_at,
+  }
+}
+
+export async function getAppointment(
+  appointmentId: string,
+): Promise<AppointmentDetail | null> {
+  const supabase = initSupabase()
+
+  const { data, error } = await supabase.rpc('get_appointment', {
+    p_appointment_id: appointmentId,
+  })
+
+  if (error) {
+    throw error
+  }
+
+  const rows = (data ?? []) as AppointmentDetailRow[]
+  if (rows.length === 0) {
+    return null
+  }
+
+  const row = rows[0]
+  return {
+    id: row.id,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    status: row.status,
+    createdAt: row.created_at,
+    customerUserId: row.customer_user_id,
+    serviceName: row.service_name,
+    serviceDurationMinutes: row.service_duration_minutes,
+    servicePriceCents: row.service_price_cents,
+    staffDisplayName: row.staff_display_name,
+    orgName: row.org_name,
+    orgTimezone: row.org_timezone,
   }
 }

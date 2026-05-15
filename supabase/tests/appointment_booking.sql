@@ -209,4 +209,61 @@ end $$;
 
 select 'Smoke tests complete — review output above' as result;
 
+-- ─── 4. get_appointment RPC smoke tests ──────────────────────────────────────
+
+-- 4.1 get_appointment: function exists and is SECURITY DEFINER
+select p.proname, p.prosecdef
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname = 'get_appointment';
+-- Expected: 1 row; prosecdef = true
+
+-- Switch to owner customer context
+set local role authenticated;
+select set_config('request.jwt.claim.sub',
+  current_setting('app.test.customer_user_id'), true);
+
+-- 4.2 get_appointment: owner retrieves their appointment (requires an appointment
+-- from section 3.1 to have been created; inspect manually)
+-- After running 3.1 above, copy the returned appointment ID here:
+-- select * from public.get_appointment('<appointment-id-from-3.1>');
+-- Expected: 1 row with service_name, staff_display_name, org_name populated
+
+-- 4.3 get_appointment: non-owner gets empty result (no error)
+-- Set to customer2 and attempt to retrieve customer1's appointment:
+set local role authenticated;
+select set_config('request.jwt.claim.sub',
+  current_setting('app.test.customer2_user_id'), true);
+
+-- Replace <customer1-appointment-id> with the ID from 3.1:
+-- select count(*) as rows_returned
+-- from public.get_appointment('<customer1-appointment-id>');
+-- Expected: 0 rows, no error raised
+
+-- 4.4 get_appointment: staff can retrieve any appointment
+set local role authenticated;
+select set_config('request.jwt.claim.sub',
+  current_setting('app.test.staff_user_id'), true);
+
+-- Replace <customer1-appointment-id> with a real ID:
+-- select * from public.get_appointment('<customer1-appointment-id>');
+-- Expected: 1 row (staff sees all org appointments)
+
+-- 4.5 get_appointment: unknown UUID returns empty (no error)
+set local role authenticated;
+select set_config('request.jwt.claim.sub',
+  current_setting('app.test.customer_user_id'), true);
+
+select count(*) as rows_returned
+from public.get_appointment('00000000-0000-0000-0000-000000000000');
+-- Expected: 0 rows (UUID doesn't exist — empty result, no error)
+
+-- 4.6 get_appointment: unauthenticated caller denied
+-- Uncomment to verify:
+-- set local role anon;
+-- select set_config('request.jwt.claim.sub', '', true);
+-- select * from public.get_appointment('00000000-0000-0000-0000-000000000000');
+-- Expected: permission denied error
+
 rollback;
