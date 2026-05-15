@@ -54,6 +54,25 @@ The system SHALL enforce validation rules on service fields before persisting th
 - **WHEN** an admin submits a service with an image URL that is not a valid URL format
 - **THEN** the system rejects the submission and shows a Spanish validation message
 
+#### Scenario: max_concurrent_bookings must be null or a positive integer
+- **WHEN** an admin submits a service with max_concurrent_bookings set to 0 or a negative number
+- **THEN** the system rejects the submission and shows a Spanish validation message
+
+#### Scenario: max_concurrent_bookings is optional
+- **WHEN** an admin submits a service without specifying max_concurrent_bookings
+- **THEN** the system accepts the submission and stores null (no capacity restriction)
+
+### Requirement: Service Availability Link Per Service Row
+The system MUST display a "Gestionar disponibilidad" action link per row in the admin service list that navigates to the per-service date management sub-route.
+
+#### Scenario: Admin sees availability link in service list
+- **WHEN** an authenticated admin views the service catalog at `/admin/services`
+- **THEN** each service row includes a "Gestionar disponibilidad" link alongside other actions
+
+#### Scenario: Availability link navigates to correct sub-route
+- **WHEN** an admin clicks "Gestionar disponibilidad" on a service row
+- **THEN** the system navigates to `/admin/services/:serviceId/availability` for that service
+
 ### Requirement: Service Data Access for Authenticated Users
 The system SHALL allow all authenticated roles (customer, staff, admin) to read the service catalog. Direct data manipulation is not permitted — all mutations go through admin-only RPC functions.
 
