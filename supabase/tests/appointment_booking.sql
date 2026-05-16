@@ -266,4 +266,70 @@ from public.get_appointment('00000000-0000-0000-0000-000000000000');
 -- select * from public.get_appointment('00000000-0000-0000-0000-000000000000');
 -- Expected: permission denied error
 
+-- ─── 5. list_appointments RPC smoke tests ────────────────────────────────────
+
+-- 5.1 list_appointments function exists and is SECURITY DEFINER
+select p.proname, p.prosecdef
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname = 'list_appointments';
+-- Expected: 1 row; prosecdef = true
+
+-- 5.2 Customer sees only own appointments
+set local role authenticated;
+select set_config('request.jwt.claim.sub',
+  current_setting('app.test.customer_user_id'), true);
+
+-- All returned rows must belong to this customer
+select count(*) filter (
+    where customer_user_id != current_setting('app.test.customer_user_id')::uuid
+  ) as foreign_rows_count
+from public.list_appointments();
+-- Expected: 0 (no foreign rows)
+
+-- 5.3 Staff sees only assigned appointments
+set local role authenticated;
+select set_config('request.jwt.claim.sub',
+  current_setting('app.test.staff_user_id'), true);
+
+-- Returns at most 200 rows; all joined fields present (inspect manually)
+-- select id, service_name, staff_display_name, customer_name, org_timezone
+-- from public.list_appointments();
+-- Expected: rows where the staff member is assigned to the appointment
+
+-- 5.4 Non-owner customer (customer2) gets no data from customer1's appointments
+set local role authenticated;
+select set_config('request.jwt.claim.sub',
+  current_setting('app.test.customer2_user_id'), true);
+
+select count(*) filter (
+    where customer_user_id = current_setting('app.test.customer_user_id')::uuid
+  ) as customer1_rows_visible
+from public.list_appointments();
+-- Expected: 0 (customer2 cannot see customer1's appointments)
+
+-- 5.5 Admin sees all org appointments
+set local role authenticated;
+select set_config('request.jwt.claim.sub',
+  current_setting('app.test.admin_user_id'), true);
+
+-- Inspect count — admin should see all appointments
+-- select count(*) from public.list_appointments();
+-- Expected: total count of all org appointments (up to 200)
+
+-- 5.6 Joined fields are populated correctly (inspect manually)
+-- select service_name, staff_display_name, customer_name, org_name, org_timezone
+-- from public.list_appointments()
+-- limit 5;
+-- Expected: no null values in service_name, staff_display_name, org_name, org_timezone
+-- customer_name may be null if profile record has no full_name
+
+-- 5.7 Unauthenticated caller denied
+-- Uncomment to verify:
+-- set local role anon;
+-- select set_config('request.jwt.claim.sub', '', true);
+-- select * from public.list_appointments();
+-- Expected: permission denied error
+
 rollback;

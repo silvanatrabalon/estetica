@@ -1,5 +1,37 @@
 import { initSupabase } from '../lib/supabase'
 
+export interface AppointmentSummary {
+  id: string
+  startsAt: string
+  endsAt: string
+  status: string
+  createdAt: string
+  customerUserId: string
+  serviceName: string
+  serviceDurationMinutes: number
+  servicePriceCents: number
+  staffDisplayName: string
+  orgName: string
+  orgTimezone: string
+  customerName: string | null
+}
+
+interface AppointmentSummaryRow {
+  id: string
+  starts_at: string
+  ends_at: string
+  status: string
+  created_at: string
+  customer_user_id: string
+  service_name: string
+  service_duration_minutes: number
+  service_price_cents: number
+  staff_display_name: string
+  org_name: string
+  org_timezone: string
+  customer_name: string | null
+}
+
 export interface AppointmentDetail {
   id: string
   startsAt: string
@@ -172,4 +204,31 @@ export async function getAppointment(
     orgName: row.org_name,
     orgTimezone: row.org_timezone,
   }
+}
+
+export async function listAppointments(): Promise<AppointmentSummary[]> {
+  const supabase = initSupabase()
+
+  const { data, error } = await supabase.rpc('list_appointments')
+
+  if (error) {
+    throw error
+  }
+
+  const rows = (data ?? []) as AppointmentSummaryRow[]
+  return rows.map((row) => ({
+    id: row.id,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    status: row.status,
+    createdAt: row.created_at,
+    customerUserId: row.customer_user_id,
+    serviceName: row.service_name,
+    serviceDurationMinutes: row.service_duration_minutes,
+    servicePriceCents: row.service_price_cents,
+    staffDisplayName: row.staff_display_name,
+    orgName: row.org_name,
+    orgTimezone: row.org_timezone,
+    customerName: row.customer_name,
+  }))
 }
