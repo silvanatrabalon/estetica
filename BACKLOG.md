@@ -731,7 +731,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 - TypeScript: `useAppointments` hook loading/success/error/empty transitions
 - Page tests: lista tab switching, calendar renders correct week/month, empty state per tab/view in Spanish
 
-- [ ]
+- [x] `view-appointments` (ac22542)
 
 ### 21. Reschedule Appointment
 **Description:** Customer, staff, and admin can reschedule `pending`/`confirmed` appointments to a new time slot. Entry point: "Reprogramar" CTA on the appointment card (from #20), which navigates to a dedicated `/appointments/:id/reschedule` route that reuses the slot picker from #16.
@@ -933,9 +933,9 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 ## Summary
 
 **Total Features:** 38
-**Completed:** 19
+**Completed:** 20
 **In Progress:** 0
-**Pending:** 19
+**Pending:** 18
 
 **Current Phase:** Phase 5 (Booking & Scheduling)
 **Next Feature:** #16 (Availability System — Time Slot Generation)
