@@ -861,7 +861,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 - TypeScript: filter params map to RPC args; camelCase mapping; pagination state
 - Page tests: list renders; status filter updates results; date range triggers re-fetch; pagination controls; empty state in Spanish; error state
 
-- [x] `admin-view-appointments` (TBD)
+- [x] `admin-view-appointments` (04df172)
 
 ---
 
