@@ -34,6 +34,8 @@ interface AppointmentSummaryRow {
 
 export interface AppointmentDetail {
   id: string
+  serviceId: string
+  staffMemberId: string
   startsAt: string
   endsAt: string
   status: string
@@ -49,6 +51,8 @@ export interface AppointmentDetail {
 
 interface AppointmentDetailRow {
   id: string
+  service_id: string
+  staff_member_id: string
   starts_at: string
   ends_at: string
   status: string
@@ -60,6 +64,26 @@ interface AppointmentDetailRow {
   staff_display_name: string
   org_name: string
   org_timezone: string
+}
+
+export interface RescheduledAppointment {
+  id: string
+  serviceId: string
+  staffMemberId: string
+  startsAt: string
+  endsAt: string
+  status: string
+  updatedAt: string
+}
+
+interface RescheduleAppointmentRow {
+  id: string
+  service_id: string
+  staff_member_id: string
+  starts_at: string
+  ends_at: string
+  status: string
+  updated_at: string
 }
 
 export interface NewAppointment {
@@ -80,6 +104,39 @@ interface AppointmentRow {
   ends_at: string
   status: string
   created_at: string
+}
+
+const RESCHEDULE_ERRORS: Record<string, string> = {
+  RESCHEDULE_OUTSIDE_POLICY_WINDOW:
+    'Este horario está fuera del plazo mínimo permitido para reprogramar.',
+  RESCHEDULE_INVALID_STATUS:
+    'Este turno no puede reprogramarse porque ya fue cancelado o completado.',
+  RESCHEDULE_NOT_AUTHORIZED:
+    'No tenés permiso para reprogramar este turno.',
+}
+
+function translateRescheduleError(err: unknown): Error {
+  if (!err || typeof err !== 'object') {
+    return new Error('Error al reprogramar el turno.')
+  }
+  const e = err as { code?: string; message?: string }
+
+  if (e.code === '23P01') {
+    return new Error(
+      'El horario seleccionado ya no está disponible. Por favor, elegí otro turno.',
+    )
+  }
+
+  if (e.code === 'P0001') {
+    const msg = e.message ?? ''
+    for (const [key, translation] of Object.entries(RESCHEDULE_ERRORS)) {
+      if (msg.includes(key)) {
+        return new Error(translation)
+      }
+    }
+  }
+
+  return new Error('Error al reprogramar el turno.')
 }
 
 const BOOKING_ERRORS: Record<string, string> = {
@@ -192,6 +249,8 @@ export async function getAppointment(
   const row = rows[0]
   return {
     id: row.id,
+    serviceId: row.service_id,
+    staffMemberId: row.staff_member_id,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     status: row.status,
@@ -203,6 +262,38 @@ export async function getAppointment(
     staffDisplayName: row.staff_display_name,
     orgName: row.org_name,
     orgTimezone: row.org_timezone,
+  }
+}
+
+export async function rescheduleAppointment(params: {
+  appointmentId: string
+  newStartsAt: string
+}): Promise<RescheduledAppointment> {
+  const supabase = initSupabase()
+
+  const { data, error } = await supabase.rpc('reschedule_appointment', {
+    p_appointment_id: params.appointmentId,
+    p_new_starts_at: params.newStartsAt,
+  })
+
+  if (error) {
+    throw translateRescheduleError(error)
+  }
+
+  const rows = (data ?? []) as RescheduleAppointmentRow[]
+  if (rows.length === 0) {
+    throw new Error('No se pudo reprogramar el turno.')
+  }
+
+  const row = rows[0]
+  return {
+    id: row.id,
+    serviceId: row.service_id,
+    staffMemberId: row.staff_member_id,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    status: row.status,
+    updatedAt: row.updated_at,
   }
 }
 

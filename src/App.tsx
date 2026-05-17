@@ -25,6 +25,7 @@ import {
   NotFoundPage,
   ProfilePage,
   ProfileSetupPage,
+  ReschedulePage,
   SignInPage,
   StaffAppointmentsPage,
   StaffAvailabilityPage,
@@ -79,6 +80,10 @@ function AppContent() {
             <Route path="/booking" element={<BookingPage />} />
             <Route path="/booking/confirmation/:appointmentId" element={<BookingConfirmationPage />} />
             <Route path="/appointments" element={<AppointmentsPage />} />
+          </Route>
+
+          <Route element={<RoleGuard allowedRoles={['customer', 'staff', 'admin']} />}>
+            <Route path="/appointments/:id/reschedule" element={<ReschedulePage />} />
           </Route>
 
           <Route element={<RoleGuard allowedRoles={['staff', 'admin']} />}>

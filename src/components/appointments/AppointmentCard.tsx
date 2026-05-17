@@ -40,9 +40,10 @@ function formatAppointmentDate(isoUtc: string, orgTimezone: string): string {
 interface AppointmentCardProps {
   appointment: AppointmentSummary
   showCustomerName: boolean
+  showRescheduleAction?: boolean
 }
 
-export function AppointmentCard({ appointment, showCustomerName }: AppointmentCardProps) {
+export function AppointmentCard({ appointment, showCustomerName, showRescheduleAction = false }: AppointmentCardProps) {
   const bookingRef = appointment.id.slice(-8).toUpperCase()
   const statusLabel = STATUS_LABELS[appointment.status] ?? appointment.status
   const statusColor = STATUS_COLORS[appointment.status] ?? 'bg-gray-100 text-gray-600'
@@ -52,26 +53,42 @@ export function AppointmentCard({ appointment, showCustomerName }: AppointmentCa
     ? (appointment.customerName ?? '—')
     : appointment.staffDisplayName
 
+  const canReschedule =
+    showRescheduleAction &&
+    (appointment.status === 'pending' || appointment.status === 'confirmed')
+
   return (
-    <Link
-      to={`/booking/confirmation/${appointment.id}`}
-      className="block bg-white rounded-lg border border-gray-200 p-4 hover:border-gray-300 hover:shadow-sm transition-all"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 truncate">{appointment.serviceName}</p>
-          <p className="text-sm text-gray-600 mt-0.5 capitalize">
-            {dateStr} · {timeStr}
-          </p>
-          <p className="text-sm text-gray-500 mt-0.5">{secondaryName}</p>
+    <div className="bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all">
+      <Link
+        to={`/booking/confirmation/${appointment.id}`}
+        className="block p-4"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-gray-900 truncate">{appointment.serviceName}</p>
+            <p className="text-sm text-gray-600 mt-0.5 capitalize">
+              {dateStr} · {timeStr}
+            </p>
+            <p className="text-sm text-gray-500 mt-0.5">{secondaryName}</p>
+          </div>
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', statusColor)}>
+              {statusLabel}
+            </span>
+            <span className="text-xs text-gray-400 font-mono">#{bookingRef}</span>
+          </div>
         </div>
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', statusColor)}>
-            {statusLabel}
-          </span>
-          <span className="text-xs text-gray-400 font-mono">#{bookingRef}</span>
+      </Link>
+      {canReschedule && (
+        <div className="px-4 pb-3">
+          <Link
+            to={`/appointments/${appointment.id}/reschedule`}
+            className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
+          >
+            Reprogramar
+          </Link>
         </div>
-      </div>
-    </Link>
+      )}
+    </div>
   )
 }

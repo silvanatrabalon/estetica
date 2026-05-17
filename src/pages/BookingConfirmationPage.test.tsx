@@ -27,6 +27,8 @@ const APPOINTMENT_ID = 'aaaabbbb-cccc-dddd-eeee-123456789012'
 
 const mockDetail: AppointmentDetail = {
   id: APPOINTMENT_ID,
+  serviceId: 'svc-001',
+  staffMemberId: 'staff-001',
   startsAt: '2025-06-10T14:00:00Z',
   endsAt: '2025-06-10T15:00:00Z',
   status: 'confirmed',

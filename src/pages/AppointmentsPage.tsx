@@ -121,6 +121,7 @@ export function AppointmentsPage() {
                   key={apt.id}
                   appointment={apt}
                   showCustomerName={false}
+                  showRescheduleAction={tab === 'proximos'}
                 />
               ))}
             </div>
