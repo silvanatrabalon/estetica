@@ -105,6 +105,13 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
       roles: ['admin'],
     },
     {
+      id: 'admin-calendar',
+      label: navigationCopy.adminCalendar,
+      href: '/admin/calendar',
+      icon: undefined,
+      roles: ['admin'],
+    },
+    {
       id: 'reports',
       label: navigationCopy.reports,
       href: '/admin/reports',

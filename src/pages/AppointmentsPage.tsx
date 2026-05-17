@@ -164,7 +164,19 @@ export function AppointmentsPage() {
           </div>
 
           {calendarMode === 'semanal' ? (
-            <WeeklyCalendar appointments={appointments} orgTimezone={orgTimezone} />
+            <WeeklyCalendar
+              appointments={appointments}
+              orgTimezone={orgTimezone}
+              onRescheduleSuccess={(appointmentId, newStartsAt) => {
+                setAppointments((prev) =>
+                  prev.map((apt) =>
+                    apt.id === appointmentId
+                      ? { ...apt, startsAt: newStartsAt }
+                      : apt,
+                  ),
+                )
+              }}
+            />
           ) : (
             <MonthlyCalendar appointments={appointments} orgTimezone={orgTimezone} />
           )}

@@ -7,6 +7,7 @@ export interface AppointmentSummary {
   status: string
   createdAt: string
   customerUserId: string
+  serviceId: string
   serviceName: string
   serviceDurationMinutes: number
   servicePriceCents: number
@@ -23,6 +24,7 @@ interface AppointmentSummaryRow {
   status: string
   created_at: string
   customer_user_id: string
+  service_id: string
   service_name: string
   service_duration_minutes: number
   service_price_cents: number
@@ -391,6 +393,7 @@ export async function listAppointments(): Promise<AppointmentSummary[]> {
     status: row.status,
     createdAt: row.created_at,
     customerUserId: row.customer_user_id,
+    serviceId: row.service_id,
     serviceName: row.service_name,
     serviceDurationMinutes: row.service_duration_minutes,
     servicePriceCents: row.service_price_cents,

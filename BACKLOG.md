@@ -867,12 +867,79 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 ## Phase 7: Advanced Features
 
-### 24. Scheduling Engine (Advanced Logic)
-**Description:** Buffer time handling, timezone conversion layer, complex availability rules.
-- [ ]
-
 ### 25. Calendar System (UI)
-**Description:** Monthly/daily/week view, drag & drop reschedule, availability overlay, responsive design.
+**Description:** Enhance the existing weekly/monthly calendar views (from #20) with drag-and-drop appointment reschedule, staff availability overlay, admin calendar view, and timezone-correct date grouping. Daily time-axis view deferred to post-MVP.
+
+**Scope (MVP):**
+
+*25a — Bug fix: Timezone-correct date grouping (prerequisite)*
+- Fix `WeeklyCalendar` and `MonthlyCalendar`: both currently group appointments by `apt.startsAt.slice(0, 10)` (UTC date), causing appointments to appear on the wrong calendar day for non-UTC timezones
+- Use `Intl.DateTimeFormat` with `orgTimezone` to derive the correct local calendar date — no third-party date library
+- No visual change — only moves appointments to the correct day. This is a prerequisite for DnD correctness.
+
+*25b — Drag & Drop Reschedule (weekly calendar, all roles)*
+- New npm dependencies: `@dnd-kit/core` + `@dnd-kit/modifiers`
+- All roles (customer, staff, admin) can drag `pending` or `confirmed` appointments to a different day in the weekly calendar
+- `cancelled`, `completed`, and `no_show` appointments: no drag handle rendered (cursor: not-allowed)
+- On drop to a new day: opens a slot picker modal that calls `get_available_slots(serviceId, newDate)` and displays available slots in org timezone (`formatSlotTime`)
+- User selects a slot → `rescheduleAppointment(appointmentId, newStartsAt)` is called → appointment card updates inline
+- Conflict error (exclusion constraint or no staff available): inline modal error in Spanish with "Elegir otro horario" retry
+- Customer policy violation (min-notice): Spanish error message explaining constraint
+- Admin and staff bypass customer min-notice check (existing RPC behavior from #21)
+- Dropping on the same day is a no-op
+- Monthly calendar: DnD disabled (appointment chips are too small for practical drag interaction)
+
+*25c — Availability overlay (staff weekly calendar only)*
+- In the staff weekly calendar (`/staff/appointments`): shade working-hours windows as a light indigo background per day column; non-working hours rendered as neutral gray
+- `day_off` exceptions in `staff_schedule_exceptions`: entire column grayed with "Día libre" label overlaid
+- Custom hours exceptions: show the custom window instead of the weekly template for that date
+- Business closure exceptions: gray column with "Cerrado" label (data already available from `getBusinessSettings()` loaded on mount)
+- Data source: direct SELECT from `staff_schedules` WHERE `staff_member_id = logged-in staff's id` — no new RPC needed; `authenticated` SELECT policy already exists from #12
+- Admin calendar (`/admin/calendar`): no availability overlay (multiple staff visible simultaneously — per-staff overlay is out of scope)
+
+*25d — Admin calendar view*
+- New route `/admin/calendar` (admin-only, `RoleGuard allowedRoles={['admin']}`)
+- Admin navigation: "Calendario" link added after "Turnos" in admin sidebar
+- Weekly calendar showing all org appointments, fetched via `adminListAppointments()` with `date_from`/`date_to` covering the visible week (no pagination — a week view has bounded volume, max ~50 appointments)
+- Admin can drag any `pending` or `confirmed` appointment to a new day → slot picker modal → `rescheduleAppointment` RPC
+- Appointment blocks show: customer name + service name (2-line, truncated)
+- Loading, empty, and error states in Spanish
+
+*25e — Responsive weekly calendar*
+- At `< md` breakpoint: 7-column weekly grid collapses to a single-day vertical strip with prev/next day navigation arrows
+- Today is shown by default; user navigates one day at a time
+- Appointment blocks are full-width in single-day view
+- Monthly calendar: minor touch-target improvements on navigation arrows only
+
+**Data Model:** No new tables or migrations. Uses existing `staff_schedules`, `staff_schedule_exceptions`, `business_hours`, `business_closure_exceptions`, and `appointments` tables.
+
+**New dependencies:** `@dnd-kit/core`, `@dnd-kit/modifiers`
+
+**Architecture Decisions:**
+- DnD library: `@dnd-kit/core` — modern, accessible, composable, tree-shakable (not `react-beautiful-dnd`, which is deprecated)
+- Slot picker modal reuses `SlotGrid` component from `BookingPage` (#16e), wrapped in a modal dialog
+- Admin calendar data: `adminListAppointments()` with week's `date_from`/`date_to` filters (no pagination needed for weekly view)
+- Availability overlay data: direct SELECT from `staff_schedules` — no new SECURITY DEFINER RPC required
+
+**Out of Scope (deferred):**
+- Daily time-axis view (Google Calendar style) — post-MVP
+- Real-time calendar updates via Supabase Realtime
+- iCal / Google Calendar export
+- Availability overlay in customer or admin calendar
+- Batch drag (multiple appointments at once)
+- Undo drag action
+
+**Dependencies:**
+- #12 (`staff_schedules`, `staff_schedule_exceptions`) — availability overlay data
+- #16 (`get_available_slots`, `formatSlotTime`, `SlotGrid`) — slot picker modal
+- #20 (`WeeklyCalendar`, `MonthlyCalendar`, `useAppointments` hook, `AppointmentSummary`) — components enhanced here
+- #21 (`reschedule_appointment` RPC) — called on DnD drop
+- #23 (`adminListAppointments`) — admin calendar data
+
+**Testing Scope:**
+- Unit tests: Timezone grouping fix — appointment at `01:00 UTC` in `America/Argentina/Buenos_Aires` appears on the correct prior local day (not the UTC day); DnD `onDrop` handler calls `rescheduleAppointment` with correct `appointmentId` and `newStartsAt`; cancelled appointment has no drag handle; slot picker modal opens with correct `serviceId` + `newDate`; conflict error renders in Spanish; availability overlay renders working-hours shading correctly; `day_off` exception shows "Día libre"; business closure shows "Cerrado"; admin calendar renders all org appointments for the visible week
+- Integration tests: Customer drags appointment in weekly calendar → slot picker modal opens → selects slot → appointment updates inline; Staff drags assigned appointment → slot picker → updates; availability overlay visible in staff weekly calendar; Admin navigates to `/admin/calendar` → sees all org appointments; Admin drags appointment to new day → slot picker → updates; Conflict shows inline Spanish error; Customer min-notice policy violation shows Spanish error message
+
 - [ ]
 
 ### 26. Admin Dashboard
@@ -887,10 +954,6 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 ---
 
 ## Phase 8: Settings & Configuration
-
-### 29. Business Settings Panel
-**Description:** Central settings for business configuration, timezone, notifications.
-- [ ]
 
 ### 30. Booking Rules Configuration
 **Description:** Min notice time, max bookings per day, cancellation policies, buffer times.
@@ -932,10 +995,10 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 ## Summary
 
-**Total Features:** 38
+**Total Features:** 36
 **Completed:** 20
 **In Progress:** 0
-**Pending:** 18
+**Pending:** 16
 
 **Current Phase:** Phase 5 (Booking & Scheduling)
 **Next Feature:** #16 (Availability System — Time Slot Generation)

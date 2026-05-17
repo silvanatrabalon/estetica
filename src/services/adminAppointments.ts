@@ -5,6 +5,7 @@ export interface AdminAppointmentRow {
   startsAt: string
   endsAt: string
   status: string
+  serviceId: string
   serviceName: string
   staffDisplayName: string
   customerName: string
@@ -28,6 +29,7 @@ interface AdminAppointmentRpcRow {
   starts_at: string
   ends_at: string
   status: string
+  service_id: string
   service_name: string
   staff_display_name: string
   customer_name: string
@@ -41,6 +43,7 @@ function toAdminAppointmentRow(row: AdminAppointmentRpcRow): AdminAppointmentRow
     startsAt: row.starts_at,
     endsAt: row.ends_at,
     status: row.status,
+    serviceId: row.service_id,
     serviceName: row.service_name,
     staffDisplayName: row.staff_display_name,
     customerName: row.customer_name,

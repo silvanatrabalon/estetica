@@ -27,4 +27,5 @@ export const navigationCopy = {
   services: 'Servicios',
   reports: 'Reportes',
   adminAppointments: 'Turnos',
+  adminCalendar: 'Calendario',
 } as const

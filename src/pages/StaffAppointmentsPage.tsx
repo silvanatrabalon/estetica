@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppointments } from '../hooks/useAppointments'
+import { useStaffScheduleOverlay } from '../hooks/useStaffScheduleOverlay'
 import { AppointmentCard } from '../components/appointments/AppointmentCard'
 import { WeeklyCalendar } from '../components/appointments/WeeklyCalendar'
 import { MonthlyCalendar } from '../components/appointments/MonthlyCalendar'
+import { getMyStaffMemberId } from '../services/staffAvailability'
 import type { AppointmentSummary } from '../services/appointments'
 
 type Tab = 'proximos' | 'historial'
@@ -21,6 +23,27 @@ export function StaffAppointmentsPage() {
   const [tab, setTab] = useState<Tab>('proximos')
   const [viewMode, setViewMode] = useState<ViewMode>('lista')
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('semanal')
+  const [staffMemberId, setStaffMemberId] = useState<string | null>(null)
+  const [weekStart] = useState(() => {
+    const d = new Date()
+    const day = d.getUTCDay()
+    const offset = day === 0 ? -6 : 1 - day
+    return new Date(d.getTime() + offset * 86400000)
+  })
+
+  useEffect(() => {
+    getMyStaffMemberId()
+      .then((id) => setStaffMemberId(id))
+      .catch(() => { /* non-critical */ })
+  }, [])
+
+  const { scheduleByDay, exceptionsByDate } = useStaffScheduleOverlay(staffMemberId, weekStart)
+
+  const staffScheduleOverlay = {
+    scheduleByDay,
+    exceptionsByDate,
+    businessClosures: [],
+  }
 
   const proximosApts = appointments.filter(isUpcoming)
   const historialApts = appointments.filter((apt) => !isUpcoming(apt))
@@ -164,7 +187,21 @@ export function StaffAppointmentsPage() {
           </div>
 
           {calendarMode === 'semanal' ? (
-            <WeeklyCalendar appointments={appointments} orgTimezone={orgTimezone} />
+            <WeeklyCalendar
+              appointments={appointments}
+              orgTimezone={orgTimezone}
+              showCustomerName={true}
+              staffScheduleOverlay={staffScheduleOverlay}
+              onRescheduleSuccess={(appointmentId, newStartsAt) => {
+                setAppointments((prev) =>
+                  prev.map((apt) =>
+                    apt.id === appointmentId
+                      ? { ...apt, startsAt: newStartsAt }
+                      : apt,
+                  ),
+                )
+              }}
+            />
           ) : (
             <MonthlyCalendar appointments={appointments} orgTimezone={orgTimezone} />
           )}

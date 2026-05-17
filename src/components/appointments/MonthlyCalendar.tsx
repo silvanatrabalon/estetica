@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
+import { toLocalDateKey } from '../../lib/formatSlotTime'
 import type { AppointmentSummary } from '../../services/appointments'
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -29,7 +30,7 @@ interface MonthlyCalendarProps {
 
 export function MonthlyCalendar({
   appointments,
-  orgTimezone: _orgTimezone,
+  orgTimezone,
   currentDate: initialDate,
 }: MonthlyCalendarProps) {
   const [viewYear, setViewYear] = useState(() => (initialDate ?? new Date()).getUTCFullYear())
@@ -74,10 +75,10 @@ export function MonthlyCalendar({
     return new Date(gridStart.getTime() + i * 86400000)
   })
 
-  // Group appointments by UTC date key (first 10 chars of ISO)
+  // Group appointments by their local date in org timezone (not raw UTC slice)
   const byDate: Record<string, AppointmentSummary[]> = {}
   for (const apt of appointments) {
-    const dateKey = apt.startsAt.slice(0, 10)
+    const dateKey = toLocalDateKey(apt.startsAt, orgTimezone)
     if (!byDate[dateKey]) byDate[dateKey] = []
     byDate[dateKey].push(apt)
   }
@@ -90,7 +91,7 @@ export function MonthlyCalendar({
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
         <button
           onClick={prevMonth}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+          className="min-w-11 min-h-11 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
           aria-label="Mes anterior"
         >
           ‹
@@ -98,7 +99,7 @@ export function MonthlyCalendar({
         <span className="text-sm font-medium text-gray-700 capitalize">{monthLabel}</span>
         <button
           onClick={nextMonth}
-          className="p-1.5 rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+          className="min-w-11 min-h-11 flex items-center justify-center rounded hover:bg-gray-100 text-gray-500 hover:text-gray-700"
           aria-label="Mes siguiente"
         >
           ›

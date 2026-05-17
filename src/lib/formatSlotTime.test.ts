@@ -1,5 +1,34 @@
 import { describe, expect, it } from 'vitest'
-import { formatSlotTime } from './formatSlotTime'
+import { formatSlotTime, toLocalDateKey } from './formatSlotTime'
+
+describe('toLocalDateKey', () => {
+  it('returns prior local day for appointment at 01:00 UTC in America/Argentina/Buenos_Aires (UTC-3)', () => {
+    // 2026-05-17T01:00:00Z is 2026-05-16 22:00 in Buenos Aires (UTC-3)
+    const result = toLocalDateKey('2026-05-17T01:00:00Z', 'America/Argentina/Buenos_Aires')
+    expect(result).toBe('2026-05-16')
+  })
+
+  it('returns same UTC day when timezone is UTC', () => {
+    const result = toLocalDateKey('2026-05-17T01:00:00Z', 'UTC')
+    expect(result).toBe('2026-05-17')
+  })
+
+  it('returns a date string in YYYY-MM-DD format', () => {
+    const result = toLocalDateKey('2026-05-05T12:00:00Z', 'America/Argentina/Buenos_Aires')
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it('falls back to UTC date when timezone is invalid', () => {
+    const result = toLocalDateKey('2026-05-17T01:00:00Z', 'Not/ATimezone')
+    expect(result).toBe('2026-05-17')
+  })
+
+  it('handles appointment at 04:00 UTC in America/Argentina/Buenos_Aires returning same local day', () => {
+    // 2026-05-17T04:00:00Z is 2026-05-17 01:00 in Buenos Aires (UTC-3)
+    const result = toLocalDateKey('2026-05-17T04:00:00Z', 'America/Argentina/Buenos_Aires')
+    expect(result).toBe('2026-05-17')
+  })
+})
 
 describe('formatSlotTime', () => {
   it('formats a UTC timestamp in the given timezone', () => {
