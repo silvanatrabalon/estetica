@@ -776,7 +776,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 - TypeScript: `rescheduleAppointment()` error mapping to Spanish
 - Page tests: slot picker renders pre-selected service; success navigates to confirmation; conflict error renders inline; policy window error renders with correct copy
 
-- [ ]
+- [x] `reschedule-appointment` (5f95472) — 316/316 tests pass; 25 new tests across service, page, and component layers
 
 ### 22. Cancel Appointment
 **Description:** Customer, staff, and admin can cancel `pending`/`confirmed` appointments. Status is set to `cancelled` (no record deleted). Cancellations respect `booking_min_notice_minutes` for customers. Notifications deferred to #27.
