@@ -269,4 +269,86 @@ select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_
 -- select set_config('request.jwt.claim.sub', current_setting('app.test.customer_user_id'), true);
 -- select * from public.cancel_appointment('<near-future-appointment-id>'::uuid);
 
+-- ---------------------------------------------------------------------------
+-- admin_list_appointments RPC scenarios
+-- ---------------------------------------------------------------------------
+-- Prerequisites: appointments table must have rows with known status values,
+-- starts_at timestamps, and associated customer/service/staff data.
+-- Replace app.test.appointment_id with a valid appointment UUID.
+
+-- H1: Admin with no filters returns all appointments.
+-- Expected: returns >= 0 rows; all rows have total_count equal to full table count.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Uncomment to verify success:
+-- select * from public.admin_list_appointments(null, null, null, 1, 50);
+
+-- H2: Non-admin caller raises ADMIN_NOT_AUTHORIZED.
+-- Expected: exception raised.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.staff_user_id'), true);
+-- Uncomment to verify failure:
+-- select * from public.admin_list_appointments(null, null, null, 1, 50);
+
+-- H3: Filter by status = ARRAY['cancelled'] returns only cancelled rows.
+-- Expected: every returned row has status = 'cancelled'.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Uncomment to verify success:
+-- select * from public.admin_list_appointments(ARRAY['cancelled'], null, null, 1, 50);
+
+-- H4: Date range filter returns only rows where starts_at is within [p_date_from, p_date_to].
+-- Expected: all rows have starts_at >= p_date_from AND starts_at <= p_date_to.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Uncomment to verify success:
+-- select * from public.admin_list_appointments(
+--   null,
+--   (current_date - interval '30 days')::timestamptz,
+--   (current_date + interval '1 day')::timestamptz,
+--   1, 50
+-- );
+
+-- H5: Pagination p_page=2, p_page_size=10 returns rows 11-20.
+-- Expected: exactly 10 rows (if total > 20), and total_count reflects unfiltered count.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Uncomment to verify success:
+-- select * from public.admin_list_appointments(null, null, null, 2, 10);
+
+-- H6: total_count equals full filtered row count regardless of page size.
+-- Expected: total_count on page 1 equals total_count on page 2.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Uncomment to verify success:
+-- select total_count from public.admin_list_appointments(null, null, null, 1, 1) limit 1;
+-- select total_count from public.admin_list_appointments(null, null, null, 2, 1) limit 1;
+-- (Both values should be equal.)
+
+-- H7: customer_name populated from profiles.full_name when set.
+-- Expected: customer_name matches profiles.full_name for that customer.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Uncomment to verify (requires a customer with full_name set):
+-- select customer_name from public.admin_list_appointments(null, null, null, 1, 50)
+-- where customer_name != '—' and customer_name not like '%@%';
+
+-- H8: customer_name falls back to email when full_name is NULL.
+-- Expected: customer_name matches auth.users.email for that customer.
+-- (Requires a customer whose profiles.full_name is NULL but auth.users.email is set.)
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Uncomment to verify:
+-- select customer_name from public.admin_list_appointments(null, null, null, 1, 50)
+-- where customer_name like '%@%';
+
+-- H9: customer_name is '—' when both full_name and email are NULL.
+-- Expected: '—' for customers where both profile and email are absent.
+-- (Edge case; requires specific fixture data.)
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Uncomment to verify:
+-- select customer_name from public.admin_list_appointments(null, null, null, 1, 50)
+-- where customer_name = '—';
+
 rollback;

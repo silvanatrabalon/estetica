@@ -778,7 +778,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 - [x] `reschedule-appointment` (5f95472) — 316/316 tests pass; 25 new tests across service, page, and component layers
 
-### 22. Cancel Appointment ✅ Done — `05b4028`
+### 22. Cancel Appointment
 **Description:** Customer, staff, and admin can cancel `pending`/`confirmed` appointments. Status is set to `cancelled` (no record deleted). Cancellations respect `booking_min_notice_minutes` for customers. Notifications deferred to #27.
 
 **Scope (MVP):**
@@ -818,7 +818,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 - TypeScript: `cancelAppointment()` error mapping to Spanish
 - Page/component tests: confirmation dialog renders; "Sí, cancelar" triggers service call; success updates status badge; policy error renders correct copy; error state in Spanish
 
-- [ ]
+- [x] `05b4028`
 
 ### 23. Admin View All Appointments
 **Description:** Admin views all organization appointments at a new `/admin/appointments` route (separate from `/admin/reports`). Includes list view with server-side filtering by status and date range, and offset pagination. Analytics and KPIs deferred to #26.
@@ -861,7 +861,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 - TypeScript: filter params map to RPC args; camelCase mapping; pagination state
 - Page tests: list renders; status filter updates results; date range triggers re-fetch; pagination controls; empty state in Spanish; error state
 
-- [ ]
+- [x] `admin-view-appointments` (TBD)
 
 ---
 
