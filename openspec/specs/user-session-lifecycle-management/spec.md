@@ -35,7 +35,7 @@ The system SHALL provide explicit logout that signs out from Supabase and clears
 
 #### Scenario: Logout completes
 - **WHEN** logout cleanup is completed
-- **THEN** the user is returned to the sign-in entry point in unauthenticated state
+- **THEN** the user is redirected to the landing page (`/`) in unauthenticated state
 
 ### Requirement: Expired-Session Recovery
 The system SHALL define deterministic recovery behavior when session expiration is detected.
