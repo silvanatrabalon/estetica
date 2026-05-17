@@ -5,18 +5,18 @@ The system SHALL allow admins to create, edit, deactivate, and reactivate servic
 
 #### Scenario: Admin views the service catalog
 - **WHEN** an authenticated user with active role `admin` navigates to `/admin/services`
-- **THEN** the system displays all services for the organization with their name, duration, price, image indicator, and active status
+- **THEN** the system displays all services for the organization with their name, duration, price, image thumbnail (or placeholder), description preview (truncated), and active status
 
 #### Scenario: Admin creates a new service
 - **WHEN** an admin submits the create form with a valid name, duration, and price
-- **THEN** the system inserts a new service record and displays it in the list
+- **THEN** the system inserts a new service record and displays it in the list; description and image_url default to null
 
 #### Scenario: Duplicate service name is rejected
 - **WHEN** an admin attempts to create a service with a name that already exists for the organization
 - **THEN** the system rejects the operation and shows a Spanish error message
 
 #### Scenario: Admin edits an existing service
-- **WHEN** an admin modifies the name, duration, price, or image URL of an existing service and saves
+- **WHEN** an admin modifies the name, duration, price, description, or image of an existing service and saves
 - **THEN** the system updates the record and reflects the changes in the list
 
 #### Scenario: Admin deactivates a service
@@ -46,13 +46,13 @@ The system SHALL enforce validation rules on service fields before persisting th
 - **WHEN** an admin submits a service with a negative price
 - **THEN** the system rejects the submission and shows a Spanish validation message
 
-#### Scenario: Image URL is optional
-- **WHEN** an admin submits a service without an image URL
-- **THEN** the system accepts the submission with a null image_url
+#### Scenario: Description is optional and has no length validation
+- **WHEN** an admin submits a service with an empty or absent description
+- **THEN** the system accepts the submission with description = null
 
-#### Scenario: Image URL is validated as a URL when provided
-- **WHEN** an admin submits a service with an image URL that is not a valid URL format
-- **THEN** the system rejects the submission and shows a Spanish validation message
+#### Scenario: Image is optional (no image_url text input)
+- **WHEN** an admin submits a service without uploading an image
+- **THEN** the system accepts the submission with image_url = null
 
 #### Scenario: max_concurrent_bookings must be null or a positive integer
 - **WHEN** an admin submits a service with max_concurrent_bookings set to 0 or a negative number
@@ -99,13 +99,13 @@ The system SHALL display prices in ARS currency format. A price of zero is a val
 - **WHEN** a service has price_cents of 0
 - **THEN** the system displays `$0,00` without treating it as a special state
 
-### Requirement: Service Image URL
-The system SHALL support an optional image URL per service. Image display degrades gracefully when the URL is broken or absent.
+### Requirement: Service Image Upload
+The system SHALL allow admins to upload a service image via file picker. The image is stored in Supabase Storage and the public URL is saved in `services.image_url`. The free-text image URL input is replaced by the upload widget. Image display degrades gracefully when absent.
 
-#### Scenario: Service with image URL shows image preview
-- **WHEN** a service has a valid image_url and is displayed in the admin panel
-- **THEN** an image preview or thumbnail is shown
+#### Scenario: Service with image shows thumbnail preview in admin panel
+- **WHEN** a service has a non-null `image_url` and is displayed in the admin panel
+- **THEN** an image thumbnail is shown in the form and list
 
-#### Scenario: Service without image URL shows placeholder
+#### Scenario: Service without image shows placeholder
 - **WHEN** a service has no image_url (null) or the image fails to load
 - **THEN** the system shows a fallback placeholder icon instead of a broken image
