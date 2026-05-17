@@ -1253,7 +1253,7 @@ create table public.landing_carousel_images (
 - Remove **"Hero"** from the section label: "Sección principal (Hero)" → "Sección principal".
 - In the **Tipografía** section: show a live font preview sentence ("El rápido zorro marrón salta sobre el perro perezoso") rendered in the selected font. Add more curated Google Fonts options — target at least 10 families covering sans-serif, serif, and display styles (e.g. Inter, Playfair Display, Lato, Nunito, Raleway, DM Sans, Cormorant Garamond, Josefin Sans, Montserrat, Libre Baskerville).
 
-- [ ]
+- [x] `landing-admin-ux-polish` (c2846dd)
 
 ### 40. Service Categories
 **Description:** Allow admins to organize services into categories. Categories are created and managed by the admin. Services can be assigned one category. The public landing page and the customer booking wizard both expose category-based browsing/filtering.
@@ -1265,7 +1265,7 @@ create table public.landing_carousel_images (
 - Customer booking wizard (Step 1 — service selector): add category filter tabs/chips above the service grid. Selecting a category filters the grid. "Todos" tab shows all services.
 - Landing page and booking wizard service grid UI review: the current grid is minimal — improve visual hierarchy, card spacing, and mobile layout as part of this item.
 
-- [ ]
+- [x] `service-categories` (c2846dd)
 
 ### 41. Landing Footer & Contact Improvements
 **Description:** Improve the footer section of the public landing page with proper brand icons and a WhatsApp CTA.
@@ -1274,16 +1274,16 @@ create table public.landing_carousel_images (
 - **WhatsApp**: show the WhatsApp logo icon only (no text label), as a circular icon button matching the Instagram style. Link uses the fixed URL `https://w.app/bfs0ip`. The link is hardcoded — not configurable.
 - **Copyright line**: change "© 2026" attribution to read **"Software Queen"**. The text must be a `mailto:silvana.trabalon@gmail.com` link so clicking it opens a new email draft.
 
-- [ ]
+- [x] `landing-footer-contact` (c2846dd)
 
 ---
 
 ## Summary
 
 **Total Features:** 35
-**Completed:** 22
+**Completed:** 25
 **In Progress:** 0
-**Pending:** 13
+**Pending:** 10
 
 **Current Phase:** Phase 7 (Advanced Features)
 **Next Feature:** #26 (Admin Dashboard) or #37 (Landing Page)
