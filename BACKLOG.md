@@ -943,7 +943,94 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 - [x] `calendar-system-ui` (0ccf745)
 
 ### 26. Admin Dashboard
-**Description:** Dashboard metrics, today's appointments, weekly calendar view, booking analytics.
+**Description:** Implement the admin home experience: a dashboard page at `/admin/dashboard` that surfaces operational KPIs, today's appointment list, quick-access navigation to existing admin sections, and a booking analytics summary for the current month. This is the admin's primary landing page after login, replacing the current landing at `/admin/users`. The existing `/admin/reports` nav entry is removed — reports and dashboard are unified under this item.
+
+**Scope (MVP):**
+
+*26a — DB: `admin_get_dashboard_stats` SECURITY DEFINER RPC*
+- New aggregate function `admin_get_dashboard_stats()` — granted to `authenticated`, admin-only via `is_admin()`
+- Returns scalar fields (no rows): `today_count`, `week_count`, `month_count`, `pending_count`, `confirmed_count`, `cancelled_count`, `completed_count`, `no_show_count`, `revenue_cents_month`
+- All date windows (`today`, `this week`, `this month`) computed server-side using `organizations.timezone` — no UTC assumption
+- `revenue_cents_month`: sum of `services.price_cents` joined to `completed` appointments created this month (price-at-query; document the caveat — no `total_price_cents` column on `appointments` in MVP)
+- Non-admin caller raises named permission error
+- All counts return `0` (not `null`) when no appointments exist
+
+*26b — TypeScript: `src/services/adminDashboard.ts`*
+- `AdminDashboardStats` interface with camelCase fields matching the RPC return shape
+- `getAdminDashboardStats(): Promise<AdminDashboardStats>` — calls the RPC; throws on error
+- Consistent with existing patterns in `adminAppointments.ts`, `adminStaff.ts`
+
+*26c — Frontend: Route + page scaffold*
+- New `src/pages/AdminDashboardPage.tsx`
+- Route `/admin/dashboard` registered in `App.tsx` under `RoleGuard allowedRoles={['admin']}`
+- New nav entry `id: 'dashboard'` with label "Inicio" as the **first** item in the admin section of `navigationByRole.admin` in `src/lib/navigation.ts`
+- Remove the existing `reports` nav entry from `navigationByRole.admin` (route `/admin/reports` can remain in `routePolicies` but is no longer linked from nav)
+
+*26d — Navigation: Change admin landing to `/admin/dashboard`*
+- Update `roleHomeByRole.admin` in `src/lib/routing.ts` from `/admin/users` to `/admin/dashboard`
+- Update the corresponding routing policy test that asserts the admin home
+
+*26e — Frontend: KPI metric cards*
+- 5 `StatCard` components arranged in a responsive grid, powered by `admin_get_dashboard_stats`:
+  - "Turnos hoy" (`today_count`)
+  - "Turnos esta semana" (`week_count`)
+  - "Turnos este mes" (`month_count`)
+  - "Confirmados + pendientes hoy" (`confirmed_count + pending_count` for today — derived client-side from today context or separate field)
+  - "Ingresos estimados este mes" (`revenue_cents_month`, displayed as ARS currency)
+- `useAdminDashboardStats` hook: loading / error / data state
+- Loading skeleton and error state in Spanish
+
+*26f — Frontend: Today's appointments widget*
+- Compact list of up to 10 appointments for the current date in `organizations.timezone`, ordered by `starts_at ASC`
+- Reuses `adminListAppointments` with `dateFrom`/`dateTo` computed from org timezone for "today"
+- Each row: hora, cliente, servicio, profesional, estado badge
+- "Ver todos los turnos" CTA → `/admin/appointments`
+- Empty state: "No hay turnos para hoy."
+- Loading and error states in Spanish
+
+*26g — Frontend: Quick-access cards*
+- 4 prominent link cards: "Turnos" → `/admin/appointments`, "Calendario" → `/admin/calendar`, "Profesionales" → `/admin/staff`, "Servicios" → `/admin/services`
+- No embedded calendar widget — the full calendar is one click away
+
+*26h — Frontend: Booking analytics section*
+- Status-breakdown summary table for the current month: one row per status (Confirmado, Pendiente, Cancelado, Completado, No presentado) with count and percentage of total
+- Data derived from `admin_get_dashboard_stats` scalar fields (no additional RPC needed)
+- No charting library introduced in this item
+
+**Data Model:**
+- No new tables
+- One new migration: `admin_get_dashboard_stats` SECURITY DEFINER function
+
+**Architecture Decisions:**
+- Aggregates computed server-side via dedicated RPC — no client-side aggregation over full row sets
+- Revenue = price-at-query (`services.price_cents` at query time); no `total_price_cents` column on `appointments` in MVP; document caveat in code comment
+- Weekly calendar: link card only (no embedded widget — `/admin/calendar` is fully built)
+- Booking analytics: status-breakdown table only — no charting library
+- `/admin/reports` removed from navigation; `AdminReportsPage` stub and route remain in code but are unlinked
+- "Today" always computed in `organizations.timezone` on the server
+
+**Dependencies:**
+- #23 (`admin_list_appointments` RPC, `adminListAppointments` service — reused for today's widget)
+- #25 (`AdminCalendarPage` — linked from quick-access card)
+- #10 (`organizations.timezone` — required for timezone-correct date windows)
+
+**Out of Scope:**
+- Charting/visualization library — post-MVP
+- `total_price_cents` column on `appointments` (price-at-booking tracking)
+- Custom date range selector for metrics (today / week / month windows are fixed)
+- Per-staff or per-service breakdown charts
+- CSV or PDF export
+- Admin appointment creation from dashboard
+- Real-time updates via Supabase Realtime
+- New customers metric (requires additional profile join not proven in aggregates)
+- Expanding `/admin/reports` (unlinked stub; separate future item)
+
+**Testing Scope:**
+- SQL smoke tests: `admin_get_dashboard_stats` returns correct count per status; non-admin raises error; timezone-correct "today" boundary (appointment at `01:00 UTC` counted on correct local day); all counts return `0` (not `null`) when no appointments; `revenue_cents_month` sums only `completed` appointments
+- Unit tests: `useAdminDashboardStats` hook loading / success / error transitions; `StatCard` renders label and value + loading skeleton; `getAdminDashboardStats()` camelCase mapping; today's date boundary computed correctly in `America/Argentina/Buenos_Aires`
+- Integration tests: `AdminDashboardPage` mounts and renders metric cards; today's list populates; "Ver todos los turnos" CTA navigates to `/admin/appointments`; loading and error states in Spanish; non-admin accessing `/admin/dashboard` is redirected; admin landing after login resolves to `/admin/dashboard`
+- Routing policy test update: `roleHomeByRole.admin === '/admin/dashboard'`
+
 - [ ]
 
 ### 27. Notifications System
@@ -977,15 +1064,197 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 ---
 
+## Phase 11: Landing Page & Customer Experience
+
+### 37. Public Business Landing Page
+**Description:** Implement a public-facing landing page at `/` that showcases the business to anyone — no login required. Visitors see a photo carousel, business info, services catalog, social links, business hours, and a "Reservar" CTA. Admins configure all content (copy, colors, fonts, images, social links) from a new admin settings panel. Visual style: pastel / wellness / spa-like, modern and responsive.
+
+**Scope (MVP):**
+
+*37a — DB: Supabase Storage setup (prerequisite for 37 and 38)*
+- New Supabase Storage bucket: `media` — public read, authenticated write
+- Storage RLS policies: anyone can read (`public`); only admins can upload/delete
+- Used by: landing carousel images (this item) and service images (#38)
+- No new tables — bucket + policies only
+
+*37b — DB: `landing_config` table*
+- One row per organization (single-tenant), FK to `organizations`
+- Columns: `hero_title text`, `hero_subtitle text`, `about_text text`, `instagram_url text`, `whatsapp_number text`, `primary_color text` (hex), `secondary_color text` (hex), `font_family text` (e.g. `'Inter'`, `'Playfair Display'`), `show_hours boolean default true`
+- Carousel images stored as a separate `landing_carousel_images` table: `(id, organization_id, storage_path text, display_order int, alt_text text)` — allows ordered multi-image management
+- RLS: `SELECT` for `anon` and `authenticated` (public read — landing is fully public); no direct DML — all writes via admin RPC
+
+*37c — DB: Admin RPCs for landing config*
+- `admin_get_landing_config()` — returns `landing_config` row joined with carousel images ordered by `display_order`; admin-only (`is_admin()`); granted to `authenticated`
+- `admin_upsert_landing_config(p_hero_title, p_hero_subtitle, p_about_text, p_instagram_url, p_whatsapp_number, p_primary_color, p_secondary_color, p_font_family, p_show_hours)` — INSERT or UPDATE the config row for the org; admin-only SECURITY DEFINER
+- `admin_add_carousel_image(p_storage_path, p_display_order, p_alt_text)` — inserts a carousel image row; admin-only
+- `admin_remove_carousel_image(p_image_id uuid)` — deletes a carousel image row; admin-only
+- `admin_reorder_carousel_images(p_ordered_ids uuid[])` — updates `display_order` for all images atomically; admin-only
+- Public read function: `get_landing_config()` — granted to `anon` and `authenticated`; returns same shape as `admin_get_landing_config()` without auth check (used by the public landing page)
+
+*37d — TypeScript: `src/services/landing.ts`*
+- `LandingConfig` and `CarouselImage` interfaces (camelCase)
+- `getLandingConfig(): Promise<LandingConfig>` — calls `get_landing_config()` RPC (unauthenticated-safe)
+- `src/services/adminLanding.ts`: `getAdminLandingConfig()`, `upsertLandingConfig()`, `addCarouselImage()`, `removeCarouselImage()`, `reorderCarouselImages()`
+- Supabase Storage helpers: `uploadMediaFile(file: File, path: string): Promise<string>` — uploads to `media` bucket, returns public URL; `deleteMediaFile(path: string): Promise<void>`
+
+*37e — Frontend: Public `LandingPage` at `/`*
+- Route: `{ path: '/', access: 'public' }` — already in `routePolicies`; replace the current redirect with the new page component
+- Authenticated admin/staff visiting `/` are redirected to their `roleHomeByRole` path (via existing `readiness.ts` / App.tsx routing logic)
+- Authenticated customers visiting `/` see the landing (with "Reservar" CTA going to `/booking`)
+- Sections (in order):
+  1. **Hero** — full-width with carousel of uploaded images (auto-play + manual nav arrows), overlay with `hero_title` and `hero_subtitle`, "Reservar turno" CTA button → `/signin?redirect=/booking` if unauthenticated, `/booking` if customer
+  2. **Servicios** — public grid of active services (name, `price_cents` in ARS, `duration_minutes`, `description`, `image_url`); read from existing `services` SELECT RLS (no new RPC needed for anon read — check if anon grant exists, add if not); cards link to no-op (booking CTA at bottom of section)
+  3. **Sobre nosotros** — `about_text` rendered as a text block with a soft background
+  4. **Horarios** — `business_hours` rendered as a weekly schedule (Mon–Sun, opens/closes or "Cerrado"); visible only if `show_hours = true`; read from existing `business_hours` table (anon SELECT grant needed)
+  5. **Contacto / Footer** — Instagram icon link (`instagram_url`), WhatsApp button (`whatsapp_number` → `https://wa.me/{number}`), address and phone from `organizations` if populated; styled footer
+- All copy in Spanish; loading states in Spanish
+- Design: pastel / wellness / spa-like — soft color palette derived from `primary_color` / `secondary_color`; CSS custom properties set dynamically from `landing_config`; responsive (mobile-first); `font_family` applied via Google Fonts dynamic `<link>` injection
+
+*37f — Frontend: Admin Landing Config Panel at `/admin/settings/landing`*
+- New route registered under `RoleGuard allowedRoles={['admin']}` in `App.tsx`
+- Nav entry "Personalizar Landing" added to admin settings nav section (after "Configuración del negocio")
+- Form sections:
+  - **Textos hero**: `hero_title`, `hero_subtitle` text inputs
+  - **Sobre nosotros**: `about_text` textarea
+  - **Carrusel**: drag-to-reorder list of carousel images; each row shows thumbnail, alt text input, delete button; "Agregar foto" file input → uploads to Supabase Storage → calls `admin_add_carousel_image`
+  - **Diseño**: `primary_color` and `secondary_color` color pickers; `font_family` select (3–5 curated options: Inter, Playfair Display, Lato, Nunito, Raleway)
+  - **Redes sociales**: `instagram_url` text input, `whatsapp_number` text input
+  - **Horarios**: `show_hours` toggle
+- "Guardar cambios" → `admin_upsert_landing_config`; "Ver landing" → opens `/` in new tab
+- Loading, success ("Cambios guardados"), and error states in Spanish
+
+**Data Model:**
+```sql
+-- landing_config
+create table public.landing_config (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id),
+  hero_title       text,
+  hero_subtitle    text,
+  about_text       text,
+  instagram_url    text,
+  whatsapp_number  text,
+  primary_color    text default '#f9a8d4',
+  secondary_color  text default '#fbcfe8',
+  font_family      text default 'Inter',
+  show_hours       boolean not null default true,
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now(),
+  unique (organization_id)
+);
+
+-- landing_carousel_images
+create table public.landing_carousel_images (
+  id               uuid primary key default gen_random_uuid(),
+  organization_id  uuid not null references public.organizations(id),
+  storage_path     text not null,
+  display_order    int not null default 0,
+  alt_text         text,
+  created_at       timestamptz not null default now()
+);
+```
+
+**Architecture Decisions:**
+- Public landing reads config via `get_landing_config()` RPC — avoids granting `anon` direct SELECT on `landing_config` table directly (prefer RPC for any future auth logic)
+- Dynamic theming via CSS custom properties set inline on `<body>` or the page root — no build-time theme needed
+- Google Fonts loaded dynamically based on `font_family` config value — only one font family at a time
+- Service images and carousel images share the same `media` Storage bucket with path-based organization: `carousel/`, `services/`
+- Anon read grants needed: `services`, `business_hours`, `organizations` — audit and add minimal grants in a migration
+- `/` route stays `public` in routePolicies; redirect logic for authenticated admin/staff lives in App.tsx or the `ProtectedRoute` wrapper
+
+**Dependencies:**
+- #10 (`business_hours` table — rendered in hours section)
+- #14 (`services` table with `is_active` — rendered in services section; `image_url` column)
+- #38 (`description` column on `services` — needed for services section; image Storage upload — shared bucket)
+
+**Out of Scope:**
+- Blog or news section
+- Online payments / pricing tiers
+- Custom domain per organization (multi-tenant)
+- SEO meta tags and Open Graph (post-MVP)
+- Multi-language support
+- Animations library (CSS transitions only, no Framer Motion)
+- Video support in carousel
+- Real-time config preview while editing
+
+**Testing Scope:**
+- SQL smoke tests: `get_landing_config()` accessible by anon (no auth); `admin_get_landing_config()` blocked for non-admin; `admin_upsert_landing_config()` persists and `get_landing_config()` reflects update; carousel image add/remove/reorder correct
+- Unit tests: `getLandingConfig()` camelCase mapping; `uploadMediaFile()` returns public URL; carousel reorder produces correct `display_order` sequence; CSS custom properties applied correctly from config
+- Integration tests: `LandingPage` renders hero with carousel and CTA; services section shows active services with price in ARS; hours section hidden when `show_hours = false`; unauthenticated visitor sees full page; admin/staff visiting `/` are redirected; admin config panel saves and shows success copy in Spanish; carousel upload calls Storage and inserts row
+- [x] `public-business-landing-page` (58f0d7b)
+
+### 38. Booking Experience & Service Catalog Redesign
+**Description:** Redesign the customer booking wizard and admin services panel to be visually richer: service selection becomes a grid of cards with image, name, price, and description. Admins can upload service images directly (Supabase Storage, set up in #37) and add a description field per service. Requires #37 (Storage bucket) to be implemented first.
+
+**Scope (MVP):**
+
+*38a — DB: `description` column on `services`*
+- Migration: `ALTER TABLE services ADD COLUMN description text` (nullable)
+- Update `admin_list_services()` RPC to return `description`
+- Update `admin_create_service()` and `admin_update_service()` RPCs to accept `p_description text`
+- Public SELECT of `services` already includes `description` once column exists (no new policy needed — column is added to the table)
+
+*38b — Frontend: Admin services panel — description field + image upload*
+- Add `description` textarea to the create/edit service form in `AdminServicesPage`
+- Replace `image_url` text input with a file upload component:
+  - "Subir imagen" button → file picker (accepts `image/*`)
+  - On select: uploads to Supabase Storage at path `services/{serviceId}` via `uploadMediaFile()` (from #37's storage helpers)
+  - On success: stores the public URL in `image_url` via `admin_update_service()`
+  - Shows thumbnail preview of current image; "Eliminar imagen" button removes from Storage and clears `image_url`
+  - Text URL input removed (replaced by upload)
+- Update `AdminService` TypeScript interface to include `description: string | null`
+
+*38c — Frontend: Redesign BookingPage Step 1 — service selection*
+- Replace the current plain list with a responsive grid of service cards
+- Each card: service image (full card background or top half; fallback to a soft pastel placeholder if no image), service name (bold), duration in minutes, price in ARS, truncated description (2 lines, expandable on click)
+- Card hover state: subtle scale + shadow; selected card: accent border + checkmark overlay
+- Grid: 2 columns on mobile, 3 on desktop
+- "Sin imagen" placeholder: uses `primary_color` from `landing_config` as background with service initial
+- Selecting a card highlights it and enables the "Continuar" button
+- Loading skeleton grid for the fetch state
+- Error and empty states in Spanish
+
+*38d — Frontend: Service detail drawer/modal (optional expand)*
+- Clicking the description or an "i" icon on a service card opens a bottom drawer (mobile) or side panel (desktop) with full description, image, name, price, duration, and "Seleccionar este servicio" CTA
+- Allows reading the full description before committing to the service
+
+**Architecture Decisions:**
+- `uploadMediaFile()` reused from #37 service helpers — no duplication
+- Service image path in Storage: `services/{serviceId}.{ext}` — one image per service, overwrite on re-upload
+- `image_url` column keeps its current type (`text`) — now populated with Storage public URLs instead of external URLs
+- Description is nullable in DB and optional in the form (no validation required for empty)
+- `landing_config.primary_color` is used as a fallback card background color — requires `getLandingConfig()` to be called once on app init or within the booking page (could be a shared context)
+
+**Dependencies:**
+- #37 (Supabase Storage `media` bucket + `uploadMediaFile()` helper)
+- #16 (`BookingPage` steps 1–3, existing `useActiveServices()` hook, `ServiceSelector` component — replaced in this item)
+- #14 (`services` table, `admin_list_services()`, `admin_create_service()`, `admin_update_service()`)
+
+**Out of Scope:**
+- Multiple images per service (single image per service in MVP)
+- Video or 360° media for services
+- Customer reviews / ratings per service
+- Staff selection within the booking wizard (any-staff model stays from #16)
+- Service categories or grouping (post-MVP)
+- Booking wizard step 2–4 visual redesign (only Step 1 is redesigned in this item)
+
+**Testing Scope:**
+- SQL smoke tests: `description` column exists and is returned by `admin_list_services()`; `admin_create_service()` and `admin_update_service()` accept and persist `p_description`; null description is valid
+- Unit tests: `AdminServicesPage` create/edit form renders description textarea; upload component calls `uploadMediaFile()` and then `admin_update_service()` with the returned URL; service card renders name, price in ARS, duration, truncated description; fallback placeholder renders when no `image_url`; card selection state applies accent border
+- Integration tests: admin adds description and uploads image — service list reflects both; customer booking step 1 renders service grid with images and descriptions; selecting a card enables "Continuar"; empty state and loading skeleton render correctly in Spanish
+- [ ]
+
+---
+
 ## Summary
 
-**Total Features:** 33
+**Total Features:** 35
 **Completed:** 21
 **In Progress:** 0
-**Pending:** 12
+**Pending:** 14
 
 **Current Phase:** Phase 7 (Advanced Features)
-**Next Feature:** #13b (Role Switcher fix) or #26 (Admin Dashboard)
+**Next Feature:** #26 (Admin Dashboard) or #37 (Landing Page)
 
 ---
 
