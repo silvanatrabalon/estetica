@@ -1242,16 +1242,16 @@ create table public.landing_carousel_images (
 - SQL smoke tests: `description` column exists and is returned by `admin_list_services()`; `admin_create_service()` and `admin_update_service()` accept and persist `p_description`; null description is valid
 - Unit tests: `AdminServicesPage` create/edit form renders description textarea; upload component calls `uploadMediaFile()` and then `admin_update_service()` with the returned URL; service card renders name, price in ARS, duration, truncated description; fallback placeholder renders when no `image_url`; card selection state applies accent border
 - Integration tests: admin adds description and uploads image — service list reflects both; customer booking step 1 renders service grid with images and descriptions; selecting a card enables "Continuar"; empty state and loading skeleton render correctly in Spanish
-- [ ]
+- [x] `booking-experience-service-catalog` (475ade8)
 
 ---
 
 ## Summary
 
 **Total Features:** 35
-**Completed:** 21
+**Completed:** 22
 **In Progress:** 0
-**Pending:** 14
+**Pending:** 13
 
 **Current Phase:** Phase 7 (Advanced Features)
 **Next Feature:** #26 (Admin Dashboard) or #37 (Landing Page)
