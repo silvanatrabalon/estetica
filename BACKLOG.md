@@ -940,7 +940,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 - Unit tests: Timezone grouping fix — appointment at `01:00 UTC` in `America/Argentina/Buenos_Aires` appears on the correct prior local day (not the UTC day); DnD `onDrop` handler calls `rescheduleAppointment` with correct `appointmentId` and `newStartsAt`; cancelled appointment has no drag handle; slot picker modal opens with correct `serviceId` + `newDate`; conflict error renders in Spanish; availability overlay renders working-hours shading correctly; `day_off` exception shows "Día libre"; business closure shows "Cerrado"; admin calendar renders all org appointments for the visible week
 - Integration tests: Customer drags appointment in weekly calendar → slot picker modal opens → selects slot → appointment updates inline; Staff drags assigned appointment → slot picker → updates; availability overlay visible in staff weekly calendar; Admin navigates to `/admin/calendar` → sees all org appointments; Admin drags appointment to new day → slot picker → updates; Conflict shows inline Spanish error; Customer min-notice policy violation shows Spanish error message
 
-- [ ]
+- [x] `calendar-system-ui` (0ccf745)
 
 ### 26. Admin Dashboard
 **Description:** Dashboard metrics, today's appointments, weekly calendar view, booking analytics.
@@ -996,9 +996,9 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 ## Summary
 
 **Total Features:** 36
-**Completed:** 20
+**Completed:** 21
 **In Progress:** 0
-**Pending:** 16
+**Pending:** 15
 
 **Current Phase:** Phase 5 (Booking & Scheduling)
 **Next Feature:** #16 (Availability System — Time Slot Generation)
