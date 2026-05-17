@@ -51,11 +51,19 @@ The system SHALL render a full-width hero section as the first visible element o
 ---
 
 ### Requirement: Landing page displays services catalog section
-The system SHALL render a **Servicios** section on `LandingPage` that lists all active services fetched via the existing `list_services()` RPC (granted to `anon` role). Each service card MUST display the service name, price in ARS, and image (if available). The section MUST be visible to unauthenticated visitors.
+The system SHALL render a **Servicios** section on `LandingPage` that lists all active services grouped by category. Each category name SHALL appear as a subheading. Services with no category SHALL appear after categorized groups. Empty categories (no active services) SHALL NOT be rendered. Each service card MUST display the service name, price in ARS, and image (if available). The section MUST be visible to unauthenticated visitors.
 
-#### Scenario: Services section renders all active services
-- **WHEN** the landing page loads and `list_services()` returns services
-- **THEN** each service is displayed as a card with name, price in ARS, and image if available
+#### Scenario: Services section renders services grouped by category
+- **WHEN** the landing page loads and services with categories exist
+- **THEN** each category appears as a subheading with its services listed as cards beneath it
+
+#### Scenario: Uncategorized services are shown last
+- **WHEN** some services have no assigned category
+- **THEN** those services appear after all categorized groups with no subheading or a neutral label
+
+#### Scenario: Empty category is not rendered
+- **WHEN** a category exists but none of its services are active
+- **THEN** that category subheading does NOT appear on the landing page
 
 #### Scenario: Services section shows empty state when no services exist
 - **WHEN** `list_services()` returns an empty array
@@ -68,7 +76,7 @@ The system SHALL render a **Servicios** section on `LandingPage` that lists all 
 ---
 
 ### Requirement: Landing page displays about, hours, and contact sections
-The system SHALL render an **Sobre Nosotros** section (hidden when `about_text` is null/empty), a **Horarios** section (hidden when `show_hours` is `false`), and a **Contacto** footer with `instagram_url` and `whatsapp_number` from `landing_config`. All sections MUST be readable without authentication.
+The system SHALL render an **Sobre Nosotros** section (hidden when `about_text` is null/empty), a **Horarios** section (hidden when `show_hours` is `false`), and a **Contacto** footer. All sections MUST be readable without authentication.
 
 #### Scenario: About section displays configured about_text
 - **WHEN** `landing_config.about_text` is non-null and non-empty
@@ -86,9 +94,22 @@ The system SHALL render an **Sobre Nosotros** section (hidden when `about_text` 
 - **WHEN** `landing_config.show_hours` is `false`
 - **THEN** the Horarios section is NOT rendered
 
-#### Scenario: Footer shows social links when configured
-- **WHEN** `landing_config.instagram_url` or `landing_config.whatsapp_number` is non-null
-- **THEN** the footer displays the corresponding social/contact links
+---
+
+### Requirement: Landing page footer shows social and contact links
+The system SHALL render a footer on `LandingPage` with social and contact links. The footer MUST include an Instagram icon link (SVG, `aria-label="Instagram"`), a WhatsApp icon-only link (SVG, `aria-label="WhatsApp"`) with no text label linking to `https://w.app/bfs0ip`, and a copyright line `© 2026 Software Queen` where "Software Queen" is a `mailto:silvana.trabalon@gmail.com` link.
+
+#### Scenario: Instagram icon link is present and accessible
+- **WHEN** a visitor loads the landing page
+- **THEN** an Instagram SVG icon is shown in the footer with `aria-label="Instagram"` on the link element
+
+#### Scenario: WhatsApp icon link is present and correct
+- **WHEN** a visitor loads the landing page
+- **THEN** a WhatsApp icon-only link is shown in the footer with `aria-label="WhatsApp"` linking to `https://w.app/bfs0ip` and no visible text label
+
+#### Scenario: Copyright shows Software Queen credit with mailto
+- **WHEN** a visitor loads the landing page
+- **THEN** the footer shows `© 2026 Software Queen` and "Software Queen" links to `mailto:silvana.trabalon@gmail.com`
 
 ---
 
