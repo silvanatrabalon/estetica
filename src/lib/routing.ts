@@ -39,6 +39,7 @@ export const routePolicies: RoutePolicy[] = [
   { path: '/admin/appointments', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/calendar', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/reports', access: 'role-restricted', allowedRoles: ['admin'] },
+  { path: '/admin/settings/landing', access: 'role-restricted', allowedRoles: ['admin'] },
 ]
 
 export interface RouteAccessInput {

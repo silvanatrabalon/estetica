@@ -1,15 +1,12 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
-import { UserProvider, useUser } from './context'
+import { Route, Routes } from 'react-router-dom'
+import { UserProvider } from './context'
 import {
   AuthGuard,
-  NullRoleRecovery,
   ProtectedShellLayout,
   PublicOnlyGuard,
   RoleGuard,
-  RouteLoadingState,
 } from './components/routing'
 import { RoleSelector } from './components/auth/RoleSelector'
-import { resolveRoleHomePath } from './lib/routing'
 import {
   AdminAppointmentsPage,
   AdminCalendarPage,
@@ -24,6 +21,8 @@ import {
   BookingPage,
   BusinessSettingsPage,
   DashboardPage,
+  LandingConfigPage,
+  LandingPage,
   NotFoundPage,
   ProfilePage,
   ProfileSetupPage,
@@ -36,33 +35,10 @@ import {
   UnauthorizedPage,
 } from './pages'
 
-function RootRedirect() {
-  const { user, roles, activeRole, isLoading, retryRoleResolution } = useUser()
-
-  if (isLoading) {
-    return <RouteLoadingState />
-  }
-
-  if (!user) {
-    return <Navigate to="/signin" replace />
-  }
-
-  // Multi-role user with no active selection → role selector
-  if (roles.length > 1 && !activeRole) {
-    return <Navigate to="/seleccionar-rol" replace />
-  }
-
-  if (!activeRole) {
-    return <NullRoleRecovery onRetry={retryRoleResolution} />
-  }
-
-  return <Navigate to={resolveRoleHomePath(activeRole)} replace />
-}
-
 function AppContent() {
   return (
     <Routes>
-      <Route path="/" element={<RootRedirect />} />
+      <Route path="/" element={<LandingPage />} />
 
       <Route element={<PublicOnlyGuard />}>
         <Route path="/signin" element={<SignInPage />} />
@@ -105,6 +81,7 @@ function AppContent() {
             <Route path="/admin/appointments" element={<AdminAppointmentsPage />} />
             <Route path="/admin/calendar" element={<AdminCalendarPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
+            <Route path="/admin/settings/landing" element={<LandingConfigPage />} />
           </Route>
         </Route>
       </Route>

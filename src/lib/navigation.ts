@@ -118,6 +118,13 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
       icon: undefined, // TODO: Add chart icon
       roles: ['admin'],
     },
+    {
+      id: 'landing-config',
+      label: 'Personalizar Landing',
+      href: '/admin/settings/landing',
+      icon: undefined,
+      roles: ['admin'],
+    },
   ],
 }
 
