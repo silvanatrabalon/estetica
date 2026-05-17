@@ -20,6 +20,9 @@ const activeService: Service = {
   imageUrl: null,
   isActive: true,
   maxConcurrentBookings: null,
+  description: null,
+  categoryId: null,
+  categoryName: null,
   createdAt: '2025-01-01T00:00:00Z',
 }
 
@@ -50,6 +53,8 @@ describe('useActiveServices', () => {
             image_url: null,
             is_active: true,
             max_concurrent_bookings: null,
+            description: null,
+            category_id: null,
             created_at: activeService.createdAt,
           },
         ],

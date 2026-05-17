@@ -18,6 +18,7 @@ import {
   type AdminUserAnalytics,
 } from '../services/adminUsers'
 import { useUser } from '../hooks/useUser'
+import { ConfirmModal } from '../components/ConfirmModal'
 
 function formatRelativeDate(dateValue: string | null): string {
   if (!dateValue) {
@@ -59,6 +60,14 @@ export function AdminUsersPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [nameError, setNameError] = useState<string | null>(null)
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean; message: string; title: string; onConfirm: () => void
+  }>({ isOpen: false, message: '', title: 'Confirmar', onConfirm: () => {} })
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmState({ isOpen: true, title, message, onConfirm })
+  }
+  const closeConfirm = () => setConfirmState((prev) => ({ ...prev, isOpen: false }))
 
   const selectedUser = useMemo(
     () => users.find((user) => user.userId === selectedUserId) ?? null,
@@ -196,48 +205,48 @@ export function AdminUsersPage() {
       return
     }
 
-    const confirmChange = window.confirm(
+    const confirmChange = (
       shouldAssign
         ? `¿Confirmás asignar el rol "${roleLabel(toggledRole)}" a este usuario?`
-        : `¿Confirmás quitar el rol "${roleLabel(toggledRole)}" de este usuario?`,
+        : `¿Confirmás quitar el rol "${roleLabel(toggledRole)}" de este usuario?`
     )
-    if (!confirmChange) {
-      return
-    }
 
-    setSuccessMessage(null)
-    setErrorMessage(null)
-    setIsSavingRole(true)
-
-    try {
-      if (shouldAssign) {
-        await adminAssignUserRole(selectedUser.userId, toggledRole)
-      } else {
-        await adminRevokeUserRole(selectedUser.userId, toggledRole)
-      }
-
-      setUsers((current) =>
-        current.map((item) =>
-          item.userId === selectedUser.userId ? { ...item, roles: nextRoles } : item,
-        ),
-      )
-      setSuccessMessage('Roles actualizados correctamente.')
-      await refreshAnalytics()
-    } catch {
-      setErrorMessage('No pudimos actualizar el rol. Verificá permisos o restricciones de seguridad.')
-    } finally {
-      setIsSavingRole(false)
-    }
+    showConfirm(
+      'Cambiar rol',
+      confirmChange,
+      async () => {
+        closeConfirm()
+        setSuccessMessage(null)
+        setErrorMessage(null)
+        setIsSavingRole(true)
+        try {
+          if (shouldAssign) {
+            await adminAssignUserRole(selectedUser.userId, toggledRole)
+          } else {
+            await adminRevokeUserRole(selectedUser.userId, toggledRole)
+          }
+          setUsers((current) =>
+            current.map((item) =>
+              item.userId === selectedUser.userId ? { ...item, roles: nextRoles } : item,
+            ),
+          )
+          setSuccessMessage('Roles actualizados correctamente.')
+          await refreshAnalytics()
+        } catch {
+          setErrorMessage('No pudimos actualizar el rol. Verificá permisos o restricciones de seguridad.')
+        } finally {
+          setIsSavingRole(false)
+        }
+      },
+    )
   }
 
-  const handleActivationToggle = async () => {
+  const handleActivationToggle = () => {
     if (!selectedUser) {
       setErrorMessage('Seleccioná un usuario para cambiar su estado.')
       return
     }
-
     const nextState = !isActive
-
     if (
       isLastActiveAdminDeactivation({
         roles: selectedUser.roles,
@@ -249,39 +258,32 @@ export function AdminUsersPage() {
       setErrorMessage('No podés desactivar al último administrador activo.')
       return
     }
-
-    const confirmMessage = nextState
-      ? '¿Confirmás reactivar este usuario?'
-      : '¿Confirmás desactivar este usuario?'
-
-    if (!window.confirm(confirmMessage)) {
-      return
-    }
-
-    setSuccessMessage(null)
-    setErrorMessage(null)
-    setIsSavingStatus(true)
-
-    try {
-      const updated = await adminSetUserActive(selectedUser.userId, nextState)
-      setUsers((current) =>
-        current.map((item) =>
-          item.userId === updated.user_id
-            ? {
-                ...item,
-                isActive: updated.is_active,
-              }
-            : item,
-        ),
-      )
-      setIsActive(updated.is_active)
-      setSuccessMessage(updated.is_active ? 'Usuario reactivado correctamente.' : 'Usuario desactivado correctamente.')
-      await refreshAnalytics()
-    } catch {
-      setErrorMessage('No pudimos cambiar el estado del usuario. Verificá permisos o restricciones de seguridad.')
-    } finally {
-      setIsSavingStatus(false)
-    }
+    const confirmMsg = nextState ? '¿Confirmás reactivar este usuario?' : '¿Confirmás desactivar este usuario?'
+    showConfirm(
+      nextState ? 'Reactivar usuario' : 'Desactivar usuario',
+      confirmMsg,
+      async () => {
+        closeConfirm()
+        setSuccessMessage(null)
+        setErrorMessage(null)
+        setIsSavingStatus(true)
+        try {
+          const updated = await adminSetUserActive(selectedUser.userId, nextState)
+          setUsers((current) =>
+            current.map((item) =>
+              item.userId === updated.user_id ? { ...item, isActive: updated.is_active } : item,
+            ),
+          )
+          setIsActive(updated.is_active)
+          setSuccessMessage(updated.is_active ? 'Usuario reactivado correctamente.' : 'Usuario desactivado correctamente.')
+          await refreshAnalytics()
+        } catch {
+          setErrorMessage('No pudimos cambiar el estado del usuario. Verificá permisos o restricciones de seguridad.')
+        } finally {
+          setIsSavingStatus(false)
+        }
+      },
+    )
   }
 
   return (
@@ -475,6 +477,13 @@ export function AdminUsersPage() {
           )}
         </div>
       </div>
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        onConfirm={confirmState.onConfirm}
+        onCancel={closeConfirm}
+      />
     </section>
   )
 }

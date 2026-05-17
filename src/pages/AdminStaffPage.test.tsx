@@ -70,7 +70,6 @@ const mockStaffMember = {
 describe('AdminStaffPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
     mockListAdminUsers.mockResolvedValue(mockUsers)
   })
 
@@ -205,6 +204,11 @@ describe('AdminStaffPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Desactivar' }))
 
     await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDefined()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    await waitFor(() => {
       expect(mockAdminSetStaffActive).toHaveBeenCalledWith('sm-1', false)
     })
   })
@@ -220,6 +224,11 @@ describe('AdminStaffPage', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Reactivar' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDefined()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
 
     await waitFor(() => {
       expect(mockAdminSetStaffActive).toHaveBeenCalledWith('sm-1', true)

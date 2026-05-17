@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react'
 import type { StaffExceptionInput, StaffExceptionType } from '../../services/staffAvailability'
 import { TimeRangeInput } from './TimeRangeInput'
+import { Select } from '../Select'
 
 interface ExceptionDateFormProps {
   isSaving: boolean
@@ -80,7 +81,7 @@ export function ExceptionDateForm({ isSaving, onAdd }: ExceptionDateFormProps) {
           <label htmlFor="exception-type" className="block text-sm font-medium text-gray-700 mb-1">
             Tipo
           </label>
-          <select
+          <Select
             id="exception-type"
             value={exceptionType}
             onChange={(e) => setExceptionType(e.target.value as StaffExceptionType)}
@@ -89,7 +90,7 @@ export function ExceptionDateForm({ isSaving, onAdd }: ExceptionDateFormProps) {
           >
             <option value="day_off">Día libre</option>
             <option value="custom_hours">Horario especial</option>
-          </select>
+          </Select>
         </div>
 
         {exceptionType === 'custom_hours' && (

@@ -10,6 +10,8 @@ export interface Service {
   isActive: boolean
   maxConcurrentBookings: number | null
   description: string | null
+  categoryId: string | null
+  categoryName: string | null
   createdAt: string
 }
 
@@ -23,6 +25,8 @@ interface ServiceRow {
   is_active: boolean
   max_concurrent_bookings: number | null
   description: string | null
+  category_id: string | null
+  category_name: string | null
   created_at: string
 }
 
@@ -37,6 +41,8 @@ function toService(row: ServiceRow): Service {
     isActive: row.is_active,
     maxConcurrentBookings: row.max_concurrent_bookings ?? null,
     description: row.description ?? null,
+    categoryId: row.category_id ?? null,
+    categoryName: row.category_name ?? null,
     createdAt: row.created_at,
   }
 }
@@ -59,6 +65,7 @@ export async function createService(params: {
   imageUrl: string | null
   maxConcurrentBookings?: number | null
   description?: string | null
+  categoryId?: string | null
 }): Promise<Service> {
   const supabase = initSupabase()
   const { data, error } = await supabase.rpc('admin_create_service', {
@@ -68,6 +75,7 @@ export async function createService(params: {
     p_image_url: params.imageUrl,
     p_max_concurrent_bookings: params.maxConcurrentBookings ?? null,
     p_description: params.description ?? null,
+    p_category_id: params.categoryId ?? null,
   })
 
   if (error) {
@@ -90,6 +98,7 @@ export async function updateService(params: {
   imageUrl: string | null
   maxConcurrentBookings?: number | null
   description?: string | null
+  categoryId?: string | null
 }): Promise<Service> {
   const supabase = initSupabase()
   const { data, error } = await supabase.rpc('admin_update_service', {
@@ -100,6 +109,7 @@ export async function updateService(params: {
     p_image_url: params.imageUrl,
     p_max_concurrent_bookings: params.maxConcurrentBookings ?? null,
     p_description: params.description ?? null,
+    p_category_id: params.categoryId ?? null,
   })
 
   if (error) {

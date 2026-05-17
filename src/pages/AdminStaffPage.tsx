@@ -8,6 +8,8 @@ import {
   type AdminStaffMember,
 } from '../services/adminStaff'
 import { listAdminUsers, type AdminManagedUser } from '../services/adminUsers'
+import { ConfirmModal } from '../components/ConfirmModal'
+import { Select } from '../components/Select'
 
 type FormMode = 'create' | 'edit' | null
 
@@ -33,6 +35,15 @@ export function AdminStaffPage() {
   const [displayName, setDisplayName] = useState('')
   const [displayNameError, setDisplayNameError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean; message: string; title: string; onConfirm: () => void
+  }>({ isOpen: false, message: '', title: 'Confirmar', onConfirm: () => {} })
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmState({ isOpen: true, title, message, onConfirm })
+  }
+  const closeConfirm = () => setConfirmState((prev) => ({ ...prev, isOpen: false }))
 
   const loadData = async () => {
     setIsLoading(true)
@@ -125,33 +136,30 @@ export function AdminStaffPage() {
     }
   }
 
-  const handleToggleActive = async (member: AdminStaffMember) => {
+  const handleToggleActive = (member: AdminStaffMember) => {
     const action = member.isActive ? 'desactivar' : 'reactivar'
-    const confirmed = window.confirm(
-      `¿Confirmás ${action} a ${member.displayName}? ${
-        member.isActive
-          ? 'Nota: esto no revoca el acceso a la aplicación.'
-          : ''
-      }`,
+    showConfirm(
+      member.isActive ? 'Desactivar profesional' : 'Reactivar profesional',
+      `¿Confirmás ${action} a ${member.displayName}?${member.isActive ? ' Nota: esto no revoca el acceso a la aplicación.' : ''}`,
+      async () => {
+        closeConfirm()
+        setSuccessMessage(null)
+        setErrorMessage(null)
+        try {
+          await adminSetStaffActive(member.id, !member.isActive)
+          setStaffMembers((current) =>
+            current.map((m) => (m.id === member.id ? { ...m, isActive: !m.isActive } : m)),
+          )
+          setSuccessMessage(
+            member.isActive
+              ? `${member.displayName} fue desactivado.`
+              : `${member.displayName} fue reactivado.`,
+          )
+        } catch {
+          setErrorMessage('No pudimos actualizar el estado del profesional.')
+        }
+      },
     )
-    if (!confirmed) return
-
-    setSuccessMessage(null)
-    setErrorMessage(null)
-
-    try {
-      await adminSetStaffActive(member.id, !member.isActive)
-      setStaffMembers((current) =>
-        current.map((m) => (m.id === member.id ? { ...m, isActive: !m.isActive } : m)),
-      )
-      setSuccessMessage(
-        member.isActive
-          ? `${member.displayName} fue desactivado.`
-          : `${member.displayName} fue reactivado.`,
-      )
-    } catch {
-      setErrorMessage('No pudimos actualizar el estado del profesional.')
-    }
   }
 
   const availableUsers = allUsers.filter(
@@ -167,7 +175,8 @@ export function AdminStaffPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <>
+      <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Profesionales</h1>
         {formMode === null && (
@@ -209,7 +218,7 @@ export function AdminStaffPage() {
                     No hay usuarios disponibles para vincular. Todos los usuarios existentes ya tienen un profesional asignado.
                   </p>
                 ) : (
-                  <select
+                  <Select
                     id="staff-user-select"
                     value={selectedUserId}
                     onChange={(e) => setSelectedUserId(e.target.value)}
@@ -222,7 +231,7 @@ export function AdminStaffPage() {
                         {u.name || u.email || u.userId}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 )}
               </div>
             )}
@@ -327,7 +336,7 @@ export function AdminStaffPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => void handleToggleActive(member)}
+                        onClick={() => handleToggleActive(member)}
                         className="text-gray-600 hover:text-gray-800 text-xs font-medium"
                       >
                         {member.isActive ? 'Desactivar' : 'Reactivar'}
@@ -344,5 +353,13 @@ export function AdminStaffPage() {
         </div>
       )}
     </div>
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        onConfirm={confirmState.onConfirm}
+        onCancel={closeConfirm}
+      />
+    </>
   )
 }

@@ -23,14 +23,16 @@ export function useActiveServices(): UseActiveServicesResult {
     setLoading(true)
     setError(null)
 
-    supabase
-      .from('services')
-      .select(
-        'id, organization_id, name, duration_minutes, price_cents, image_url, is_active, max_concurrent_bookings, created_at',
-      )
-      .eq('is_active', true)
-      .order('name')
-      .then(({ data, error: fetchError }) => {
+    const fetchServices = async () => {
+      try {
+        const { data, error: fetchError } = await supabase
+          .from('services')
+          .select(
+            'id, organization_id, name, duration_minutes, price_cents, image_url, is_active, max_concurrent_bookings, description, category_id, created_at',
+          )
+          .eq('is_active', true)
+          .order('name')
+
         if (cancelled) return
         if (fetchError) {
           setError('No pudimos cargar los servicios. Intentá de nuevo.')
@@ -46,13 +48,20 @@ export function useActiveServices(): UseActiveServicesResult {
             imageUrl: row.image_url ?? null,
             isActive: row.is_active,
             maxConcurrentBookings: row.max_concurrent_bookings ?? null,
+            description: row.description ?? null,
+            categoryId: row.category_id ?? null,
+            categoryName: null,
             createdAt: row.created_at,
           })),
         )
-      })
-      .finally(() => {
+      } catch {
+        if (!cancelled) setError('No pudimos cargar los servicios. Intentá de nuevo.')
+      } finally {
         if (!cancelled) setLoading(false)
-      })
+      }
+    }
+
+    void fetchServices()
 
     return () => {
       cancelled = true

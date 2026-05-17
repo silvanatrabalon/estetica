@@ -8,10 +8,14 @@ export type AppRole = (typeof APP_ROLES)[number]
 
 /**
  * Starts Google OAuth through Supabase Auth.
+ * @param redirectAfterAuth - optional path to redirect to after a successful login (e.g. '/booking')
  */
-export async function signInWithGoogle(): Promise<void> {
+export async function signInWithGoogle(redirectAfterAuth?: string): Promise<void> {
   const supabase = initSupabase()
-  const redirectTo = `${window.location.origin}${window.location.pathname}`
+  const base = `${window.location.origin}${window.location.pathname}`
+  const redirectTo = redirectAfterAuth
+    ? `${base}?redirect=${encodeURIComponent(redirectAfterAuth)}`
+    : base
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

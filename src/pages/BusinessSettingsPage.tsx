@@ -11,6 +11,8 @@ import {
 import type { BusinessClosureType, BusinessHoursInput } from '../lib/businessSettings'
 import { commonCopy } from '../lib/uiCopy'
 import { useUser } from '../hooks/useUser'
+import { ConfirmModal } from '../components/ConfirmModal'
+import { Select } from '../components/Select'
 
 const dayLabels = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
 
@@ -81,6 +83,14 @@ export function BusinessSettingsPage() {
   const [isSavingPolicy, setIsSavingPolicy] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean; message: string; title: string; onConfirm: () => void
+  }>({ isOpen: false, message: '', title: 'Confirmar', onConfirm: () => {} })
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmState({ isOpen: true, title, message, onConfirm })
+  }
+  const closeConfirm = () => setConfirmState((prev) => ({ ...prev, isOpen: false }))
 
   const applyLoadedData = awaitableApplyLoadedData
 
@@ -203,23 +213,25 @@ export function BusinessSettingsPage() {
     }
   }
 
-  const handleDeleteClosure = async (closureId: string) => {
-    if (!window.confirm('¿Confirmas eliminar este cierre excepcional?')) {
-      return
-    }
-
-    setErrorMessage(null)
-    setSuccessMessage(null)
-
-    try {
-      await deleteBusinessClosure(closureId)
-      const updated = await getBusinessSettings()
-      applyLoadedData(updated)
-      setClosureDraft((current) => (current.id === closureId ? emptyClosureDraft() : current))
-      setSuccessMessage('Cierre excepcional eliminado correctamente.')
-    } catch {
-      setErrorMessage('No pudimos eliminar el cierre excepcional.')
-    }
+  const handleDeleteClosure = (closureId: string) => {
+    showConfirm(
+      'Eliminar cierre excepcional',
+      '¿Confirmás eliminar este cierre excepcional?',
+      async () => {
+        closeConfirm()
+        setErrorMessage(null)
+        setSuccessMessage(null)
+        try {
+          await deleteBusinessClosure(closureId)
+          const updated = await getBusinessSettings()
+          applyLoadedData(updated)
+          setClosureDraft((current) => (current.id === closureId ? emptyClosureDraft() : current))
+          setSuccessMessage('Cierre excepcional eliminado correctamente.')
+        } catch {
+          setErrorMessage('No pudimos eliminar el cierre excepcional.')
+        }
+      },
+    )
   }
 
   const handleSaveBookingPolicy = async (event: FormEvent<HTMLFormElement>) => {
@@ -421,8 +433,9 @@ export function BusinessSettingsPage() {
 
           <label className="text-sm text-shell-text">
             Tipo de cierre
-            <select
-              className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+            <Select
+              className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+              wrapperClassName="mt-1"
               onChange={(event) =>
                 setClosureDraft((current) => ({
                   ...current,
@@ -433,7 +446,7 @@ export function BusinessSettingsPage() {
             >
               <option value="full_day">Dia completo</option>
               <option value="half_day">Media jornada</option>
-            </select>
+            </Select>
           </label>
 
           {closureDraft.closureType === 'half_day' ? (
@@ -516,7 +529,7 @@ export function BusinessSettingsPage() {
                   </button>
                   <button
                     className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
-                    onClick={() => void handleDeleteClosure(closure.id)}
+                    onClick={() => handleDeleteClosure(closure.id)}
                     type="button"
                   >
                     Eliminar
@@ -580,6 +593,13 @@ export function BusinessSettingsPage() {
           </div>
         </form>
       </section>
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        onConfirm={confirmState.onConfirm}
+        onCancel={closeConfirm}
+      />
     </section>
   )
 }

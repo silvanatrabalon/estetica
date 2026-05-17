@@ -1079,13 +1079,14 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 *37b — DB: `landing_config` table*
 - One row per organization (single-tenant), FK to `organizations`
-- Columns: `hero_title text`, `hero_subtitle text`, `about_text text`, `instagram_url text`, `whatsapp_number text`, `primary_color text` (hex), `secondary_color text` (hex), `font_family text` (e.g. `'Inter'`, `'Playfair Display'`), `show_hours boolean default true`
+- Columns: `hero_title text`, `hero_subtitle text`, `about_text text`, `instagram_url text`, `primary_color text` (hex), `secondary_color text` (hex), `font_family text` (e.g. `'Inter'`, `'Playfair Display'`), `show_hours boolean default true`
+- Note: WhatsApp contact uses a fixed hardcoded link (`https://w.app/bfs0ip`) — not stored in DB
 - Carousel images stored as a separate `landing_carousel_images` table: `(id, organization_id, storage_path text, display_order int, alt_text text)` — allows ordered multi-image management
 - RLS: `SELECT` for `anon` and `authenticated` (public read — landing is fully public); no direct DML — all writes via admin RPC
 
 *37c — DB: Admin RPCs for landing config*
 - `admin_get_landing_config()` — returns `landing_config` row joined with carousel images ordered by `display_order`; admin-only (`is_admin()`); granted to `authenticated`
-- `admin_upsert_landing_config(p_hero_title, p_hero_subtitle, p_about_text, p_instagram_url, p_whatsapp_number, p_primary_color, p_secondary_color, p_font_family, p_show_hours)` — INSERT or UPDATE the config row for the org; admin-only SECURITY DEFINER
+- `admin_upsert_landing_config(p_hero_title, p_hero_subtitle, p_about_text, p_instagram_url, p_primary_color, p_secondary_color, p_font_family, p_show_hours)` — INSERT or UPDATE the config row for the org; admin-only SECURITY DEFINER
 - `admin_add_carousel_image(p_storage_path, p_display_order, p_alt_text)` — inserts a carousel image row; admin-only
 - `admin_remove_carousel_image(p_image_id uuid)` — deletes a carousel image row; admin-only
 - `admin_reorder_carousel_images(p_ordered_ids uuid[])` — updates `display_order` for all images atomically; admin-only
@@ -1106,7 +1107,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
   2. **Servicios** — public grid of active services (name, `price_cents` in ARS, `duration_minutes`, `description`, `image_url`); read from existing `services` SELECT RLS (no new RPC needed for anon read — check if anon grant exists, add if not); cards link to no-op (booking CTA at bottom of section)
   3. **Sobre nosotros** — `about_text` rendered as a text block with a soft background
   4. **Horarios** — `business_hours` rendered as a weekly schedule (Mon–Sun, opens/closes or "Cerrado"); visible only if `show_hours = true`; read from existing `business_hours` table (anon SELECT grant needed)
-  5. **Contacto / Footer** — Instagram icon link (`instagram_url`), WhatsApp button (`whatsapp_number` → `https://wa.me/{number}`), address and phone from `organizations` if populated; styled footer
+  5. **Contacto / Footer** — Instagram icon link (`instagram_url`), WhatsApp icon-only link (fixed URL `https://w.app/bfs0ip` — not configurable), address and phone from `organizations` if populated; styled footer
 - All copy in Spanish; loading states in Spanish
 - Design: pastel / wellness / spa-like — soft color palette derived from `primary_color` / `secondary_color`; CSS custom properties set dynamically from `landing_config`; responsive (mobile-first); `font_family` applied via Google Fonts dynamic `<link>` injection
 
@@ -1118,7 +1119,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
   - **Sobre nosotros**: `about_text` textarea
   - **Carrusel**: drag-to-reorder list of carousel images; each row shows thumbnail, alt text input, delete button; "Agregar foto" file input → uploads to Supabase Storage → calls `admin_add_carousel_image`
   - **Diseño**: `primary_color` and `secondary_color` color pickers; `font_family` select (3–5 curated options: Inter, Playfair Display, Lato, Nunito, Raleway)
-  - **Redes sociales**: `instagram_url` text input, `whatsapp_number` text input
+  - **Redes sociales**: `instagram_url` text input (WhatsApp contact link is fixed/hardcoded — no admin input needed)
   - **Horarios**: `show_hours` toggle
 - "Guardar cambios" → `admin_upsert_landing_config`; "Ver landing" → opens `/` in new tab
 - Loading, success ("Cambios guardados"), and error states in Spanish
@@ -1133,7 +1134,7 @@ create table public.landing_config (
   hero_subtitle    text,
   about_text       text,
   instagram_url    text,
-  whatsapp_number  text,
+  -- whatsapp contact link is fixed/hardcoded (https://w.app/bfs0ip) — not stored
   primary_color    text default '#f9a8d4',
   secondary_color  text default '#fbcfe8',
   font_family      text default 'Inter',
@@ -1243,6 +1244,37 @@ create table public.landing_carousel_images (
 - Unit tests: `AdminServicesPage` create/edit form renders description textarea; upload component calls `uploadMediaFile()` and then `admin_update_service()` with the returned URL; service card renders name, price in ARS, duration, truncated description; fallback placeholder renders when no `image_url`; card selection state applies accent border
 - Integration tests: admin adds description and uploads image — service list reflects both; customer booking step 1 renders service grid with images and descriptions; selecting a card enables "Continuar"; empty state and loading skeleton render correctly in Spanish
 - [x] `booking-experience-service-catalog` (475ade8)
+
+### 39. Landing Admin UX Polish
+**Description:** Small UX improvements to the admin landing config panel.
+
+- Rename "Personalizar Landing" nav entry and all references to **"Página pública"** (remove the technical "Landing" term from all admin-facing labels, routes labels, and page titles).
+- Move the **Carrusel de imágenes** section above the save button in `/admin/settings/landing` (currently it appears below, which is confusing).
+- Remove **"Hero"** from the section label: "Sección principal (Hero)" → "Sección principal".
+- In the **Tipografía** section: show a live font preview sentence ("El rápido zorro marrón salta sobre el perro perezoso") rendered in the selected font. Add more curated Google Fonts options — target at least 10 families covering sans-serif, serif, and display styles (e.g. Inter, Playfair Display, Lato, Nunito, Raleway, DM Sans, Cormorant Garamond, Josefin Sans, Montserrat, Libre Baskerville).
+
+- [ ]
+
+### 40. Service Categories
+**Description:** Allow admins to organize services into categories. Categories are created and managed by the admin. Services can be assigned one category. The public landing page and the customer booking wizard both expose category-based browsing/filtering.
+
+**Scope (MVP):**
+- DB: `service_categories` table (`id`, `organization_id`, `name`, `display_order`). Admin RPCs: `admin_list_categories`, `admin_create_category`, `admin_update_category`, `admin_delete_category` (only if no services assigned). `services` table gets a nullable `category_id FK → service_categories`.
+- Admin panel: category CRUD UI in a new "Categorías" section (reachable from the services admin page or sidebar). Create/edit service form includes a "Categoría" dropdown.
+- Public landing page: render services grouped by category under **Servicios** section. Services with no category appear under a generic group or ungrouped at the end.
+- Customer booking wizard (Step 1 — service selector): add category filter tabs/chips above the service grid. Selecting a category filters the grid. "Todos" tab shows all services.
+- Landing page and booking wizard service grid UI review: the current grid is minimal — improve visual hierarchy, card spacing, and mobile layout as part of this item.
+
+- [ ]
+
+### 41. Landing Footer & Contact Improvements
+**Description:** Improve the footer section of the public landing page with proper brand icons and a WhatsApp CTA.
+
+- **Instagram**: show the Instagram logo icon (SVG or icon font) instead of a plain text link.
+- **WhatsApp**: show the WhatsApp logo icon only (no text label), as a circular icon button matching the Instagram style. Link uses the fixed URL `https://w.app/bfs0ip`. The link is hardcoded — not configurable.
+- **Copyright line**: change "© 2026" attribution to read **"Software Queen"**. The text must be a `mailto:silvana.trabalon@gmail.com` link so clicking it opens a new email draft.
+
+- [ ]
 
 ---
 

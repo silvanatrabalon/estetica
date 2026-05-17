@@ -53,6 +53,10 @@ vi.mock('../services/landing', () => ({
   getLandingConfig: (...args: unknown[]) => mockGetLandingConfig(...args),
 }))
 
+vi.mock('../services/adminCategories', () => ({
+  listCategories: () => Promise.resolve([]),
+}))
+
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
 const mockService: Service = {
@@ -65,6 +69,8 @@ const mockService: Service = {
   isActive: true,
   maxConcurrentBookings: null,
   description: null,
+  categoryId: null,
+  categoryName: null,
   createdAt: '2026-01-01T00:00:00Z',
 }
 
@@ -78,6 +84,7 @@ const mockServiceRow = {
   is_active: true,
   max_concurrent_bookings: null,
   description: null,
+  category_id: null,
   created_at: mockService.createdAt,
 }
 

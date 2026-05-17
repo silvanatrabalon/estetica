@@ -120,7 +120,7 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
     },
     {
       id: 'landing-config',
-      label: 'Personalizar Landing',
+      label: 'Página pública',
       href: '/admin/settings/landing',
       icon: undefined,
       roles: ['admin'],

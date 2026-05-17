@@ -1,20 +1,24 @@
 import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { signInWithGoogle } from '../services/auth'
 import { getAuthCallbackError, isAuthCallbackUrl } from '../services/auth'
 
 export function SignInPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const location = useLocation()
 
   const callbackError = getAuthCallbackError()
   const isCallbackFlow = isAuthCallbackUrl()
+
+  const redirectParam = new URLSearchParams(location.search).get('redirect') ?? undefined
 
   const handleGoogleSignIn = async () => {
     setError(null)
     setIsLoading(true)
 
     try {
-      await signInWithGoogle()
+      await signInWithGoogle(redirectParam)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'No se pudo iniciar sesión.'
       setError(message)

@@ -1,6 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useUser } from '../../hooks/useUser'
-import { resolveAuthenticatedSignInRedirect } from '../../lib/routing'
+import { resolveAuthenticatedSignInRedirect, canAccessRoute } from '../../lib/routing'
 import { RouteLoadingState } from './RouteLoadingState'
 import { NullRoleRecovery } from './NullRoleRecovery'
 
@@ -20,6 +20,12 @@ export function PublicOnlyGuard() {
 
     if (!activeRole) {
       return <NullRoleRecovery onRetry={retryRoleResolution} />
+    }
+
+    // Honour ?redirect= param if present and the user is allowed to access that path
+    const redirectParam = new URLSearchParams(location.search).get('redirect')
+    if (redirectParam && canAccessRoute({ path: redirectParam, isAuthenticated: true, role: activeRole })) {
+      return <Navigate to={redirectParam} replace />
     }
 
     const redirectTo = resolveAuthenticatedSignInRedirect({

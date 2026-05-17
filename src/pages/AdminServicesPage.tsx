@@ -8,7 +8,16 @@ import {
   updateService,
   type Service,
 } from '../services/adminServices'
+import {
+  adminListCategories,
+  adminCreateCategory,
+  adminUpdateCategory,
+  adminDeleteCategory,
+  type ServiceCategory,
+} from '../services/adminCategories'
 import { uploadMediaFile, deleteMediaFile } from '../services/adminLanding'
+import { ConfirmModal } from '../components/ConfirmModal'
+import { Listbox } from '../components/Listbox'
 
 type FormMode = 'create' | 'edit' | null
 
@@ -19,6 +28,7 @@ interface FormData {
   imageUrl: string | null
   maxConcurrentBookings: string
   description: string
+  categoryId: string
 }
 
 const EMPTY_FORM: FormData = {
@@ -28,6 +38,7 @@ const EMPTY_FORM: FormData = {
   imageUrl: null,
   maxConcurrentBookings: '',
   description: '',
+  categoryId: '',
 }
 
 interface ValidationErrors {
@@ -75,6 +86,16 @@ export function AdminServicesPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
+  // Category state
+  const [categories, setCategories] = useState<ServiceCategory[]>([])
+  const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [isSavingCategory, setIsSavingCategory] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null)
+  const [editCategoryName, setEditCategoryName] = useState('')
+  const [categoryError, setCategoryError] = useState<string | null>(null)
+  const [categorySuccess, setCategorySuccess] = useState<string | null>(null)
+
   const [formMode, setFormMode] = useState<FormMode>(null)
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [formData, setFormData] = useState<FormData>(EMPTY_FORM)
@@ -85,6 +106,24 @@ export function AdminServicesPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const formRef = useRef<HTMLDivElement>(null)
+
+  // Confirm modal state
+  const [confirmState, setConfirmState] = useState<{
+    isOpen: boolean
+    message: string
+    title: string
+    destructive: boolean
+    onConfirm: () => void
+  }>({ isOpen: false, message: '', title: 'Confirmar', destructive: false, onConfirm: () => {} })
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void, destructive = false) => {
+    setConfirmState({ isOpen: true, title, message, destructive, onConfirm })
+  }
+
+  const closeConfirm = () => {
+    setConfirmState((prev) => ({ ...prev, isOpen: false }))
+  }
 
   const loadServices = async () => {
     setIsLoading(true)
@@ -100,9 +139,25 @@ export function AdminServicesPage() {
     }
   }
 
+  const loadCategories = async () => {
+    try {
+      const data = await adminListCategories()
+      setCategories(data)
+    } catch {
+      // Non-critical: categories will simply be empty
+    }
+  }
+
   useEffect(() => {
     void loadServices()
+    void loadCategories()
   }, [])
+
+  useEffect(() => {
+    if (formMode !== null && formRef.current) {
+      formRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    }
+  }, [formMode])
 
   const openCreateForm = () => {
     setFormMode('create')
@@ -125,6 +180,7 @@ export function AdminServicesPage() {
       maxConcurrentBookings:
         service.maxConcurrentBookings !== null ? String(service.maxConcurrentBookings) : '',
       description: service.description ?? '',
+      categoryId: service.categoryId ?? '',
     })
     setFormErrors({})
     setSuccessMessage(null)
@@ -142,7 +198,7 @@ export function AdminServicesPage() {
 
   const handleField =
     (field: keyof Omit<FormData, 'imageUrl'>) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
       setFormData((prev) => ({ ...prev, [field]: e.target.value }))
     }
 
@@ -197,6 +253,7 @@ export function AdminServicesPage() {
         ? null
         : Number(formData.maxConcurrentBookings)
     const description = formData.description.trim() === '' ? null : formData.description.trim()
+    const categoryId = formData.categoryId === '' ? null : formData.categoryId
 
     try {
       if (formMode === 'create') {
@@ -207,6 +264,7 @@ export function AdminServicesPage() {
           imageUrl: formData.imageUrl,
           maxConcurrentBookings,
           description,
+          categoryId,
         })
         setServices((current) =>
           [...current, created].sort((a, b) => a.name.localeCompare(b.name)),
@@ -222,6 +280,7 @@ export function AdminServicesPage() {
           imageUrl: formData.imageUrl,
           maxConcurrentBookings,
           description,
+          categoryId,
         })
         setServices((current) => current.map((s) => (s.id === updated.id ? updated : s)))
         setSuccessMessage('Servicio actualizado correctamente.')
@@ -243,27 +302,109 @@ export function AdminServicesPage() {
     }
   }
 
-  const handleToggleActive = async (service: Service) => {
+  const handleToggleActive = (service: Service) => {
     const action = service.isActive ? 'desactivar' : 'reactivar'
-    const confirmed = window.confirm(`¿Confirmás ${action} el servicio "${service.name}"?`)
-    if (!confirmed) return
+    showConfirm(
+      service.isActive ? 'Desactivar servicio' : 'Reactivar servicio',
+      `¿Confirmás ${action} el servicio "${service.name}"?`,
+      async () => {
+        closeConfirm()
+        setSuccessMessage(null)
+        setErrorMessage(null)
+        try {
+          await setServiceActive(service.id, !service.isActive)
+          setServices((current) =>
+            current.map((s) => (s.id === service.id ? { ...s, isActive: !service.isActive } : s)),
+          )
+          setSuccessMessage(
+            service.isActive
+              ? `"${service.name}" fue desactivado.`
+              : `"${service.name}" fue reactivado.`,
+          )
+        } catch {
+          setErrorMessage('No pudimos actualizar el estado del servicio.')
+        }
+      },
+    )
+  }
 
-    setSuccessMessage(null)
-    setErrorMessage(null)
-
+  const handleCreateCategory = async (e: FormEvent) => {
+    e.preventDefault()
+    const trimmed = newCategoryName.trim()
+    if (!trimmed) return
+    setIsSavingCategory(true)
+    setCategoryError(null)
+    setCategorySuccess(null)
     try {
-      await setServiceActive(service.id, !service.isActive)
-      setServices((current) =>
-        current.map((s) => (s.id === service.id ? { ...s, isActive: !service.isActive } : s)),
-      )
-      setSuccessMessage(
-        service.isActive
-          ? `"${service.name}" fue desactivado.`
-          : `"${service.name}" fue reactivado.`,
-      )
-    } catch {
-      setErrorMessage('No pudimos actualizar el estado del servicio.')
+      const created = await adminCreateCategory(trimmed, categories.length)
+      setCategories((prev) => [...prev, created])
+      setNewCategoryName('')
+      setIsCategoryFormOpen(false)
+      setCategorySuccess('Categoría creada correctamente.')
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : err !== null && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : ''
+      if (msg.includes('unique') || msg.includes('duplicate') || msg.toLowerCase().includes('ya existe')) {
+        setCategoryError('Ya existe una categoría con ese nombre.')
+      } else {
+        setCategoryError('No se pudo crear la categoría.')
+      }
+    } finally {
+      setIsSavingCategory(false)
     }
+  }
+
+  const handleUpdateCategory = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!editingCategory) return
+    const trimmed = editCategoryName.trim()
+    if (!trimmed) return
+    setCategoryError(null)
+    setCategorySuccess(null)
+    try {
+      const updated = await adminUpdateCategory(editingCategory.id, trimmed, editingCategory.displayOrder)
+      setCategories((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
+      setEditingCategory(null)
+      setEditCategoryName('')
+      setCategorySuccess('Categoría actualizada.')
+    } catch {
+      setCategoryError('No se pudo actualizar la categoría.')
+    }
+  }
+
+  const handleDeleteCategory = (id: string) => {
+    const cat = categories.find((c) => c.id === id)
+    showConfirm(
+      'Eliminar categoría',
+      `¿Eliminás la categoría “${cat?.name ?? ''}”? Esta acción no se puede deshacer.`,
+      async () => {
+        closeConfirm()
+        setCategoryError(null)
+        setCategorySuccess(null)
+        try {
+          await adminDeleteCategory(id)
+          setCategories((prev) => prev.filter((c) => c.id !== id))
+          setCategorySuccess('Categoría eliminada.')
+        } catch (err) {
+          const msg =
+            err instanceof Error
+              ? err.message
+              : err !== null && typeof err === 'object' && 'message' in err
+                ? String((err as { message: unknown }).message)
+                : ''
+          if (msg.includes('servicios asignados')) {
+            setCategoryError(msg)
+          } else {
+            setCategoryError('No se pudo eliminar la categoría.')
+          }
+        }
+      },
+      true,
+    )
   }
 
   if (isLoading) {
@@ -275,7 +416,8 @@ export function AdminServicesPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <>
+      <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">Servicios</h1>
         {formMode === null && (
@@ -301,8 +443,113 @@ export function AdminServicesPage() {
         </div>
       )}
 
+      {/* ── Categorías ───────────────────────────────────────────── */}
+      <div className="mb-6 p-4 border border-gray-200 rounded-md bg-white">
+        <div className="flex items-center justify-between mb-3 gap-2">
+          <h2 className="text-base font-medium text-gray-800 flex-shrink-0">Categorías</h2>
+          {!isCategoryFormOpen && !editingCategory && (
+            <button
+              type="button"
+              onClick={() => { setIsCategoryFormOpen(true); setCategoryError(null); setCategorySuccess(null) }}
+              className="text-xs px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 text-gray-700 font-medium whitespace-nowrap"
+            >
+              + Nueva categoría
+            </button>
+          )}
+        </div>
+
+        {categoryError && (
+          <p className="mb-2 text-sm text-red-600">{categoryError}</p>
+        )}
+        {categorySuccess && (
+          <p className="mb-2 text-sm text-green-600">{categorySuccess}</p>
+        )}
+
+        {categories.length === 0 && !isCategoryFormOpen && (
+          <p className="text-sm text-gray-400 italic">Sin categorías todavía.</p>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          {categories.map((cat) =>
+            editingCategory?.id === cat.id ? (
+              <form
+                key={cat.id}
+                onSubmit={(e) => void handleUpdateCategory(e)}
+                className="flex flex-wrap items-center gap-2 w-full sm:w-auto"
+              >
+                <input
+                  autoFocus
+                  value={editCategoryName}
+                  onChange={(e) => setEditCategoryName(e.target.value)}
+                  className="flex-1 min-w-0 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="flex gap-1">
+                  <button type="submit" className="text-xs px-2 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Guardar
+                  </button>
+                  <button type="button" onClick={() => setEditingCategory(null)} className="text-xs px-2 py-1 border border-gray-300 rounded-md hover:bg-gray-100">
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <span key={cat.id} className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700">
+                {cat.name}
+                <button
+                  type="button"
+                  aria-label={`Editar ${cat.name}`}
+                  onClick={() => { setEditingCategory(cat); setEditCategoryName(cat.name); setCategoryError(null); setCategorySuccess(null) }}
+                  className="text-gray-400 hover:text-gray-700 ml-1 leading-none"
+                >
+                  ✏️
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Eliminar ${cat.name}`}
+                  onClick={() => void handleDeleteCategory(cat.id)}
+                  className="text-gray-400 hover:text-red-500 leading-none"
+                >
+                  ✕
+                </button>
+              </span>
+            )
+          )}
+        </div>
+
+        {isCategoryFormOpen && (
+          <form
+            onSubmit={(e) => void handleCreateCategory(e)}
+            className="flex flex-col sm:flex-row gap-2 mt-3"
+          >
+            <input
+              autoFocus
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder="Nombre de la categoría..."
+              className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={isSavingCategory || !newCategoryName.trim()}
+                className="flex-1 sm:flex-none text-xs px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isSavingCategory ? 'Guardando...' : 'Crear'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setIsCategoryFormOpen(false); setNewCategoryName('') }}
+                className="flex-1 sm:flex-none text-xs px-4 py-1.5 border border-gray-300 rounded-md hover:bg-gray-100"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+
       {formMode !== null && (
-        <div className="mb-6 p-4 border border-gray-200 rounded-md bg-gray-50">
+        <div ref={formRef} className="mb-6 p-4 border border-gray-200 rounded-md bg-gray-50">
           <h2 className="text-lg font-medium text-gray-800 mb-4">
             {formMode === 'create' ? 'Nuevo servicio' : 'Editar servicio'}
           </h2>
@@ -393,6 +640,28 @@ export function AdminServicesPage() {
                 placeholder="Describí el servicio para tus clientes..."
               />
             </div>
+
+            {/* Category */}
+            {categories.length > 0 && (
+              <div className="mb-4 w-full">
+                <label
+                  htmlFor="service-category"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Categoría{' '}
+                  <span className="text-gray-400 font-normal">(opcional)</span>
+                </label>
+                <Listbox
+                  id="service-category"
+                  value={formData.categoryId}
+                  onChange={(val) => setFormData((prev) => ({ ...prev, categoryId: val }))}
+                  options={[
+                    { value: '', label: 'Sin categoría' },
+                    ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+                  ]}
+                />
+              </div>
+            )}
 
             {/* Image upload — only available in edit mode */}
             <div className="mb-4">
@@ -507,6 +776,7 @@ export function AdminServicesPage() {
               <tr className="border-b border-gray-200 text-left text-gray-600">
                 <th className="pb-3 pr-4 font-medium">Imagen</th>
                 <th className="pb-3 pr-4 font-medium">Nombre</th>
+                <th className="pb-3 pr-4 font-medium">Categoría</th>
                 <th className="pb-3 pr-4 font-medium">Descripción</th>
                 <th className="pb-3 pr-4 font-medium">Duración</th>
                 <th className="pb-3 pr-4 font-medium">Precio</th>
@@ -522,6 +792,9 @@ export function AdminServicesPage() {
                     <ServiceImage imageUrl={service.imageUrl} name={service.name} />
                   </td>
                   <td className="py-3 pr-4 font-medium text-gray-900">{service.name}</td>
+                  <td className="py-3 pr-4 text-gray-500 text-xs">
+                    {service.categoryName ?? <span className="text-gray-300 italic">Sin categoría</span>}
+                  </td>
                   <td className="py-3 pr-4 text-gray-500 max-w-xs">
                     {service.description ? (
                       <span className="line-clamp-2 text-xs">{service.description}</span>
@@ -558,7 +831,7 @@ export function AdminServicesPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => void handleToggleActive(service)}
+                        onClick={() => handleToggleActive(service)}
                         className="text-gray-600 hover:text-gray-800 text-xs font-medium"
                       >
                         {service.isActive ? 'Desactivar' : 'Reactivar'}
@@ -581,11 +854,20 @@ export function AdminServicesPage() {
         </div>
       )}
     </div>
+
+      <ConfirmModal
+        isOpen={confirmState.isOpen}
+        title={confirmState.title}
+        message={confirmState.message}
+        destructive={confirmState.destructive}
+        confirmLabel="Confirmar"
+        onConfirm={confirmState.onConfirm}
+        onCancel={closeConfirm}
+      />
+    </>
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ServiceImage — thumbnail or placeholder icon
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ServiceImage({ imageUrl, name }: { imageUrl: string | null; name: string }) {

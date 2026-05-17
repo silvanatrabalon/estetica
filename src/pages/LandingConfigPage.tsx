@@ -28,6 +28,7 @@ import {
 import { initSupabase } from '../lib/supabase'
 import type { LandingConfig, CarouselImage } from '../services/landing'
 import { RouteLoadingState } from '../components/routing'
+import { Select } from '../components/Select'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sortable carousel image item
@@ -95,7 +96,33 @@ function SortableImageItem({ image, onDelete, deleting }: SortableImageItemProps
 // Font options
 // ─────────────────────────────────────────────────────────────────────────────
 
-const FONT_OPTIONS = ['Inter', 'Playfair Display', 'Lato', 'Nunito', 'Raleway']
+const FONT_OPTIONS = [
+  'Inter',
+  'Playfair Display',
+  'Lato',
+  'Nunito',
+  'Raleway',
+  'DM Sans',
+  'Cormorant Garamond',
+  'Josefin Sans',
+  'Montserrat',
+  'Libre Baskerville',
+  'Poppins',
+  'Open Sans',
+  'Roboto',
+  'Source Sans 3',
+  'Work Sans',
+  'Merriweather',
+  'EB Garamond',
+  'Crimson Text',
+  'Cinzel',
+  'Great Vibes',
+  'Pacifico',
+  'Dancing Script',
+  'Sacramento',
+  'Quicksand',
+  'Outfit',
+]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LandingConfigPage
@@ -106,7 +133,6 @@ interface FormState {
   heroSubtitle: string
   aboutText: string
   instagramUrl: string
-  whatsappNumber: string
   primaryColor: string
   secondaryColor: string
   fontFamily: string
@@ -119,7 +145,6 @@ function configToFormState(config: LandingConfig): FormState {
     heroSubtitle: config.heroSubtitle ?? '',
     aboutText: config.aboutText ?? '',
     instagramUrl: config.instagramUrl ?? '',
-    whatsappNumber: config.whatsappNumber ?? '',
     primaryColor: config.primaryColor,
     secondaryColor: config.secondaryColor,
     fontFamily: config.fontFamily,
@@ -136,7 +161,6 @@ export function LandingConfigPage() {
     heroSubtitle: '',
     aboutText: '',
     instagramUrl: '',
-    whatsappNumber: '',
     primaryColor: '#f9a8d4',
     secondaryColor: '#fbcfe8',
     fontFamily: 'Inter',
@@ -173,6 +197,16 @@ export function LandingConfigPage() {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    const families = FONT_OPTIONS.map((f) => f.replace(/ /g, '+')).join('&family=')
+    const href = `https://fonts.googleapis.com/css2?family=${families}&display=swap`
+    if (document.querySelector(`link[href="${href}"]`)) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = href
+    document.head.appendChild(link)
+  }, [])
+
   if (authLoading) return <RouteLoadingState />
   if (activeRole !== 'admin') return <Navigate to="/unauthorized" replace />
 
@@ -197,7 +231,6 @@ export function LandingConfigPage() {
         heroSubtitle: form.heroSubtitle || null,
         aboutText: form.aboutText || null,
         instagramUrl: form.instagramUrl || null,
-        whatsappNumber: form.whatsappNumber || null,
         primaryColor: form.primaryColor,
         secondaryColor: form.secondaryColor,
         fontFamily: form.fontFamily,
@@ -274,7 +307,7 @@ export function LandingConfigPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Personalizar Landing</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Página pública</h1>
         <a
           href="/"
           target="_blank"
@@ -300,7 +333,7 @@ export function LandingConfigPage() {
       <form onSubmit={handleSave} className="space-y-6">
         {/* Hero */}
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-700">Sección principal (Hero)</h2>
+          <h2 className="font-semibold text-gray-700">Sección principal</h2>
           <div>
             <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="heroTitle">
               Título
@@ -400,7 +433,7 @@ export function LandingConfigPage() {
             <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="fontFamily">
               Tipografía
             </label>
-            <select
+            <Select
               id="fontFamily"
               name="fontFamily"
               value={form.fontFamily}
@@ -412,7 +445,13 @@ export function LandingConfigPage() {
                   {font}
                 </option>
               ))}
-            </select>
+            </Select>
+            <p
+              style={{ fontFamily: form.fontFamily, fontSize: '1.125rem' }}
+              className="mt-2 text-gray-600 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100"
+            >
+              El rápido zorro marrón salta sobre el perro perezoso
+            </p>
           </div>
         </section>
 
@@ -432,23 +471,6 @@ export function LandingConfigPage() {
               placeholder="https://instagram.com/tu_perfil"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="whatsappNumber">
-              Número de WhatsApp
-            </label>
-            <input
-              id="whatsappNumber"
-              name="whatsappNumber"
-              type="tel"
-              value={form.whatsappNumber}
-              onChange={handleFieldChange}
-              placeholder="5491112345678"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
-            />
-            <p className="mt-1 text-xs text-gray-400">
-              Sin espacios ni guiones. Ejemplo: 5491112345678
-            </p>
           </div>
         </section>
 
@@ -472,6 +494,55 @@ export function LandingConfigPage() {
           </label>
         </section>
 
+        {/* Carrusel de imágenes */}
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
+          <h2 className="font-semibold text-gray-700">Carrusel de imágenes</h2>
+
+          {images.length > 0 && (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={images.map((img) => img.id)} strategy={verticalListSortingStrategy}>
+                <div className="space-y-2">
+                  {images.map((img) => (
+                    <SortableImageItem
+                      key={img.id}
+                      image={img}
+                      onDelete={setDeleteConfirm}
+                      deleting={deletingId === img.id}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          )}
+
+          {reordering && (
+            <p className="text-xs text-gray-400">Guardando nuevo orden...</p>
+          )}
+
+          {images.length === 0 && (
+            <p className="text-sm text-gray-400">No hay imágenes en el carrusel.</p>
+          )}
+
+          <label className="block">
+            <span className="sr-only">Subir imagen</span>
+            <div className="flex items-center gap-3">
+              <label
+                className={`cursor-pointer inline-block bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}
+              >
+                {uploading ? 'Subiendo...' : '+ Agregar imagen'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleUpload}
+                  disabled={uploading}
+                />
+              </label>
+              <p className="text-xs text-gray-400">JPEG, PNG o WebP — máx. 10 MB</p>
+            </div>
+          </label>
+        </section>
+
         <button
           type="submit"
           disabled={saving}
@@ -480,55 +551,6 @@ export function LandingConfigPage() {
           {saving ? 'Guardando...' : 'Guardar configuración'}
         </button>
       </form>
-
-      {/* Carousel manager */}
-      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-        <h2 className="font-semibold text-gray-700">Carrusel de imágenes</h2>
-
-        {images.length > 0 && (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={images.map((img) => img.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {images.map((img) => (
-                  <SortableImageItem
-                    key={img.id}
-                    image={img}
-                    onDelete={setDeleteConfirm}
-                    deleting={deletingId === img.id}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-        )}
-
-        {reordering && (
-          <p className="text-xs text-gray-400">Guardando nuevo orden...</p>
-        )}
-
-        {images.length === 0 && (
-          <p className="text-sm text-gray-400">No hay imágenes en el carrusel.</p>
-        )}
-
-        <label className="block">
-          <span className="sr-only">Subir imagen</span>
-          <div className="flex items-center gap-3">
-            <label
-              className={`cursor-pointer inline-block bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}
-            >
-              {uploading ? 'Subiendo...' : '+ Agregar imagen'}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleUpload}
-                disabled={uploading}
-              />
-            </label>
-            <p className="text-xs text-gray-400">JPEG, PNG o WebP — máx. 10 MB</p>
-          </div>
-        </label>
-      </section>
 
       {/* Delete confirmation */}
       {deleteConfirm && (

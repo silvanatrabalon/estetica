@@ -9,6 +9,8 @@ import { getLandingConfig } from '../services/landing'
 import { createAppointment, isConflictError } from '../services/appointments'
 import type { AvailableSlot } from '../services/availability'
 import type { Service } from '../services/adminServices'
+import { listCategories } from '../services/adminCategories'
+import type { ServiceCategory } from '../services/adminCategories'
 
 type Step = 1 | 2 | 3 | 4
 
@@ -30,6 +32,8 @@ export function BookingPage() {
   const [panelService, setPanelService] = useState<Service | null>(null)
   const [bookingLoading, setBookingLoading] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
+  const [categories, setCategories] = useState<ServiceCategory[]>([])
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
 
   const { services, loading: servicesLoading, error: servicesError } = useActiveServices()
   const {
@@ -47,6 +51,7 @@ export function BookingPage() {
       getLandingConfig().then((config) => {
         if (config.primaryColor) setPrimaryColor(config.primaryColor)
       }),
+      listCategories().then(setCategories).catch(() => {}),
     ]).catch(() => {
       // Non-critical: fallback values already set
     })
@@ -140,7 +145,7 @@ export function BookingPage() {
         <div>
           <p className="text-shell-subtleText mb-4">Elegí el servicio que querés reservar.</p>
           {servicesLoading && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
@@ -162,17 +167,54 @@ export function BookingPage() {
             <p className="text-shell-subtleText">No hay servicios disponibles.</p>
           )}
           {!servicesLoading && !servicesError && services.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {services.map((svc) => (
-                <ServiceCard
-                  key={svc.id}
-                  service={svc}
-                  selected={selectedService?.id === svc.id}
-                  primaryColor={primaryColor}
-                  onClick={() => handleCardClick(svc)}
-                />
-              ))}
-            </div>
+            <>
+              {/* Category filter chips */}
+              {categories.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => setActiveCategoryId(null)}
+                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      activeCategoryId === null
+                        ? 'bg-gray-800 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Todos
+                  </button>
+                  {categories
+                    .filter((cat) => services.some((s) => s.categoryId === cat.id))
+                    .map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setActiveCategoryId(cat.id)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                          activeCategoryId === cat.id
+                            ? 'bg-gray-800 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {(activeCategoryId === null
+                  ? services
+                  : services.filter((s) => s.categoryId === activeCategoryId)
+                ).map((svc) => (
+                  <ServiceCard
+                    key={svc.id}
+                    service={svc}
+                    selected={selectedService?.id === svc.id}
+                    primaryColor={primaryColor}
+                    onClick={() => handleCardClick(svc)}
+                  />
+                ))}
+              </div>
+            </>
           )}
 
           <ServiceDetailPanel

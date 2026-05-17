@@ -34,7 +34,6 @@ function renderAdminUsersPage() {
 describe('AdminUsersPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     mockGetAdminUserAnalytics.mockResolvedValue({
       totalUsers: 2,
@@ -153,6 +152,11 @@ describe('AdminUsersPage', () => {
     fireEvent.click(checkboxes[1]) // assign staff role
 
     await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDefined()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    await waitFor(() => {
       expect(mockAdminAssignUserRole).toHaveBeenCalledWith('u-1', 'staff')
       expect(screen.getByText('Roles actualizados correctamente.')).toBeDefined()
     })
@@ -195,6 +199,11 @@ describe('AdminUsersPage', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Desactivar usuario' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDefined()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
 
     await waitFor(() => {
       expect(mockAdminSetUserActive).toHaveBeenCalledWith('u-1', false)

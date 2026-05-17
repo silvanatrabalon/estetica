@@ -24,6 +24,13 @@ vi.mock('../services/adminLanding', () => ({
   deleteMediaFile: (...args: unknown[]) => mockDeleteMediaFile(...args),
 }))
 
+vi.mock('../services/adminCategories', () => ({
+  adminListCategories: () => Promise.resolve([]),
+  adminCreateCategory: vi.fn(),
+  adminUpdateCategory: vi.fn(),
+  adminDeleteCategory: vi.fn(),
+}))
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -49,13 +56,14 @@ const mockService = {
   isActive: true,
   maxConcurrentBookings: null,
   description: null,
+  categoryId: null,
+  categoryName: null,
   createdAt: '2026-01-01T00:00:00.000Z',
 }
 
 describe('AdminServicesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
   })
 
   it('shows loading state initially', () => {
@@ -173,6 +181,7 @@ describe('AdminServicesPage', () => {
         imageUrl: null,
         maxConcurrentBookings: null,
         description: null,
+        categoryId: null,
       })
       expect(screen.getByText('Servicio creado correctamente.')).toBeDefined()
     })
@@ -219,6 +228,11 @@ describe('AdminServicesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Desactivar' }))
 
     await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDefined()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+
+    await waitFor(() => {
       expect(mockSetServiceActive).toHaveBeenCalledWith('svc-1', false)
       expect(screen.getByText('"Corte de cabello" fue desactivado.')).toBeDefined()
     })
@@ -235,6 +249,11 @@ describe('AdminServicesPage', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Reactivar' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDefined()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
 
     await waitFor(() => {
       expect(mockSetServiceActive).toHaveBeenCalledWith('svc-1', true)

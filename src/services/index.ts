@@ -2,6 +2,7 @@
 // Handles communication with Supabase, external APIs, etc.
 
 export * from './adminAppointments'
+export * from './adminCategories'
 export * from './adminServiceAvailability'
 export * from './adminServices'
 export * from './appointments'

@@ -8,6 +8,7 @@ import {
   type StaffService,
 } from '../services/adminStaffServices'
 import { formatPriceARS } from '../lib/formatPrice'
+import { Select } from '../components/Select'
 
 export function AdminStaffServicesPage() {
   const { staffId } = useParams<{ staffId: string }>()
@@ -132,7 +133,7 @@ export function AdminStaffServicesPage() {
               <label htmlFor="assign-service-select" className="block text-sm font-medium text-gray-700 mb-1">
                 Servicio
               </label>
-              <select
+              <Select
                 id="assign-service-select"
                 value={selectedServiceId}
                 onChange={(e) => setSelectedServiceId(e.target.value)}
@@ -143,7 +144,7 @@ export function AdminStaffServicesPage() {
                     {s.name} — {s.durationMinutes} min — {formatPriceARS(s.priceCents)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             <button
               type="button"

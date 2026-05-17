@@ -20,7 +20,7 @@ export function UserMenu({ user }: UserMenuProps) {
     try {
       await signOut()
       setIsOpen(false)
-      navigate('/signin', { replace: true })
+      navigate('/', { replace: true })
     } catch (err) {
       console.error('Logout error:', err)
     }
