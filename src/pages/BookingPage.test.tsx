@@ -47,6 +47,12 @@ vi.mock('../services/appointments', () => ({
   },
 }))
 
+const mockGetLandingConfig = vi.fn()
+
+vi.mock('../services/landing', () => ({
+  getLandingConfig: (...args: unknown[]) => mockGetLandingConfig(...args),
+}))
+
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
 const mockService: Service = {
@@ -58,6 +64,7 @@ const mockService: Service = {
   imageUrl: null,
   isActive: true,
   maxConcurrentBookings: null,
+  description: null,
   createdAt: '2026-01-01T00:00:00Z',
 }
 
@@ -70,6 +77,7 @@ const mockServiceRow = {
   image_url: null,
   is_active: true,
   max_concurrent_bookings: null,
+  description: null,
   created_at: mockService.createdAt,
 }
 
@@ -112,17 +120,26 @@ describe('BookingPage', () => {
       timezone: 'UTC',
       bookingMaxHorizonDays: 60,
     })
+    mockGetLandingConfig.mockResolvedValue({
+      primaryColor: '#f3e8ff',
+      businessName: 'Test',
+      tagline: null,
+      logoUrl: null,
+      heroImageUrl: null,
+      carouselImages: [],
+    })
   })
 
   describe('Step 1 — Service selector', () => {
-    it('shows loading state while services are fetching', () => {
+    it('shows loading skeleton while services are fetching', () => {
       mockSupabaseFrom.mockReturnValueOnce({
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnValue(new Promise(() => {})),
       })
       renderPage()
-      expect(screen.getByText('Cargando servicios…')).toBeDefined()
+      // Loading state shows skeleton cards (animate-pulse divs)
+      expect(document.querySelector('.animate-pulse')).toBeTruthy()
     })
 
     it('shows list of active services after loading', async () => {

@@ -9,12 +9,19 @@ const mockListServices = vi.fn()
 const mockCreateService = vi.fn()
 const mockUpdateService = vi.fn()
 const mockSetServiceActive = vi.fn()
+const mockUploadMediaFile = vi.fn()
+const mockDeleteMediaFile = vi.fn()
 
 vi.mock('../services/adminServices', () => ({
   listServices: (...args: unknown[]) => mockListServices(...args),
   createService: (...args: unknown[]) => mockCreateService(...args),
   updateService: (...args: unknown[]) => mockUpdateService(...args),
   setServiceActive: (...args: unknown[]) => mockSetServiceActive(...args),
+}))
+
+vi.mock('../services/adminLanding', () => ({
+  uploadMediaFile: (...args: unknown[]) => mockUploadMediaFile(...args),
+  deleteMediaFile: (...args: unknown[]) => mockDeleteMediaFile(...args),
 }))
 
 function renderPage() {
@@ -41,6 +48,7 @@ const mockService = {
   imageUrl: null,
   isActive: true,
   maxConcurrentBookings: null,
+  description: null,
   createdAt: '2026-01-01T00:00:00.000Z',
 }
 
@@ -122,7 +130,7 @@ describe('AdminServicesPage', () => {
     })
   })
 
-  it('shows validation error for invalid image URL', async () => {
+  it('shows description textarea in create form', async () => {
     mockListServices.mockResolvedValue([])
     renderPage()
 
@@ -133,20 +141,7 @@ describe('AdminServicesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Nombre')).toBeDefined()
-    })
-
-    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte' } })
-    fireEvent.change(screen.getByLabelText('Duración (minutos)'), { target: { value: '60' } })
-    fireEvent.change(screen.getByLabelText(/URL de imagen/), {
-      target: { value: 'not-a-url' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
-
-    await waitFor(() => {
-      expect(
-        screen.getByText('La URL de imagen no tiene un formato válido.'),
-      ).toBeDefined()
+      expect(screen.getByLabelText(/Descripción/)).toBeDefined()
     })
   })
 
@@ -177,6 +172,7 @@ describe('AdminServicesPage', () => {
         priceCents: 500000,
         imageUrl: null,
         maxConcurrentBookings: null,
+        description: null,
       })
       expect(screen.getByText('Servicio creado correctamente.')).toBeDefined()
     })

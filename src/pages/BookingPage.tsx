@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useActiveServices } from '../hooks/useActiveServices'
 import { useAvailableSlots } from '../hooks/useAvailableSlots'
+import { formatPriceARS } from '../lib/formatPrice'
 import { formatSlotTime } from '../lib/formatSlotTime'
 import { getBusinessSettings } from '../services/businessSettings'
+import { getLandingConfig } from '../services/landing'
 import { createAppointment, isConflictError } from '../services/appointments'
 import type { AvailableSlot } from '../services/availability'
 import type { Service } from '../services/adminServices'
@@ -24,6 +26,8 @@ export function BookingPage() {
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null)
   const [orgTimezone, setOrgTimezone] = useState('UTC')
   const [maxHorizonDays, setMaxHorizonDays] = useState(60)
+  const [primaryColor, setPrimaryColor] = useState('#f3e8ff')
+  const [panelService, setPanelService] = useState<Service | null>(null)
   const [bookingLoading, setBookingLoading] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
 
@@ -35,14 +39,17 @@ export function BookingPage() {
   } = useAvailableSlots(selectedService?.id ?? null, selectedDate)
 
   useEffect(() => {
-    getBusinessSettings()
-      .then((settings) => {
+    void Promise.all([
+      getBusinessSettings().then((settings) => {
         setOrgTimezone(settings.timezone)
         setMaxHorizonDays(settings.bookingMaxHorizonDays)
-      })
-      .catch(() => {
-        // Non-critical: fallback values already set
-      })
+      }),
+      getLandingConfig().then((config) => {
+        if (config.primaryColor) setPrimaryColor(config.primaryColor)
+      }),
+    ]).catch(() => {
+      // Non-critical: fallback values already set
+    })
   }, [])
 
   const today = new Date().toISOString().slice(0, 10)
@@ -52,7 +59,16 @@ export function BookingPage() {
     setSelectedService(service)
     setSelectedDate(null)
     setSelectedSlot(null)
+    setPanelService(null)
     setStep(2)
+  }
+
+  function handleCardClick(service: Service) {
+    if (service.description) {
+      setPanelService(service)
+    } else {
+      handleServiceSelect(service)
+    }
   }
 
   function handleDateChange(date: string) {
@@ -124,7 +140,20 @@ export function BookingPage() {
         <div>
           <p className="text-shell-subtleText mb-4">Elegí el servicio que querés reservar.</p>
           {servicesLoading && (
-            <p className="text-shell-subtleText animate-pulse">Cargando servicios…</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div
+                  key={i}
+                  className="rounded-xl border border-shell-border bg-white animate-pulse"
+                >
+                  <div className="h-32 rounded-t-xl bg-gray-100" />
+                  <div className="p-3 space-y-2">
+                    <div className="h-3 bg-gray-100 rounded w-3/4" />
+                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
           {servicesError && (
             <p className="text-red-600">{servicesError}</p>
@@ -133,23 +162,26 @@ export function BookingPage() {
             <p className="text-shell-subtleText">No hay servicios disponibles.</p>
           )}
           {!servicesLoading && !servicesError && services.length > 0 && (
-            <ul className="space-y-2">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {services.map((svc) => (
-                <li key={svc.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleServiceSelect(svc)}
-                    className="w-full text-left px-4 py-3 rounded-lg border border-shell-border bg-white hover:bg-emerald-50 hover:border-emerald-400 transition-colors"
-                  >
-                    <span className="font-medium text-shell-text">{svc.name}</span>
-                    <span className="ml-2 text-sm text-shell-subtleText">
-                      {svc.durationMinutes} min
-                    </span>
-                  </button>
-                </li>
+                <ServiceCard
+                  key={svc.id}
+                  service={svc}
+                  selected={selectedService?.id === svc.id}
+                  primaryColor={primaryColor}
+                  onClick={() => handleCardClick(svc)}
+                />
               ))}
-            </ul>
+            </div>
           )}
+
+          <ServiceDetailPanel
+            service={panelService}
+            isOpen={panelService !== null}
+            primaryColor={primaryColor}
+            onClose={() => setPanelService(null)}
+            onSelect={handleServiceSelect}
+          />
         </div>
       )}
 
@@ -300,5 +332,236 @@ export function BookingPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ServiceCard
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ServiceCardProps {
+  service: Service
+  selected: boolean
+  primaryColor: string
+  onClick: () => void
+}
+
+function ServiceCard({ service, selected, primaryColor, onClick }: ServiceCardProps) {
+  const [imgError, setImgError] = useState(false)
+  const truncatedDesc = service.description
+    ? service.description.length > 80
+      ? service.description.slice(0, 80) + '…'
+      : service.description
+    : null
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative w-full text-left rounded-xl border transition-all duration-150 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+        selected
+          ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500'
+          : 'border-shell-border bg-white hover:shadow-md hover:border-emerald-300'
+      }`}
+    >
+      {/* Image area */}
+      <div
+        className="h-32 w-full flex items-center justify-center"
+        style={
+          !service.imageUrl || imgError
+            ? { backgroundColor: primaryColor }
+            : {}
+        }
+      >
+        {service.imageUrl && !imgError ? (
+          <img
+            src={service.imageUrl}
+            alt={service.name}
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-10 h-10 text-white/60"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
+            />
+          </svg>
+        )}
+      </div>
+
+      {/* Selected checkmark */}
+      {selected && (
+        <div className="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-3.5 h-3.5 text-white"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={3}
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+        </div>
+      )}
+
+      {/* Card body */}
+      <div className="p-3">
+        <p className="font-semibold text-shell-text text-sm leading-tight">{service.name}</p>
+        <p className="text-xs text-shell-subtleText mt-0.5">
+          {formatPriceARS(service.priceCents)} · {service.durationMinutes} min
+        </p>
+        {truncatedDesc && (
+          <p className="text-xs text-shell-subtleText mt-1 line-clamp-2">{truncatedDesc}</p>
+        )}
+      </div>
+    </button>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ServiceDetailPanel
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ServiceDetailPanelProps {
+  service: Service | null
+  isOpen: boolean
+  primaryColor: string
+  onClose: () => void
+  onSelect: (service: Service) => void
+}
+
+function ServiceDetailPanel({
+  service,
+  isOpen,
+  primaryColor,
+  onClose,
+  onSelect,
+}: ServiceDetailPanelProps) {
+  const [imgError, setImgError] = useState(false)
+
+  // Reset image error when service changes
+  useEffect(() => {
+    setImgError(false)
+  }, [service?.id])
+
+  // Close on Escape
+  useEffect(() => {
+    if (!isOpen) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isOpen, onClose])
+
+  if (!isOpen || !service) return null
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/40 z-40"
+        aria-hidden="true"
+        onClick={onClose}
+      />
+
+      {/* Panel — bottom drawer on mobile, side panel on md+ */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={service.name}
+        className="fixed z-50 bg-white shadow-xl
+          bottom-0 left-0 right-0 rounded-t-2xl max-h-[80vh] overflow-y-auto
+          md:bottom-auto md:top-0 md:right-0 md:left-auto md:h-full md:w-96 md:rounded-none"
+      >
+        {/* Close button */}
+        <div className="flex justify-end p-4">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            className="text-shell-subtleText hover:text-shell-text"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Image */}
+        <div
+          className="w-full h-48 flex items-center justify-center"
+          style={
+            !service.imageUrl || imgError
+              ? { backgroundColor: primaryColor }
+              : {}
+          }
+        >
+          {service.imageUrl && !imgError ? (
+            <img
+              src={service.imageUrl}
+              alt={service.name}
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-16 h-16 text-white/60"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"
+              />
+            </svg>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="p-6">
+          <h3 className="text-xl font-bold text-shell-text">{service.name}</h3>
+          <p className="text-shell-subtleText mt-1">
+            {formatPriceARS(service.priceCents)} · {service.durationMinutes} min
+          </p>
+          {service.description && (
+            <p className="mt-4 text-sm text-shell-text leading-relaxed">{service.description}</p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => onSelect(service)}
+            className="mt-6 w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 transition-colors"
+          >
+            Seleccionar este servicio
+          </button>
+        </div>
+      </div>
+    </>
   )
 }
