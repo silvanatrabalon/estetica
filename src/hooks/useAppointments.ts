@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
 import { listAppointments, type AppointmentSummary } from '../services/appointments'
 
 export interface UseAppointmentsResult {
   appointments: AppointmentSummary[]
   loading: boolean
   error: string | null
+  setAppointments: Dispatch<SetStateAction<AppointmentSummary[]>>
 }
 
 export function useAppointments(): UseAppointmentsResult {
@@ -41,5 +42,5 @@ export function useAppointments(): UseAppointmentsResult {
     }
   }, [])
 
-  return { appointments, loading, error }
+  return { appointments, loading, error, setAppointments }
 }

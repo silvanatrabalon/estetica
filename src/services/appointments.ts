@@ -106,6 +106,83 @@ interface AppointmentRow {
   created_at: string
 }
 
+export interface CancelledAppointment {
+  id: string
+  serviceId: string
+  staffMemberId: string
+  startsAt: string
+  endsAt: string
+  status: string
+  updatedAt: string
+}
+
+interface CancelAppointmentRow {
+  id: string
+  service_id: string
+  staff_member_id: string
+  starts_at: string
+  ends_at: string
+  status: string
+  updated_at: string
+}
+
+const CANCEL_ERRORS: Record<string, string> = {
+  CANCEL_OUTSIDE_POLICY_WINDOW:
+    'No podés cancelar con tan poca anticipación. Cancelá con al menos la anticipación mínima requerida.',
+  CANCEL_INVALID_STATUS:
+    'Este turno no puede cancelarse porque ya fue cancelado o completado.',
+  CANCEL_NOT_AUTHORIZED:
+    'No tenés permiso para cancelar este turno.',
+}
+
+export function translateCancelError(err: unknown): Error {
+  if (!err || typeof err !== 'object') {
+    return new Error('Ocurrió un error al cancelar el turno. Intentá de nuevo.')
+  }
+  const e = err as { code?: string; message?: string }
+
+  if (e.code === 'P0001') {
+    const msg = e.message ?? ''
+    for (const [key, translation] of Object.entries(CANCEL_ERRORS)) {
+      if (msg.includes(key)) {
+        return new Error(translation)
+      }
+    }
+  }
+
+  return new Error('Ocurrió un error al cancelar el turno. Intentá de nuevo.')
+}
+
+export async function cancelAppointment(params: {
+  appointmentId: string
+}): Promise<CancelledAppointment> {
+  const supabase = initSupabase()
+
+  const { data, error } = await supabase.rpc('cancel_appointment', {
+    p_appointment_id: params.appointmentId,
+  })
+
+  if (error) {
+    throw translateCancelError(error)
+  }
+
+  const rows = (data ?? []) as CancelAppointmentRow[]
+  if (rows.length === 0) {
+    throw new Error('No se pudo cancelar el turno.')
+  }
+
+  const row = rows[0]
+  return {
+    id: row.id,
+    serviceId: row.service_id,
+    staffMemberId: row.staff_member_id,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    status: row.status,
+    updatedAt: row.updated_at,
+  }
+}
+
 const RESCHEDULE_ERRORS: Record<string, string> = {
   RESCHEDULE_OUTSIDE_POLICY_WINDOW:
     'Este horario está fuera del plazo mínimo permitido para reprogramar.',

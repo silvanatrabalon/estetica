@@ -221,4 +221,52 @@ select set_config('request.jwt.claim.sub', current_setting('app.test.staff_user_
 -- update public.organizations set booking_max_horizon_days = 366
 -- where id = current_setting('app.test.organization_id')::uuid;
 
+-- ---------------------------------------------------------------------------
+-- cancel_appointment RPC scenarios
+-- ---------------------------------------------------------------------------
+-- Prerequisites: populate app.test.appointment_id with a 'pending' or
+-- 'confirmed' appointment owned by the customer test user and assigned
+-- to the staff test user, with starts_at well beyond booking_min_notice_minutes.
+-- Replace with a real appointment UUID before executing.
+select set_config('app.test.appointment_id', '00000000-0000-0000-0000-000000000001', true);
+
+-- G1: Customer can cancel their own appointment (outside policy window).
+-- Expected: returns 1 row with status='cancelled'.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.customer_user_id'), true);
+-- Uncomment to verify success:
+-- select * from public.cancel_appointment(current_setting('app.test.appointment_id')::uuid);
+
+-- G2: Customer cannot cancel another customer's appointment.
+-- Expected: raises CANCEL_NOT_AUTHORIZED.
+-- (Use an appointment_id not owned by customer_user_id.)
+-- Uncomment to verify failure:
+-- select * from public.cancel_appointment('99999999-9999-9999-9999-999999999999'::uuid);
+
+-- G3: Staff can cancel an assigned appointment.
+-- Expected: returns 1 row with status='cancelled'.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.staff_user_id'), true);
+-- Uncomment to verify success:
+-- select * from public.cancel_appointment(current_setting('app.test.appointment_id')::uuid);
+
+-- G4: Admin can cancel any appointment.
+-- Expected: returns 1 row with status='cancelled'.
+set local role authenticated;
+select set_config('request.jwt.claim.sub', current_setting('app.test.admin_user_id'), true);
+-- Uncomment to verify success:
+-- select * from public.cancel_appointment(current_setting('app.test.appointment_id')::uuid);
+
+-- G5: Already-cancelled appointment raises CANCEL_INVALID_STATUS.
+-- (Re-run after G1/G3/G4 has already cancelled the appointment.)
+-- Uncomment to verify failure:
+-- select * from public.cancel_appointment(current_setting('app.test.appointment_id')::uuid);
+
+-- G6: Customer cancellation within policy window raises CANCEL_OUTSIDE_POLICY_WINDOW.
+-- (Use an appointment with starts_at < now() + booking_min_notice_minutes.)
+-- Uncomment to verify failure:
+-- set local role authenticated;
+-- select set_config('request.jwt.claim.sub', current_setting('app.test.customer_user_id'), true);
+-- select * from public.cancel_appointment('<near-future-appointment-id>'::uuid);
+
 rollback;

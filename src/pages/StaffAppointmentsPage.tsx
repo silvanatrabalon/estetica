@@ -17,7 +17,7 @@ function isUpcoming(apt: AppointmentSummary): boolean {
 }
 
 export function StaffAppointmentsPage() {
-  const { appointments, loading, error } = useAppointments()
+  const { appointments, loading, error, setAppointments } = useAppointments()
   const [tab, setTab] = useState<Tab>('proximos')
   const [viewMode, setViewMode] = useState<ViewMode>('lista')
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('semanal')
@@ -27,6 +27,14 @@ export function StaffAppointmentsPage() {
   const activeApts = tab === 'proximos' ? proximosApts : historialApts
 
   const orgTimezone = appointments[0]?.orgTimezone ?? 'UTC'
+
+  function handleCancelSuccess(appointmentId: string) {
+    setAppointments((prev) =>
+      prev.map((apt) =>
+        apt.id === appointmentId ? { ...apt, status: 'cancelled' } : apt,
+      ),
+    )
+  }
 
   if (loading) {
     return (
@@ -122,6 +130,8 @@ export function StaffAppointmentsPage() {
                   appointment={apt}
                   showCustomerName={true}
                   showRescheduleAction={tab === 'proximos'}
+                  showCancelAction={tab === 'proximos'}
+                  onCancelSuccess={handleCancelSuccess}
                 />
               ))}
             </div>
