@@ -34,7 +34,7 @@ The system SHALL provide a `list_appointments()` SECURITY DEFINER PostgreSQL fun
 ---
 
 ### Requirement: Customer can view their appointments at /appointments
-The system SHALL provide an `AppointmentsPage` at `/appointments`, accessible only to users with the `customer` role (enforced by RoleGuard). The page MUST display two tabs — **Próximos** (upcoming: `pending`/`confirmed` with `starts_at > now()`) and **Historial** (past + `cancelled`/`completed`/`no_show`) — and support a Lista ↔ Calendario view toggle. All user-facing copy MUST be in Spanish. Each appointment card in the **Próximos** tab MUST display a "Reprogramar" CTA for appointments with status `pending` or `confirmed` that navigates to `/appointments/:id/reschedule`. Each appointment card in the **Próximos** tab MUST display a "Cancelar" button for appointments with status `pending` or `confirmed` that opens an inline confirmation dialog.
+The system SHALL provide an `AppointmentsPage` at `/appointments`, accessible only to users with the `customer` role (enforced by RoleGuard). The page MUST display two tabs — **Próximos** (upcoming: `pending`/`confirmed` with `starts_at > now()`) and **Historial** (past + `cancelled`/`completed`/`no_show`) — and support a Lista ↔ Calendario view toggle. All user-facing copy MUST be in Spanish. Each appointment card in the **Próximos** tab MUST display a "Reprogramar" CTA for appointments with status `pending` or `confirmed` that navigates to `/appointments/:id/reschedule`. Each appointment card in the **Próximos** tab MUST display a "Cancelar" button for appointments with status `pending` or `confirmed` that opens an inline confirmation dialog. In the Calendario view, the weekly calendar MUST use the organization's timezone to determine which calendar day each appointment belongs to (not the raw UTC date). In the Calendario view, the customer MAY drag `pending` or `confirmed` appointments to a different day to reschedule via the slot picker modal.
 
 #### Scenario: Page loads customer appointments on mount
 - **WHEN** a customer navigates to `/appointments`
@@ -75,6 +75,14 @@ The system SHALL provide an `AppointmentsPage` at `/appointments`, accessible on
 #### Scenario: Cancelar button appears on pending/confirmed cards in Próximos
 - **WHEN** an upcoming appointment with status `pending` or `confirmed` is rendered in the Próximos tab
 - **THEN** a "Cancelar" button is visible on the card that opens an inline confirmation dialog
+
+#### Scenario: Calendar view places appointment on correct local day
+- **WHEN** the customer switches to Calendario view and an appointment has `startsAt` near midnight UTC
+- **THEN** the appointment appears on the correct local calendar day in the org timezone (not the UTC date)
+
+#### Scenario: Customer can drag appointment in weekly calendar to reschedule
+- **WHEN** a customer drags a `pending` or `confirmed` appointment to a different day in the weekly calendar
+- **THEN** the slot picker modal opens for the new date
 
 #### Scenario: Non-customer is denied access
 - **WHEN** a user with role other than `customer` accesses `/appointments`
