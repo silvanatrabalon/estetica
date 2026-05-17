@@ -965,22 +965,6 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 ---
 
-## Phase 9: Security & QA
-
-### 32. Security & Data Integrity
-**Description:** RLS audit, prevent unauthorized access, prevent tenant data leakage, rate limiting.
-- [ ]
-
-### 33. Audit Logging
-**Description:** Track all critical actions, user activity log, changes history.
-- [ ]
-
-### 34. Edge Cases & Race Conditions (QA)
-**Description:** Double booking scenarios, timezone edge cases, daylight saving, concurrent bookings, invalid sessions.
-- [ ]
-
----
-
 ## Phase 10: Deployment & Ops
 
 ### 35. Deployment Pipeline (Vercel + Supabase)
@@ -995,13 +979,13 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 ## Summary
 
-**Total Features:** 36
+**Total Features:** 33
 **Completed:** 21
 **In Progress:** 0
-**Pending:** 15
+**Pending:** 12
 
-**Current Phase:** Phase 5 (Booking & Scheduling)
-**Next Feature:** #16 (Availability System — Time Slot Generation)
+**Current Phase:** Phase 7 (Advanced Features)
+**Next Feature:** #13b (Role Switcher fix) or #26 (Admin Dashboard)
 
 ---
 
