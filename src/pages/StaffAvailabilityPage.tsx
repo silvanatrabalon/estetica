@@ -40,32 +40,32 @@ export function StaffAvailabilityPage() {
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={() => navigate('/admin/staff')}
-          className="text-sm text-blue-600 hover:underline"
+          className="text-sm text-shell-subtleText hover:text-shell-text inline-flex items-center gap-1 transition-colors"
         >
           ← Profesionales
         </button>
-        <h1 className="text-2xl font-semibold text-gray-900">Disponibilidad</h1>
+        <h1 className="font-heading text-2xl font-semibold text-shell-text">Disponibilidad</h1>
       </div>
 
       {errorMessage && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {errorMessage}
         </div>
       )}
 
       {successMessage && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">
           {successMessage}
         </div>
       )}
 
-      <section className="mb-8">
-        <h2 className="text-lg font-medium text-gray-800 mb-3">Horario semanal</h2>
+      <section className="shell-surface rounded-2xl border p-5 shadow-sm">
+        <h2 className="font-heading text-base font-semibold text-shell-text mb-4">Horario semanal</h2>
         {schedule.length === 0 && !isSaving ? (
           <p className="text-sm text-gray-500 mb-3">
             Este profesional no tiene horario configurado.
@@ -79,8 +79,8 @@ export function StaffAvailabilityPage() {
         />
       </section>
 
-      <section>
-        <h2 className="text-lg font-medium text-gray-800 mb-3">Excepciones</h2>
+      <section className="shell-surface rounded-2xl border p-5 shadow-sm">
+        <h2 className="font-heading text-base font-semibold text-shell-text mb-4">Excepciones</h2>
         <div className="mb-4">
           <ExceptionDateForm
             isSaving={isSaving}

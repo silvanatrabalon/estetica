@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { formatSlotTime, toLocalDateKey } from '../../lib/formatSlotTime'
 import {
@@ -35,6 +34,7 @@ export interface DayViewProps {
   loading?: boolean
   error?: string | null
   onDayChange: (date: Date) => void
+  onAppointmentClick?: (id: string) => void
 }
 
 export function DayView({
@@ -46,6 +46,7 @@ export function DayView({
   loading = false,
   error = null,
   onDayChange,
+  onAppointmentClick,
 }: DayViewProps) {
   const gridOpenMinutes = getGridOpenMinutes(openTime)
   const gridCloseMinutes = getGridOpenMinutes(closeTime)
@@ -140,7 +141,7 @@ export function DayView({
 
       {/* Time grid */}
       {!loading && !error && (
-        <div className="overflow-y-auto max-h-[640px]">
+        <div className="overflow-y-auto max-h-[640px] pt-2">
           <div className="flex">
             {/* Time-label column */}
             <div
@@ -192,16 +193,16 @@ export function DayView({
                   STATUS_COLORS[apt.status] ?? 'bg-gray-100 border-gray-200 text-gray-700'
 
                 return (
-                  <Link
+                  <div
                     key={apt.id}
-                    to={`/booking/confirmation/${apt.id}`}
                     className={cn(
-                      'absolute left-1 right-1 px-1.5 py-0.5 rounded border text-xs overflow-hidden block',
+                      'absolute left-1 right-1 px-1.5 py-0.5 rounded border text-xs overflow-hidden cursor-pointer',
                       colorClass,
                     )}
                     style={{ top, height }}
                     title={`${apt.serviceName} · ${formatSlotTime(apt.startsAt, tz)}`}
                     data-testid="day-view-block"
+                    onClick={() => onAppointmentClick?.(apt.id)}
                   >
                     <span className="font-medium block truncate">
                       {formatSlotTime(apt.startsAt, tz)}
@@ -212,7 +213,7 @@ export function DayView({
                         {apt.customerName}
                       </span>
                     )}
-                  </Link>
+                  </div>
                 )
               })}
             </div>

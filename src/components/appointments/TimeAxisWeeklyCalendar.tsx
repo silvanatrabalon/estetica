@@ -9,7 +9,6 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import { formatSlotTime, toLocalDateKey } from '../../lib/formatSlotTime'
 import { rescheduleAppointment } from '../../services/appointments'
@@ -123,6 +122,7 @@ interface DraggableTimeBlockProps {
   height: number
   colIndex: number
   totalCols: number
+  onAppointmentClick?: (id: string) => void
 }
 
 function DraggableTimeBlock({
@@ -133,6 +133,7 @@ function DraggableTimeBlock({
   height,
   colIndex,
   totalCols,
+  onAppointmentClick,
 }: DraggableTimeBlockProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: apt.id,
@@ -159,6 +160,7 @@ function DraggableTimeBlock({
       {...attributes}
       data-draggable="true"
       data-testid="time-block"
+      onClick={(e) => { if (!isDragging) { e.stopPropagation(); onAppointmentClick?.(apt.id) } }}
       className={cn(
         'text-xs px-1.5 py-0.5 rounded border overflow-hidden cursor-grab active:cursor-grabbing select-none',
         colorClass,
@@ -185,14 +187,14 @@ interface StaticTimeBlockProps {
   height: number
   colIndex: number
   totalCols: number
+  onAppointmentClick?: (id: string) => void
 }
 
-function StaticTimeBlock({ apt, orgTimezone, showCustomerName, top, height, colIndex, totalCols }: StaticTimeBlockProps) {
+function StaticTimeBlock({ apt, orgTimezone, showCustomerName, top, height, colIndex, totalCols, onAppointmentClick }: StaticTimeBlockProps) {
   const colorClass = STATUS_COLORS[apt.status] ?? 'bg-gray-100 border-gray-200 text-gray-700'
   const colWidth = 100 / totalCols
   return (
-    <Link
-      to={`/booking/confirmation/${apt.id}`}
+    <div
       data-testid="time-block"
       style={{
         position: 'absolute',
@@ -201,8 +203,9 @@ function StaticTimeBlock({ apt, orgTimezone, showCustomerName, top, height, colI
         left: `calc(${colIndex * colWidth}% + 2px)`,
         width: `calc(${colWidth}% - 4px)`,
       }}
+      onClick={() => onAppointmentClick?.(apt.id)}
       className={cn(
-        'block text-xs px-1.5 py-0.5 rounded border overflow-hidden',
+        'text-xs px-1.5 py-0.5 rounded border overflow-hidden cursor-pointer',
         colorClass,
       )}
       title={`${apt.serviceName} · ${formatSlotTime(apt.startsAt, orgTimezone)}`}
@@ -212,7 +215,7 @@ function StaticTimeBlock({ apt, orgTimezone, showCustomerName, top, height, colI
       {showCustomerName && apt.customerName && (
         <span className="block truncate text-xs opacity-75">{apt.customerName}</span>
       )}
-    </Link>
+    </div>
   )
 }
 
@@ -252,6 +255,7 @@ export interface TimeAxisWeeklyCalendarProps {
   showCustomerName?: boolean
   onRescheduleSuccess?: (appointmentId: string, newStartsAt: string) => void
   onWeekChange?: (weekStart: Date) => void
+  onAppointmentClick?: (id: string) => void
 }
 
 export function TimeAxisWeeklyCalendar({
@@ -263,6 +267,7 @@ export function TimeAxisWeeklyCalendar({
   showCustomerName = false,
   onRescheduleSuccess,
   onWeekChange,
+  onAppointmentClick,
 }: TimeAxisWeeklyCalendarProps) {
   const [weekStart, setWeekStart] = useState(() =>
     getUTCMonday(initialDate ?? new Date()),
@@ -480,6 +485,7 @@ export function TimeAxisWeeklyCalendar({
                           height={height}
                           colIndex={colIndex}
                           totalCols={totalCols}
+                          onAppointmentClick={onAppointmentClick}
                         />
                       )
                     }
@@ -494,6 +500,7 @@ export function TimeAxisWeeklyCalendar({
                         height={height}
                         colIndex={colIndex}
                         totalCols={totalCols}
+                        onAppointmentClick={onAppointmentClick}
                       />
                     )
                   })}

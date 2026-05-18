@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 import { getAppointment, type AppointmentDetail } from '../services/appointments'
 import { formatSlotTime } from '../lib/formatSlotTime'
+import { formatPriceARS } from '../lib/formatPrice'
 
 type PageState = 'loading' | 'success' | 'not-found' | 'error'
 
@@ -147,10 +148,7 @@ export function BookingConfirmationPage() {
           </p>
           <p className="font-semibold text-shell-text">{apt.serviceName}</p>
           <p className="text-sm text-shell-subtleText">
-            {apt.serviceDurationMinutes} min · $
-            {(apt.servicePriceCents / 100).toLocaleString('es-AR', {
-              minimumFractionDigits: 2,
-            })}
+            {apt.serviceDurationMinutes} min · {formatPriceARS(apt.servicePriceCents)}
           </p>
         </div>
 

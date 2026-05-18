@@ -58,13 +58,6 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
       icon: undefined,
       roles: ['staff', 'admin'],
     },
-    {
-      id: 'clients',
-      label: navigationCopy.clients,
-      href: '/staff/clients',
-      icon: undefined, // TODO: Add users icon
-      roles: ['staff', 'admin'],
-    },
   ],
 
   // Admin-specific navigation

@@ -320,7 +320,7 @@ export function AdminUsersPage() {
           </p>
         </article>
         <article className="shell-surface rounded-xl border p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Altas (30 días)</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Nuevos (30 días)</p>
           <p className="mt-2 text-2xl font-semibold text-shell-text">{analytics?.recentSignups30Days ?? 0}</p>
         </article>
       </section>
@@ -463,6 +463,11 @@ export function AdminUsersPage() {
                   >
                     {isSavingStatus ? commonCopy.saving : isActive ? 'Desactivar usuario' : 'Reactivar usuario'}
                   </button>
+                  <p className="w-full text-xs text-gray-400 text-right leading-snug -mt-1">
+                    {isActive
+                      ? '↑ El usuario no podrá iniciar sesión ni realizar reservas. Sus datos y reservas existentes se conservan.'
+                      : '↑ Al reactivar, el usuario podrá iniciar sesión y realizar reservas nuevamente.'}
+                  </p>
 
                   <button
                     type="submit"

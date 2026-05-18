@@ -548,6 +548,7 @@ export function LandingPage() {
 
     document.documentElement.style.setProperty('--lp-primary', config.primaryColor)
     document.documentElement.style.setProperty('--lp-secondary', config.secondaryColor)
+    document.documentElement.style.fontFamily = config.fontFamily || 'Inter'
 
     const fontFamily = config.fontFamily
     if (fontFamily && fontFamily !== 'Inter') {
@@ -566,6 +567,7 @@ export function LandingPage() {
     return () => {
       document.documentElement.style.removeProperty('--lp-primary')
       document.documentElement.style.removeProperty('--lp-secondary')
+      document.documentElement.style.removeProperty('font-family')
     }
   }, [config])
 

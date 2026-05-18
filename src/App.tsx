@@ -31,7 +31,6 @@ import {
   SignInPage,
   StaffAppointmentsPage,
   StaffAvailabilityPage,
-  StaffClientsPage,
   StaffSchedulePage,
   UnauthorizedPage,
 } from './pages'
@@ -68,7 +67,6 @@ function AppContent() {
           <Route element={<RoleGuard allowedRoles={['staff', 'admin']} />}>
             <Route path="/staff/appointments" element={<StaffAppointmentsPage />} />
             <Route path="/staff/schedule" element={<StaffSchedulePage />} />
-            <Route path="/staff/clients" element={<StaffClientsPage />} />
           </Route>
 
           <Route element={<RoleGuard allowedRoles={['admin']} />}>

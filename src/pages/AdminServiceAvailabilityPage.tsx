@@ -146,11 +146,11 @@ export function AdminServiceAvailabilityPage() {
     <section className="space-y-6">
       <div className="flex items-center gap-3">
         <button
-          className="rounded-lg border border-shell-border px-3 py-2 text-sm font-medium text-shell-text"
+          className="text-sm text-shell-subtleText hover:text-shell-text inline-flex items-center gap-1"
           onClick={() => navigate('/admin/services')}
           type="button"
         >
-          ← Volver a servicios
+          ← Servicios
         </button>
         <h2 className="font-heading text-2xl font-semibold text-shell-text">
           Disponibilidad del servicio
@@ -172,12 +172,27 @@ export function AdminServiceAvailabilityPage() {
       <section className="shell-surface rounded-2xl border p-5 shadow-sm">
         <h3 className="text-sm font-semibold text-shell-text">Disponibilidad</h3>
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        {/* Mobile: select */}
+        <select
+          className="mt-3 md:hidden w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text"
+          value={addMode}
+          onChange={(e) => {
+            setAddMode(e.target.value as AddMode)
+            if (e.target.value === 'always') setAlwaysConfirmed(false)
+          }}
+        >
+          <option value="single">Fecha única</option>
+          <option value="range">Rango de fechas</option>
+          <option value="always">Siempre disponible</option>
+        </select>
+
+        {/* Desktop: button group */}
+        <div className="mt-3 hidden md:flex flex-wrap gap-2">
           <button
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               addMode === 'single'
                 ? 'border-shell-text bg-shell-text text-white'
-                : 'border-shell-border text-shell-text'
+                : 'border-shell-border text-shell-text hover:bg-shell-muted'
             }`}
             onClick={() => setAddMode('single')}
             type="button"
@@ -188,7 +203,7 @@ export function AdminServiceAvailabilityPage() {
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               addMode === 'range'
                 ? 'border-shell-text bg-shell-text text-white'
-                : 'border-shell-border text-shell-text'
+                : 'border-shell-border text-shell-text hover:bg-shell-muted'
             }`}
             onClick={() => setAddMode('range')}
             type="button"
@@ -199,7 +214,7 @@ export function AdminServiceAvailabilityPage() {
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               addMode === 'always'
                 ? 'border-shell-text bg-shell-text text-white'
-                : 'border-shell-border text-shell-text'
+                : 'border-shell-border text-shell-text hover:bg-shell-muted'
             }`}
             onClick={() => { setAddMode('always'); setAlwaysConfirmed(false) }}
             type="button"

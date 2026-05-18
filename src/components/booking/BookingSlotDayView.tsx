@@ -51,7 +51,7 @@ export function BookingSlotDayView({
         className="rounded-lg border border-gray-200 overflow-hidden"
         data-testid="booking-slot-loading"
       >
-        <div className="overflow-y-auto max-h-[640px]">
+        <div className="overflow-y-auto max-h-[640px] pt-2">
           <div className="flex">
             <div
               className="flex-shrink-0 w-14 border-r border-gray-100 animate-pulse bg-gray-50"
@@ -69,7 +69,7 @@ export function BookingSlotDayView({
 
   return (
     <div className="rounded-lg border border-gray-200 overflow-hidden">
-      <div className="overflow-y-auto max-h-[640px]">
+      <div className="overflow-y-auto max-h-[640px] pt-2">
         <div className="flex">
           {/* Hour-label column */}
           <div
@@ -130,7 +130,7 @@ export function BookingSlotDayView({
                     'absolute left-1 right-1 px-2 py-1 rounded border text-xs text-left overflow-hidden transition-colors',
                     isSelected
                       ? 'bg-indigo-600 border-indigo-700 text-white font-medium'
-                      : 'bg-teal-50 border-teal-200 text-teal-800 hover:bg-teal-100',
+                    : 'bg-teal-500 border-teal-600 text-white hover:bg-teal-600',
                   )}
                   style={{ top, height }}
                   data-testid={isSelected ? 'slot-block-selected' : 'slot-block'}

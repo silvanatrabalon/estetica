@@ -76,11 +76,7 @@ export function BookingPage() {
   }
 
   function handleCardClick(service: Service) {
-    if (service.description) {
-      setPanelService(service)
-    } else {
-      handleServiceSelect(service)
-    }
+    setPanelService(service)
   }
 
   function handleDateChange(date: string) {
@@ -128,19 +124,69 @@ export function BookingPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto">
-      <h2 className="text-2xl font-heading font-bold text-shell-text mb-6">Reservar turno</h2>
+    <div className="max-w-lg mx-auto pb-24">
+      {/* Sticky step bar — shown from step 2+, sits just below the shell navbar */}
+      {step > 1 && (
+        <div className="sticky top-16 z-20 -mx-4 md:-mx-6 mb-5 flex items-center gap-3 border-b border-shell-border bg-shell-surface/95 px-4 py-2.5 backdrop-blur-sm md:px-6">
+          <button
+            type="button"
+            onClick={handleBack}
+            aria-label="Volver al paso anterior"
+            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-shell-border bg-white text-shell-subtleText shadow-sm transition-colors hover:border-shell-text hover:text-shell-text"
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] leading-none text-shell-subtleText mb-0.5">Reservar turno</p>
+            <p className="text-sm font-semibold text-shell-text truncate">
+              {step === 2 ? 'Elegí una fecha' : step === 3 ? 'Elegí un horario' : 'Confirmá tu reserva'}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {[2, 3, 4].map((s) => (
+              <span
+                key={s}
+                className={`block h-1.5 rounded-full transition-all duration-300 ${
+                  s < step ? 'w-3 bg-emerald-500' : s === step ? 'w-4 bg-emerald-500' : 'w-1.5 bg-shell-border'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Step indicator */}
-      <div className="flex items-center gap-2 mb-6 text-sm text-shell-subtleText">
-        <span className={step === 1 ? 'font-semibold text-shell-text' : ''}>Servicio</span>
-        <span>›</span>
-        <span className={step === 2 ? 'font-semibold text-shell-text' : ''}>Fecha</span>
-        <span>›</span>
-        <span className={step === 3 ? 'font-semibold text-shell-text' : ''}>Horario</span>
-        <span>›</span>
-        <span className={step === 4 ? 'font-semibold text-shell-text' : ''}>Confirmar</span>
-      </div>
+      {/* Fixed CTA — shown from step 3+ */}
+      {step >= 3 && (
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-sm border-t border-gray-100 z-40 md:left-auto md:right-4 md:bottom-4 md:border-0 md:bg-transparent md:p-0">
+          <button
+            type="button"
+            onClick={step === 4 ? handleConfirm : () => { setBookingError(null); setStep(4) }}
+            disabled={step === 3 ? selectedSlot === null : bookingLoading}
+            className="w-full md:w-auto rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+          >
+            {step === 4 ? (bookingLoading ? 'Confirmando…' : 'Confirmar reserva') : 'Siguiente'}
+          </button>
+        </div>
+      )}
+
+      {step === 1 && (
+        <h2 className="text-2xl font-heading font-bold text-shell-text mb-6">Reservar turno</h2>
+      )}
+
+      {/* Step indicator — only on step 1 */}
+      {step === 1 && (
+        <div className="flex items-center gap-2 mb-6 text-sm text-shell-subtleText">
+          <span className="font-semibold text-shell-text">Servicio</span>
+          <span>›</span>
+          <span>Fecha</span>
+          <span>›</span>
+          <span>Horario</span>
+          <span>›</span>
+          <span>Confirmar</span>
+        </div>
+      )}
 
       {/* Step 1: Service selector */}
       {step === 1 && (
@@ -222,7 +268,6 @@ export function BookingPage() {
           <ServiceDetailPanel
             service={panelService}
             isOpen={panelService !== null}
-            primaryColor={primaryColor}
             onClose={() => setPanelService(null)}
             onSelect={handleServiceSelect}
           />
@@ -232,13 +277,6 @@ export function BookingPage() {
       {/* Step 2: Date picker */}
       {step === 2 && selectedService && (
         <div>
-          <button
-            type="button"
-            onClick={handleBack}
-            className="text-sm text-shell-subtleText hover:text-shell-text mb-4 inline-flex items-center gap-1"
-          >
-            ← Volver
-          </button>
           <p className="text-shell-subtleText mb-4">
             Seleccioná una fecha para <strong>{selectedService.name}</strong>.
           </p>
@@ -257,13 +295,6 @@ export function BookingPage() {
       {/* Step 3: Time-axis slot picker */}
       {step === 3 && selectedService && selectedDate && (
         <div>
-          <button
-            type="button"
-            onClick={handleBack}
-            className="text-sm text-shell-subtleText hover:text-shell-text mb-4 inline-flex items-center gap-1"
-          >
-            ← Volver
-          </button>
           <p className="text-shell-subtleText mb-4">
             Turnos disponibles para{' '}
             <strong>
@@ -290,31 +321,12 @@ export function BookingPage() {
               loading={slotsLoading}
             />
           )}
-
-          <button
-            type="button"
-            onClick={() => {
-              setBookingError(null)
-              setStep(4)
-            }}
-            disabled={selectedSlot === null}
-            className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Siguiente
-          </button>
         </div>
       )}
 
       {/* Step 4: Review and confirm */}
       {step === 4 && selectedService && selectedSlot && (
         <div>
-          <button
-            type="button"
-            onClick={handleBack}
-            className="text-sm text-shell-subtleText hover:text-shell-text mb-4 inline-flex items-center gap-1"
-          >
-            ← Volver
-          </button>
           <h3 className="text-lg font-semibold text-shell-text mb-4">Revisá tu reserva</h3>
 
           <div className="rounded-lg border border-shell-border bg-white divide-y divide-shell-border mb-6">
@@ -358,15 +370,6 @@ export function BookingPage() {
               </button>
             </div>
           )}
-
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={bookingLoading}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {bookingLoading ? 'Confirmando…' : 'Confirmar reserva'}
-          </button>
         </div>
       )}
     </div>
@@ -475,7 +478,6 @@ function ServiceCard({ service, selected, primaryColor, onClick }: ServiceCardPr
 interface ServiceDetailPanelProps {
   service: Service | null
   isOpen: boolean
-  primaryColor: string
   onClose: () => void
   onSelect: (service: Service) => void
 }
@@ -483,7 +485,6 @@ interface ServiceDetailPanelProps {
 function ServiceDetailPanel({
   service,
   isOpen,
-  primaryColor,
   onClose,
   onSelect,
 }: ServiceDetailPanelProps) {
@@ -521,8 +522,8 @@ function ServiceDetailPanel({
         aria-modal="true"
         aria-label={service.name}
         className="fixed z-50 bg-white shadow-xl
-          bottom-0 left-0 right-0 rounded-t-2xl max-h-[80vh] overflow-y-auto
-          md:bottom-auto md:top-0 md:right-0 md:left-auto md:h-full md:w-96 md:rounded-none"
+          bottom-0 left-0 right-0 rounded-t-2xl max-h-[85vh] overflow-y-auto
+          md:bottom-auto md:top-0 md:right-0 md:left-auto md:h-screen md:max-h-screen md:w-96 md:rounded-none"
       >
         {/* Close button */}
         <div className="flex justify-end p-4">
@@ -548,12 +549,7 @@ function ServiceDetailPanel({
 
         {/* Image */}
         <div
-          className="w-full h-48 flex items-center justify-center"
-          style={
-            !service.imageUrl || imgError
-              ? { backgroundColor: primaryColor }
-              : {}
-          }
+          className={`w-full h-48 flex items-center justify-center${!service.imageUrl || imgError ? ' bg-pink-50' : ''}`}
         >
           {service.imageUrl && !imgError ? (
             <img
@@ -565,7 +561,7 @@ function ServiceDetailPanel({
           ) : (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="w-16 h-16 text-white/60"
+              className="w-16 h-16 text-pink-300"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"

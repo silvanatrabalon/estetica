@@ -148,4 +148,19 @@ describe('BookingSlotDayView', () => {
     const block = screen.getByTestId('slot-block')
     expect(block.textContent).toContain('30 min')
   })
+
+  // Task 2.1 — scroll container has top padding on mount
+  it('scroll container has pt-2 class on mount', () => {
+    renderView()
+    const scrollContainer = document.querySelector('.overflow-y-auto')
+    expect(scrollContainer).toHaveClass('pt-2')
+  })
+
+  // Task 2.2 — unselected available slot uses high-contrast background
+  it('unselected available slot uses high-contrast teal background', () => {
+    const slot = makeSlot('2026-05-18T09:00:00Z', '2026-05-18T09:30:00Z')
+    renderView({ slots: [slot], selectedSlot: null })
+    const block = screen.getByTestId('slot-block')
+    expect(block).toHaveClass('bg-teal-500')
+  })
 })

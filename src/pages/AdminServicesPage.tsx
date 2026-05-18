@@ -24,6 +24,8 @@ type FormMode = 'create' | 'edit' | null
 interface FormData {
   name: string
   durationMinutes: string
+  durationHours: string
+  durationMins: string
   priceCents: string
   imageUrl: string | null
   maxConcurrentBookings: string
@@ -34,6 +36,8 @@ interface FormData {
 const EMPTY_FORM: FormData = {
   name: '',
   durationMinutes: '',
+  durationHours: '0',
+  durationMins: '30',
   priceCents: '0',
   imageUrl: null,
   maxConcurrentBookings: '',
@@ -55,14 +59,14 @@ function validateForm(data: FormData): ValidationErrors {
     errors.name = 'El nombre debe tener al menos 2 caracteres.'
   }
 
-  const duration = Number(data.durationMinutes)
+  const duration = Number(data.durationHours) * 60 + Number(data.durationMins)
   if (!Number.isInteger(duration) || duration < 1 || duration > 480) {
-    errors.durationMinutes = 'La duración debe ser un número entero entre 1 y 480 minutos.'
+    errors.durationMinutes = 'La duración debe ser entre 1 y 480 minutos (hasta 8 horas).'
   }
 
   const price = Number(data.priceCents)
-  if (!Number.isInteger(price) || price < 0) {
-    errors.priceCents = 'El precio debe ser un número entero mayor o igual a cero (en centavos).'
+  if (isNaN(price) || price < 0) {
+    errors.priceCents = 'El precio debe ser un número mayor o igual a cero.'
   }
 
   if (data.maxConcurrentBookings.trim() !== '') {
@@ -175,7 +179,9 @@ export function AdminServicesPage() {
     setFormData({
       name: service.name,
       durationMinutes: String(service.durationMinutes),
-      priceCents: String(service.priceCents),
+      durationHours: String(Math.floor(service.durationMinutes / 60)),
+      durationMins: String(service.durationMinutes % 60),
+      priceCents: String(service.priceCents / 100),
       imageUrl: service.imageUrl,
       maxConcurrentBookings:
         service.maxConcurrentBookings !== null ? String(service.maxConcurrentBookings) : '',
@@ -259,8 +265,8 @@ export function AdminServicesPage() {
       if (formMode === 'create') {
         const created = await createService({
           name: formData.name.trim(),
-          durationMinutes: Number(formData.durationMinutes),
-          priceCents: Number(formData.priceCents),
+          durationMinutes: Number(formData.durationHours) * 60 + Number(formData.durationMins),
+          priceCents: Math.round(Number(formData.priceCents) * 100),
           imageUrl: formData.imageUrl,
           maxConcurrentBookings,
           description,
@@ -275,8 +281,8 @@ export function AdminServicesPage() {
         const updated = await updateService({
           serviceId: editingServiceId,
           name: formData.name.trim(),
-          durationMinutes: Number(formData.durationMinutes),
-          priceCents: Number(formData.priceCents),
+          durationMinutes: Number(formData.durationHours) * 60 + Number(formData.durationMins),
+          priceCents: Math.round(Number(formData.priceCents) * 100),
           imageUrl: formData.imageUrl,
           maxConcurrentBookings,
           description,
@@ -303,10 +309,11 @@ export function AdminServicesPage() {
   }
 
   const handleToggleActive = (service: Service) => {
-    const action = service.isActive ? 'desactivar' : 'reactivar'
     showConfirm(
       service.isActive ? 'Desactivar servicio' : 'Reactivar servicio',
-      `¿Confirmás ${action} el servicio "${service.name}"?`,
+      service.isActive
+        ? 'Este servicio no aparecerá en el sistema de turnos y los clientes no podrán reservarlo. Los turnos existentes no se cancelan automáticamente.'
+        : `¿Confirmás reactivar el servicio "${service.name}"?`,
       async () => {
         closeConfirm()
         setSuccessMessage(null)
@@ -575,22 +582,33 @@ export function AdminServicesPage() {
             </div>
 
             <div className="mb-4">
-              <label
-                htmlFor="service-duration"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Duración (minutos)
-              </label>
-              <input
-                id="service-duration"
-                type="number"
-                min="1"
-                max="480"
-                value={formData.durationMinutes}
-                onChange={handleField('durationMinutes')}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ej: 60"
-              />
+              <span className="block text-sm font-medium text-gray-700 mb-1">Duración</span>
+              <div className="flex gap-3">
+                <label className="flex-1">
+                  <span className="text-xs text-gray-500">Horas</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="7"
+                    value={formData.durationHours}
+                    onChange={handleField('durationHours')}
+                    className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="0"
+                  />
+                </label>
+                <label className="flex-1">
+                  <span className="text-xs text-gray-500">Minutos</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="59"
+                    value={formData.durationMins}
+                    onChange={handleField('durationMins')}
+                    className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="30"
+                  />
+                </label>
+              </div>
               {formErrors.durationMinutes && (
                 <p className="mt-1 text-sm text-red-600">{formErrors.durationMinutes}</p>
               )}
@@ -601,20 +619,21 @@ export function AdminServicesPage() {
                 htmlFor="service-price"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Precio (centavos)
+                Precio ($)
               </label>
               <input
                 id="service-price"
                 type="number"
                 min="0"
+                step="any"
                 value={formData.priceCents}
                 onChange={handleField('priceCents')}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ej: 500000 (= $5.000,00)"
+                placeholder="Ej: 20000"
               />
               {formData.priceCents !== '' && !formErrors.priceCents && (
                 <p className="mt-1 text-xs text-gray-500">
-                  Vista previa: {formatPriceARS(Number(formData.priceCents))}
+                  Vista previa: {formatPriceARS(Math.round(Number(formData.priceCents) * 100))}
                 </p>
               )}
               {formErrors.priceCents && (
@@ -737,6 +756,9 @@ export function AdminServicesPage() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Dejar vacío = sin límite"
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Máximo de turnos que se pueden agendar al mismo tiempo para este servicio. Útil si tenés varias plazas o equipos disponibles. Dejá en blanco para ilimitado.
+              </p>
               {formErrors.maxConcurrentBookings && (
                 <p className="mt-1 text-sm text-red-600">{formErrors.maxConcurrentBookings}</p>
               )}
@@ -770,7 +792,61 @@ export function AdminServicesPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {services.map((service) => (
+              <div key={service.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{service.name}</p>
+                    {service.categoryName && (
+                      <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+                        {service.categoryName}
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                      service.isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {service.isActive ? 'Activo' : 'Inactivo'}
+                  </span>
+                </div>
+                <div className="mt-2 flex gap-4 text-sm text-gray-500">
+                  <span>{service.durationMinutes} min</span>
+                  <span>{formatPriceARS(service.priceCents)}</span>
+                </div>
+                <div className="mt-3 flex gap-3 border-t border-gray-100 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => openEditForm(service)}
+                    className="text-blue-600 hover:text-blue-800 text-xs font-medium"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleActive(service)}
+                    className="text-gray-600 hover:text-gray-800 text-xs font-medium"
+                  >
+                    {service.isActive ? 'Desactivar' : 'Reactivar'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/admin/services/${service.id}/availability`)}
+                    className="text-purple-600 hover:text-purple-800 text-xs font-medium"
+                  >
+                    Disponibilidad
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b border-gray-200 text-left text-gray-600">
@@ -851,7 +927,8 @@ export function AdminServicesPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
 

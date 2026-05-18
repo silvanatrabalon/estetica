@@ -71,6 +71,9 @@ export function BusinessSettingsPage() {
   const [bookingHeaderText, setBookingHeaderText] = useState('')
   const [bookingSubtitleText, setBookingSubtitleText] = useState('')
   const [bookingMinNoticeMinutes, setBookingMinNoticeMinutes] = useState(60)
+  const [noticeDays, setNoticeDays] = useState('0')
+  const [noticeHours, setNoticeHours] = useState('1')
+  const [noticeMins, setNoticeMins] = useState('0')
   const [bookingMaxHorizonDays, setBookingMaxHorizonDays] = useState(60)
   const [bookingPolicyError, setBookingPolicyError] = useState<string | null>(null)
   const [weeklyHours, setWeeklyHours] = useState<BusinessHoursRecord[]>([])
@@ -119,6 +122,10 @@ export function BusinessSettingsPage() {
     setBookingHeaderText(data.bookingHeaderText ?? '')
     setBookingSubtitleText(data.bookingSubtitleText ?? '')
     setBookingMinNoticeMinutes(data.bookingMinNoticeMinutes)
+    const minutes = data.bookingMinNoticeMinutes
+    setNoticeDays(String(Math.floor(minutes / 1440)))
+    setNoticeHours(String(Math.floor((minutes % 1440) / 60)))
+    setNoticeMins(String(minutes % 60))
     setBookingMaxHorizonDays(data.bookingMaxHorizonDays)
     setWeeklyHours(data.weeklyHours)
     setClosures(data.closures)
@@ -239,7 +246,9 @@ export function BusinessSettingsPage() {
     setBookingPolicyError(null)
     setSuccessMessage(null)
 
-    if (bookingMinNoticeMinutes < 0 || bookingMinNoticeMinutes > 10080) {
+    const composedNotice = Number(noticeDays) * 1440 + Number(noticeHours) * 60 + Number(noticeMins)
+
+    if (composedNotice < 0 || composedNotice > 10080) {
       setBookingPolicyError('La anticipación mínima debe estar entre 0 y 10080 minutos.')
       return
     }
@@ -250,9 +259,10 @@ export function BusinessSettingsPage() {
     }
 
     setIsSavingPolicy(true)
+    setBookingMinNoticeMinutes(composedNotice)
 
     try {
-      await updateBookingPolicy(bookingMinNoticeMinutes, bookingMaxHorizonDays)
+      await updateBookingPolicy(composedNotice, bookingMaxHorizonDays)
       setSuccessMessage('Política de reservas actualizada.')
     } catch {
       setBookingPolicyError('No se pudo guardar la configuración.')
@@ -326,14 +336,20 @@ export function BusinessSettingsPage() {
               />
             </label>
 
-            <label className="text-sm text-shell-text">
-              Color principal (#RRGGBB)
-              <input
-                className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                value={primaryColor}
-                onChange={(event) => setPrimaryColor(event.target.value)}
-              />
-            </label>
+            <div className="text-sm text-shell-text">
+              <label className="block">
+                Color principal
+                <input
+                  type="color"
+                  className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-shell-border bg-white px-1 py-1"
+                  value={primaryColor || '#22c55e'}
+                  onChange={(event) => setPrimaryColor(event.target.value)}
+                />
+              </label>
+              <p className="mt-1 text-xs text-shell-subtleText">
+                Define el color de acento del sistema de turnos (botones, badges, resaltados &mdash; actualmente verde).
+              </p>
+            </div>
 
             <label className="text-sm text-shell-text">
               Titulo del header de reservas
@@ -554,33 +570,69 @@ export function BusinessSettingsPage() {
         ) : null}
 
         <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={(e) => void handleSaveBookingPolicy(e)}>
-          <label className="text-sm text-shell-text">
-            Anticipación mínima (minutos)
-            <span className="ml-1 text-xs text-shell-subtleText">(0–10080)</span>
-            <input
-              aria-label="Anticipación mínima (minutos)"
-              className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-              min={0}
-              max={10080}
-              onChange={(event) => setBookingMinNoticeMinutes(Number(event.target.value))}
-              type="number"
-              value={bookingMinNoticeMinutes}
-            />
-          </label>
+          <div className="text-sm text-shell-text">
+            <span className="block mb-1 font-medium">Anticipación mínima</span>
+            <div className="flex gap-2">
+              <label className="flex-1">
+                <span className="text-xs text-shell-subtleText">Días</span>
+                <input
+                  aria-label="Días"
+                  className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+                  min={0}
+                  max={7}
+                  type="number"
+                  value={noticeDays}
+                  onChange={(e) => setNoticeDays(e.target.value)}
+                />
+              </label>
+              <label className="flex-1">
+                <span className="text-xs text-shell-subtleText">Horas</span>
+                <input
+                  aria-label="Horas"
+                  className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+                  min={0}
+                  max={23}
+                  type="number"
+                  value={noticeHours}
+                  onChange={(e) => setNoticeHours(e.target.value)}
+                />
+              </label>
+              <label className="flex-1">
+                <span className="text-xs text-shell-subtleText">Minutos</span>
+                <input
+                  aria-label="Minutos"
+                  className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+                  min={0}
+                  max={59}
+                  type="number"
+                  value={noticeMins}
+                  onChange={(e) => setNoticeMins(e.target.value)}
+                />
+              </label>
+            </div>
+            <p className="mt-1.5 text-xs text-shell-subtleText">
+              Tiempo mínimo de anticipación para que un cliente pueda reservar un turno. Ej: 2 horas significa que no se pueden reservar turnos con menos de 2 horas de anticipación.
+            </p>
+          </div>
 
-          <label className="text-sm text-shell-text">
-            Horizonte de reservas (días)
-            <span className="ml-1 text-xs text-shell-subtleText">(1–365)</span>
-            <input
-              aria-label="Horizonte de reservas (días)"
-              className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-              min={1}
-              max={365}
-              onChange={(event) => setBookingMaxHorizonDays(Number(event.target.value))}
-              type="number"
-              value={bookingMaxHorizonDays}
-            />
-          </label>
+          <div className="text-sm text-shell-text">
+            <label className="block">
+              Horizonte de reservas (días)
+              <span className="ml-1 text-xs text-shell-subtleText">(1–365)</span>
+              <input
+                aria-label="Horizonte de reservas (días)"
+                className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+                min={1}
+                max={365}
+                onChange={(event) => setBookingMaxHorizonDays(Number(event.target.value))}
+                type="number"
+                value={bookingMaxHorizonDays}
+              />
+            </label>
+            <p className="mt-1.5 text-xs text-shell-subtleText">
+              Cuántos días hacia adelante puede reservar un cliente. Ej: 30 días significa que solo se pueden ver disponibilidades dentro del próximo mes.
+            </p>
+          </div>
 
           <div className="md:col-span-2 flex justify-end">
             <button

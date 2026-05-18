@@ -30,6 +30,7 @@ export function AdminStaffPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const [formMode, setFormMode] = useState<FormMode>(null)
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null)
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -183,7 +184,7 @@ export function AdminStaffPage() {
           <button
             type="button"
             onClick={openCreateForm}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
+            className="hidden md:flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
           >
             Agregar profesional
           </button>
@@ -279,12 +280,54 @@ export function AdminStaffPage() {
           <p className="text-sm">Usá el botón &quot;Agregar profesional&quot; para crear el primero.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <>
+          {/* Mobile list — shown only on small screens */}
+          <div className="md:hidden divide-y divide-gray-100 rounded-lg border border-gray-200">
+            {staffMembers.map((member) => (
+              <div key={member.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedStaffId(selectedStaffId === member.id ? null : member.id)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+                >
+                  <span className="font-medium text-gray-900 text-sm">{member.displayName}</span>
+                  <span className="text-gray-400 text-xs">{selectedStaffId === member.id ? '▲' : '▼'}</span>
+                </button>
+                {selectedStaffId === member.id && (
+                  <div className="px-4 pb-4 space-y-3 bg-gray-50">
+                    <p className="text-xs text-gray-500">
+                      Cuenta: <span className="text-gray-700">{member.fullName ?? '—'}</span>
+                    </p>
+                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {member.role === 'admin' ? 'Administrador' : member.role === 'staff' ? 'Staff' : 'Cliente'}
+                    </span>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button type="button" onClick={() => openEditForm(member)} className="text-blue-600 text-xs font-medium hover:underline">
+                        Editar
+                      </button>
+                      <button type="button" onClick={() => navigate(`/admin/staff/${member.id}/availability`)} className="text-blue-600 text-xs font-medium hover:underline">
+                        Disponibilidad
+                      </button>
+                      <button type="button" onClick={() => navigate(`/admin/staff/${member.id}/services`)} className="text-blue-600 text-xs font-medium hover:underline">
+                        Servicios
+                      </button>
+                      <button type="button" onClick={() => handleToggleActive(member)} className="text-gray-600 text-xs font-medium hover:underline">
+                        {member.isActive ? 'Desactivar' : 'Reactivar'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table — hidden on small screens */}
+          <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b border-gray-200 text-left text-gray-600">
-                <th className="pb-3 pr-4 font-medium">Nombre</th>
-                <th className="pb-3 pr-4 font-medium">Usuario vinculado</th>
+                <th className="pb-3 pr-4 font-medium">Nombre visible</th>
+                <th className="pb-3 pr-4 font-medium">Cuenta</th>
                 <th className="pb-3 pr-4 font-medium">Rol</th>
                 <th className="pb-3 pr-4 font-medium">Estado</th>
                 <th className="pb-3 font-medium">Acciones</th>
@@ -350,9 +393,21 @@ export function AdminStaffPage() {
           <p className="mt-4 text-xs text-gray-400">
             Nota: desactivar un profesional no revoca su acceso a la aplicación. Para revocar el acceso, gestioná el usuario desde el panel de usuarios.
           </p>
-        </div>
+          </div>
+        </>
       )}
     </div>
+      {/* Mobile FAB */}
+      {formMode === null && (
+        <button
+          type="button"
+          onClick={openCreateForm}
+          className="fixed bottom-4 right-4 z-50 md:hidden flex items-center gap-1.5 px-4 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 text-sm font-semibold"
+          aria-label="Agregar profesional"
+        >
+          + Agregar
+        </button>
+      )}
       <ConfirmModal
         isOpen={confirmState.isOpen}
         title={confirmState.title}

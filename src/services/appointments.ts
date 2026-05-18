@@ -49,6 +49,7 @@ export interface AppointmentDetail {
   staffDisplayName: string
   orgName: string
   orgTimezone: string
+  customerName: string
 }
 
 interface AppointmentDetailRow {
@@ -66,6 +67,7 @@ interface AppointmentDetailRow {
   staff_display_name: string
   org_name: string
   org_timezone: string
+  customer_name: string
 }
 
 export interface RescheduledAppointment {
@@ -341,6 +343,7 @@ export async function getAppointment(
     staffDisplayName: row.staff_display_name,
     orgName: row.org_name,
     orgTimezone: row.org_timezone,
+    customerName: row.customer_name,
   }
 }
 

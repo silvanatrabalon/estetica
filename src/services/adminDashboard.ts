@@ -54,3 +54,25 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     revenueCentsMonth: Number(row.revenue_cents_month),
   }
 }
+
+// ── Date-range analytics (stub — blocked on #44d) ─────────────────────────
+
+export interface AdminRangeStats {
+  pendingCount: number
+  confirmedCount: number
+  cancelledCount: number
+  completedCount: number
+  totalCount: number
+  revenueCents: number
+}
+
+/**
+ * Stub: will call `admin_get_stats_by_range` RPC once #44d is deployed.
+ * Throws an error so callers can show a friendly "not yet available" state.
+ */
+export async function getAdminStatsByRange(
+  _dateFrom: string,
+  _dateTo: string,
+): Promise<AdminRangeStats> {
+  throw new Error('admin_get_stats_by_range RPC not yet deployed (#44d)')
+}

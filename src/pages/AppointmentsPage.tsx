@@ -153,7 +153,8 @@ export function AppointmentsPage() {
                   : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
-              Semanal
+              <span className="md:hidden">Diario</span>
+              <span className="hidden md:inline">Semanal</span>
             </button>
             <button
               onClick={() => setCalendarMode('mensual')}

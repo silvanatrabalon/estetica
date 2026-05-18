@@ -3,6 +3,7 @@ import { adminListAppointments } from '../services/adminAppointments'
 import { getBusinessSettings } from '../services/businessSettings'
 import { TimeAxisWeeklyCalendar } from '../components/appointments/TimeAxisWeeklyCalendar'
 import { DayView } from '../components/appointments/DayView'
+import { AppointmentDetailPanel } from '../components/appointments/AppointmentDetailPanel'
 import { cn } from '../lib/cn'
 import { deriveGridTimes } from '../lib/businessHours'
 import type { AppointmentSummary } from '../services/appointments'
@@ -55,6 +56,7 @@ export function AdminCalendarPage() {
   const [appointments, setAppointments] = useState<AdminAppointmentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedApt, setSelectedApt] = useState<AdminAppointmentRow | null>(null)
 
   // Business settings state (timezone + grid hours)
   const [orgTimezone, setOrgTimezone] = useState('America/Argentina/Buenos_Aires')
@@ -110,6 +112,16 @@ export function AdminCalendarPage() {
     )
   }
 
+  function handleAppointmentClick(id: string) {
+    const apt = appointments.find((a) => a.id === id)
+    if (apt) setSelectedApt(apt)
+  }
+
+  function handleCancelSuccess(id: string) {
+    setAppointments((prev) => prev.filter((a) => a.id !== id))
+    setSelectedApt(null)
+  }
+
   function handleWeekChange(newWeekStart: Date) {
     setWeekStart(newWeekStart)
   }
@@ -124,10 +136,16 @@ export function AdminCalendarPage() {
   const showWeekEmptyState = !loading && !error && appointments.length === 0 && view === 'week'
 
   return (
+    <>
     <div className="space-y-4">
       {/* Page header with view toggle */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Calendario</h2>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Calendario</h2>
+          {view === 'week' && summaries.some(apt => apt.status === 'pending' || apt.status === 'confirmed') && (
+            <p className="text-xs text-gray-400 italic mt-0.5">Arrastrá un turno para reprogramarlo</p>
+          )}
+        </div>
 
         <div
           className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5"
@@ -195,6 +213,7 @@ export function AdminCalendarPage() {
           showCustomerName={true}
           onRescheduleSuccess={handleRescheduleSuccess}
           onWeekChange={handleWeekChange}
+          onAppointmentClick={handleAppointmentClick}
         />
       )}
 
@@ -209,8 +228,17 @@ export function AdminCalendarPage() {
           loading={loading}
           error={error}
           onDayChange={handleDayChange}
+          onAppointmentClick={handleAppointmentClick}
         />
       )}
     </div>
+
+    <AppointmentDetailPanel
+      appointment={selectedApt}
+      orgTimezone={orgTimezone}
+      onClose={() => setSelectedApt(null)}
+      onCancelSuccess={handleCancelSuccess}
+    />
+  </>
   )
 }

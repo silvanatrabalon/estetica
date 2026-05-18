@@ -381,7 +381,7 @@ export function LandingConfigPage() {
         {/* Design */}
         <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
           <h2 className="font-semibold text-gray-700">Diseño</h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="primaryColor">
                 Color principal
@@ -404,6 +404,7 @@ export function LandingConfigPage() {
                   className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-pink-300"
                 />
               </div>
+              <p className="mt-1 text-xs text-gray-500">Color del overlay del hero y botones</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="secondaryColor">
@@ -427,6 +428,7 @@ export function LandingConfigPage() {
                   className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-pink-300"
                 />
               </div>
+              <p className="mt-1 text-xs text-gray-500">Color de fondo de tarjetas y acentos</p>
             </div>
           </div>
           <div>
