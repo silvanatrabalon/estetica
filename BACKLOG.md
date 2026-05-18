@@ -1031,7 +1031,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 - Integration tests: `AdminDashboardPage` mounts and renders metric cards; today's list populates; "Ver todos los turnos" CTA navigates to `/admin/appointments`; loading and error states in Spanish; non-admin accessing `/admin/dashboard` is redirected; admin landing after login resolves to `/admin/dashboard`
 - Routing policy test update: `roleHomeByRole.admin === '/admin/dashboard'`
 
-- [ ]
+- [x] `admin-dashboard` (31c1dfa)
 
 ### 27. Notifications System
 **Description:** Booking confirmation emails whit resend, cancellation emails, reschedule emails, templates.
