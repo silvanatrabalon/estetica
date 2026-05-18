@@ -1082,7 +1082,140 @@ The current Step 3 renders available slots as identical-sized square buttons in 
 - [x] `admin-dashboard` (31c1dfa)
 
 ### 27. Notifications System
-**Description:** Booking confirmation emails whit resend, cancellation emails, reschedule emails, templates.
+**Description:** Transactional email notifications for appointment lifecycle events — booking confirmation, cancellation, and reschedule — sent via Brevo to customers, assigned staff, and the business admin inbox. Triggered fire-and-forget from the frontend service layer after each RPC succeeds. Email delivery never blocks the booking UX.
+
+**Scope (MVP):**
+
+*27a — DB: Add `notification_email` to `organizations`*
+- Migration: `ALTER TABLE public.organizations ADD COLUMN notification_email text`
+- This is the admin/owner inbox where business-facing notifications are sent (separate from the authenticated admin user account)
+- RLS: no change — `organizations` updates go through existing admin RPCs
+- Update `admin_update_business_settings` RPC to accept and persist `p_notification_email text`
+- Update `get_business_settings` RPC to return `notification_email` in its result set
+
+*27b — Admin UI: notification email field in business settings*
+- Add `notification_email` text input (email type) to `AdminSettingsPage` business settings form
+- Label: "Email para notificaciones del negocio"
+- Helper text: "Recibirás una copia de cada turno confirmado, cancelado y reprogramado."
+- Validation: valid email format or empty (field is optional)
+- Persisted via existing `admin_update_business_settings` RPC (updated in 27a)
+
+*27c — Supabase Edge Function: `send-appointment-notification`*
+- Located at `supabase/functions/send-appointment-notification/index.ts`
+- Accepts JSON body: `{ appointmentId: string; eventType: 'booking_confirmed' | 'cancelled' | 'rescheduled' }`
+- Validates the `Authorization` JWT header (authenticated callers only — returns 401 otherwise)
+- Uses a service-role Supabase client to fetch enriched appointment data in a single JOIN query:
+  - `auth.users` → customer email (via `appointments.customer_user_id`)
+  - `profiles` → `full_name` as `customerName`
+  - `services` → `name`, `duration_minutes`, `price_cents`
+  - `staff_members` → `display_name` as `staffDisplayName`; `profile_user_id` → `auth.users.email` as `staffEmail`
+  - `organizations` → `name`, `timezone`, `notification_email`
+- Template data shape:
+  ```ts
+  {
+    customerName: string
+    customerEmail: string
+    serviceName: string
+    durationMinutes: number
+    priceCents: number
+    startsAt: string         // formatted in org timezone, Spanish locale
+    endsAt: string
+    staffDisplayName: string
+    staffEmail: string | null
+    orgName: string
+    orgNotificationEmail: string | null
+    bookingReference: string  // last 8 chars of UUID, uppercase
+    appointmentUrl: string    // https://app.esteticasobeauty.com/booking/confirmation/{id}
+  }
+  ```
+- Dispatches `eventType` to the appropriate template builder function
+- Collects up to 3 candidate recipient emails:
+  - **Customer** (`customerEmail`) — always
+  - **Staff** (`staffEmail`) — if not null; all events
+  - **Admin inbox** (`orgNotificationEmail`) — if not null; all events
+- **Deduplicates recipients by email address** before sending: collects all candidate addresses into a `Set<string>` (case-insensitive) and sends exactly one email per unique address — a person holding multiple roles (e.g. owner who is both admin and assigned staff) receives the email only once
+- Brevo `from:` always set to `mi.estetica.so.beauty@gmail.com` (read from `BREVO_FROM_EMAIL` secret)
+- Error boundary: wraps the entire Brevo HTTP call in try/catch; logs failure with `appointmentId`, `eventType`, and error message; **always returns `200 OK`** — email failure never propagates to the caller
+- CORS headers for Supabase Edge Function invocation
+
+*27d — Email templates (inline TypeScript, Spanish)*
+- Three pure template builder functions in the Edge Function:
+  - `buildConfirmationEmail(data)` → `{ subject: string; html: string }`
+    - Subject: `"Turno confirmado · {serviceName}"`
+    - Body: customer name, service, date/time in org timezone, duration, staff name, booking reference, CTA button → `appointmentUrl`
+  - `buildCancellationEmail(data)` → `{ subject: string; html: string }`
+    - Subject: `"Turno cancelado · {serviceName}"`
+    - Body: confirmation that the appointment was cancelled, service name, original date/time, booking reference
+  - `buildRescheduleEmail(data)` → `{ subject: string; html: string }`
+    - Subject: `"Turno reprogramado · {serviceName}"`
+    - Body: service name, **new** date/time (previous time is not shown — reschedule RPC overwrites `starts_at` in place with no history), staff name, booking reference, CTA button → `appointmentUrl`
+- Templates: responsive HTML, inline CSS, soft pastel brand colors consistent with the app design; no external template engine dependency
+- All copy in Spanish (Rioplatense, `vos` form)
+
+*27e — TypeScript: `src/services/notifications.ts`*
+- `notifyAppointmentEvent(appointmentId: string, eventType: NotificationEventType): void`
+  - Calls the Edge Function via `supabase.functions.invoke('send-appointment-notification', { body: { appointmentId, eventType } })`
+  - Fire-and-forget: **no `await`**, the returned Promise is deliberately not awaited
+  - Swallows all errors (no throw, no re-throw) — logs to `console.warn` in development
+  - `NotificationEventType = 'booking_confirmed' | 'cancelled' | 'rescheduled'`
+
+*27f — Frontend hookups (service layer)*
+- In `src/services/appointments.ts`:
+  - `createAppointment()`: after successful RPC return, call `notifyAppointmentEvent(result.id, 'booking_confirmed')` — replaces `// TODO(#27): trigger confirmation notification` comment
+  - `cancelAppointment()`: after successful RPC return, call `notifyAppointmentEvent(result.id, 'cancelled')` — replaces `// TODO(#27): trigger cancellation notification` comment
+  - `rescheduleAppointment()`: after successful RPC return, call `notifyAppointmentEvent(result.id, 'rescheduled')` — replaces `// TODO(#27): trigger reschedule notification` comment
+- Notification is called only on success; if the RPC throws, no notification is triggered
+
+**Architecture Decisions (resolved):**
+- **Trigger point**: Frontend service layer after RPC success (not DB trigger, not inside RPC) — simplest viable approach; avoids `pg_net` complexity; consistent with BaaS-first philosophy
+- **Fire-and-forget**: `notifyAppointmentEvent` is not awaited — email delivery never blocks booking, cancel, or reschedule UX
+- **Error isolation**: Edge Function always returns 200; Brevo failures are logged, not surfaced to the user
+- **Sender**: `mi.estetica.so.beauty@gmail.com` (email address verified in Brevo as sender; stored in `BREVO_FROM_EMAIL` secret — no domain DNS required)
+- **Brevo HTTP API**: Called directly via `fetch` inside the Edge Function (Deno-compatible, no SDK needed); `BREVO_API_KEY` stored as Supabase secret
+- **Customer email source**: `auth.users` table, accessed via service-role client inside Edge Function — never exposed to the frontend
+- **Admin notification**: Via `organizations.notification_email` (new column — 27a); field is optional; if null, no admin email is sent
+- **Staff notification**: Via `staff_members.profile_user_id → auth.users.email` resolved inside Edge Function; if staff has no linked user account or null email, notification for that recipient is silently skipped
+- **Recipient deduplication**: Candidate addresses (customer, staff, admin) are deduplicated by email (case-insensitive) before any Brevo call — a user with multiple roles receives exactly one email
+- **Admin/staff-initiated actions**: Customer is always notified regardless of who triggered the cancel or reschedule (admin, staff, or customer)
+- **Previous time in reschedule**: Not included — reschedule RPC overwrites `starts_at` in place; "rescheduled to [new date]" copy is sufficient for MVP
+- **Template engine**: Inline TypeScript string interpolation — no template engine dependency; three small pure functions
+- **Opt-out**: Deferred to a later item; all customers receive notifications for now
+- **Reminder emails**: Deferred to a separate future item (requires pg_cron or Vercel cron)
+
+**Data Model:**
+```sql
+-- New column
+ALTER TABLE public.organizations ADD COLUMN notification_email text;
+```
+No new tables. One new Supabase Edge Function.
+
+**Secrets required (set via `supabase secrets set`):**
+- `BREVO_API_KEY` — Brevo API key (from Brevo dashboard → SMTP & API → API Keys)
+- `BREVO_FROM_EMAIL` — `mi.estetica.so.beauty@gmail.com` (verified sender address in Brevo)
+
+**Dependencies:**
+- #17 (`create_appointment` RPC, `appointments.ts` `createAppointment()` — hookup point)
+- #21 (`reschedule_appointment` RPC, `rescheduleAppointment()` — hookup point)
+- #22 (`cancel_appointment` RPC, `cancelAppointment()` — hookup point)
+- #10 (`organizations.timezone` — used in Edge Function to format dates)
+- #11 (`AdminSettingsPage` — add `notification_email` field in 27b; `get_business_settings` / `admin_update_business_settings` RPCs — updated in 27a)
+
+**Out of Scope:**
+- Pre-appointment reminder emails (requires cron/scheduled function — separate future item)
+- Customer opt-out / notification preferences (separate future item)
+- WhatsApp or SMS notifications
+- Staff-only notifications without a linked user account (gracefully skipped)
+- Retry queue for failed email delivery
+- Email open/click tracking
+- HTML email preview tooling
+
+**Testing Scope:**
+- SQL smoke tests: `admin_update_business_settings` persists `notification_email`; `get_business_settings` returns `notification_email`; `notification_email` nullable — existing rows unaffected
+- Edge Function unit tests: valid JWT + valid `appointmentId` → correct recipients and template dispatched; invalid/missing JWT → 401 returned; unknown `eventType` → 400 returned, no email sent; Brevo API failure → function returns 200, error logged; `staffEmail` null → customer and admin still notified; `orgNotificationEmail` null → customer and staff still notified; customer email = staff email (same person) → exactly one email sent; customer email = admin email = staff email → exactly one email sent; three distinct emails → three separate sends
+- Template unit tests: `buildConfirmationEmail()` returns Spanish subject and HTML containing service name, formatted date/time, booking reference; `buildCancellationEmail()` contains correct copy; `buildRescheduleEmail()` contains new date/time
+- TypeScript unit tests: `notifyAppointmentEvent()` invokes Edge Function with correct `appointmentId` and `eventType`; `notifyAppointmentEvent()` does not throw when Edge Function call fails (fire-and-forget semantics verified); `cancelAppointment()` RPC failure → `notifyAppointmentEvent` not called; `cancelAppointment()` success → `notifyAppointmentEvent('cancelled')` called
+- Integration tests: `createAppointment()` success → Edge Function invoked with `'booking_confirmed'`; `cancelAppointment()` success → Edge Function invoked with `'cancelled'`; `rescheduleAppointment()` success → Edge Function invoked with `'rescheduled'`; admin settings form saves `notification_email` and displays success message in Spanish
+
 - [ ]
 
 
@@ -1343,6 +1476,178 @@ create table public.landing_carousel_images (
 - **Copyright line**: change "© 2026" attribution to read **"Software Queen"**. The text must be a `mailto:silvana.trabalon@gmail.com` link so clicking it opens a new email draft.
 
 - [x] `landing-footer-contact` (c2846dd)
+
+---
+
+## Phase 11: UX Polish & Product Improvements
+
+### 42. UI & Cosmetic Fixes
+**Description:** Visual bugs, copy corrections, and minor styling issues across booking flow, admin dashboard, and admin panels. All changes are frontend-only with no backend impact.
+
+**Scope:**
+
+*42a — Booking flow: service detail panel*
+- Desktop: service detail side panel (rendered as right drawer when a service card is clicked) has incorrect height — it must fill the viewport height and scroll internally if content overflows
+- Services without an image currently skip the detail modal entirely — all services must trigger the same detail modal/drawer regardless of image presence; use the pastel placeholder (already defined in #38) when `image_url` is null
+
+*42b — Booking flow: slot time-axis view*
+- `BookingSlotDayView`: the first hour label (e.g. "08:00") is partially clipped at the top — add top padding or scroll offset so the full first label is visible on mount
+- Available slot blocks and the overall grid background have insufficient color contrast — revisit teal/green for available slots and ensure disabled/past slots are clearly distinct (e.g. muted gray with reduced opacity)
+
+*42c — Admin dashboard: stat card mobile layout*
+- Stat card titles truncate on mobile at narrow widths — use `text-sm` + allow wrapping or shorten label copy so titles render fully on all mobile viewports
+
+*42d — Admin/users: copy fix*
+- Rename "Altas" label (tab, section heading, and any related copy) to **"Nuevos"** throughout `/admin/users`
+
+*42e — Price display: cents → ARS pesos*
+- All price values currently shown in centavos (e.g. `5000` for $50.00) must be divided by 100 and formatted as ARS currency (`$ X.XXX,00` or similar) in every frontend context: booking wizard Step 1 service cards, Step 4 review screen, admin services table/form, booking confirmation page, admin appointments list
+- This is a display-only change — backend stores and returns `price_cents`; no migration needed
+
+*42f — Admin calendar: UX copy*
+- When a cancelled appointment is clicked, the current "No autorizado" toast is confusing — remove it; replaced by the appointment detail panel from #43h
+- Add a subtle drag hint in the calendar header area (e.g. `"Arrastrá un turno para reprogramarlo"`) visible only when there are reschedulable appointments in the current view
+- **Deployment note:** 42f (toast removal) must be deployed together with or after 43h (appointment detail panel) — removing the toast before the panel exists leaves cancelled appointment clicks with no feedback
+
+- [x] `ui-cosmetic-fixes` (552230c)
+
+---
+
+### 43. UX & Interaction Improvements
+**Description:** Interaction patterns, navigation layout, form ergonomics, and mobile view redesigns. All changes are frontend-only or require no new backend RPCs.
+
+**Scope:**
+
+*43a — Booking wizard: fixed step navigation*
+- Across all 4 steps of `/booking`, the back button must be fixed to the **top-left** (small `← Volver` link or icon, always visible while scrolling)
+- The "Siguiente" / "Confirmar reserva" primary CTA must be fixed to the **bottom-right on desktop** and **bottom full-width on mobile**, so it remains accessible without scrolling to the end of the step content
+- Applies to Steps 1–4; back button on Step 1 is hidden or disabled (no previous step)
+
+*43b — Mobile weekly calendar label*
+- In `/appointments` and `/staff/appointments`, when on mobile the calendar is already a single-day strip per spec (#25e). The tab/toggle label "Semanal" is misleading — rename it to **"Diario"** in the mobile breakpoint context (or hide the "Semanal" option entirely on mobile and show only "Diario" and "Mensual")
+
+*43c — Staff clients tab: remove*
+- Remove the empty "Clientes" tab from `/staff/clients` (or the staff navigation if this is a nav entry) — it has no functionality and confuses staff users
+
+*43d — Admin appointments filter: dropdown + status cleanup*
+- Replace the chip-style status filter in `/admin/appointments` with a `<select>` dropdown (single or multi-select)
+- Remove "No asistió" (`no_show`) as a filter option (see #44a for the underlying logic change)
+- Keep: Todos, Confirmado, Pendiente, Cancelado, Completado
+
+*43e — Admin dashboard: remove quick-access and today's widget*
+- Remove the "Accesos rápidos" card grid section from `/admin/dashboard`
+- Remove the "Turnos de hoy" compact list widget from `/admin/dashboard`
+- The KPI metric cards and the booking analytics summary remain
+
+*43f — Admin dashboard: date-range filter for analytics*
+- Replace the fixed "Resumen del mes actual" heading and static monthly breakdown table with a date-range selector
+- Preset options: **Hoy**, **Último mes**, **Últimos 6 meses**, **Último año**
+- The selected range filters both the status-breakdown table and the KPI metric cards for the selected period
+- Requires new `admin_get_stats_by_range` RPC (see #44d) — `admin_get_dashboard_stats` has no date-range parameters and `admin_list_appointments` has a 200-row cap that makes it unsuitable for "Último año" aggregation
+- Fixed-window KPI cards ("Turnos hoy", "Turnos esta semana") remain unchanged; the range selector drives a separate analytics section
+- **Dependency:** blocked on #44d (`admin_get_stats_by_range` RPC migration)
+
+*43g — Admin business settings: color picker*
+- In `/admin/settings/business`, replace the plain hex text input for "Color principal" with an `<input type="color">` color picker component
+- Add a helper label: *"Define el color de acento del sistema de turnos (botones, badges, resaltados — actualmente verde)."*
+
+*43h — Admin calendar: appointment detail on click*
+- Clicking any appointment block in `/admin/calendar` (regardless of status) opens a detail sheet/modal showing: customer name, service name, staff name, date & time, duration, status badge
+- Cancelled and completed appointments show the detail in read-only mode (no action buttons)
+- Pending/confirmed appointments show action buttons: "Reprogramar" (opens slot picker) and "Cancelar"
+- **Backend note:** `get_appointment()` currently returns `customer_user_id` only, not `customer_name`. Adding `customer_name` (via JOIN to `profiles.full_name`, consistent with `admin_list_appointments`) requires a `DROP FUNCTION` + `CREATE` migration — breaking change on the RPC return type. Must coordinate with existing callers: `BookingConfirmationPage`, reschedule page. 42f depends on this item
+
+*43i — Admin business settings: booking config ergonomics*
+- "Anticipación mínima para reservas" (`booking_min_notice_minutes`): replace the plain minutes input with a segmented input (days + hours + minutes fields); multiply to minutes on save; add helper copy: *"Tiempo mínimo de anticipación para que un cliente pueda reservar un turno. Ej: 2 horas significa que no se pueden reservar turnos con menos de 2 horas de anticipación."*
+- "Horizonte de reservas" (`booking_max_horizon_days`): add helper copy: *"Cuántos días hacia adelante puede reservar un cliente. Ej: 30 días significa que solo se pueden ver disponibilidades dentro del próximo mes."*
+
+*43j — Admin users: explain deactivate (frontend-only)*
+- Add an explanation tooltip or helper text next to "Desactivar": *"El usuario no podrá iniciar sesión ni realizar reservas. Sus datos y reservas existentes se conservan."*
+- Note: "Eliminar usuario" (hard delete) is moved to #44e — requires a Supabase Edge Function and pre-deletion FK cascade resolution; it is not frontend-only
+
+*43k — Admin staff page: mobile redesign*
+- On mobile (`< md`), replace the table layout with a name-only list; tapping a name expands an inline panel with: linked user, role, and action buttons (Editar, Eliminar)
+- "Agregar profesional" button: on mobile render as a fixed floating action button (FAB) at the bottom-right instead of a top-right inline button
+- Clarify the "Nombre" vs "Usuario vinculado" columns: rename "Nombre" to "Nombre visible" (the `display_name` shown to customers) and "Usuario vinculado" to "Cuenta" (the auth account email)
+
+*43l — Admin services page: layout reorganization + mobile*
+- Split the page into two clearly separated sections: **Servicios** (with its own "Agregar servicio" button) and **Categorías** (with its own "Agregar categoría" button)
+- On mobile, replace the services table with a card list (service name, category tag, price in ARS, active/inactive badge, action icons)
+
+*43m — Admin service form: duration input + capacity help*
+- Replace the plain `duration_minutes` number input with a two-field input: **Horas** + **Minutos** (converts to minutes on save, no backend change)
+- Add a `(?)` tooltip or inline help text on "Capacidad simultánea": *"Máximo de turnos que se pueden agendar al mismo tiempo para este servicio. Útil si tenés varias plazas o equipos disponibles. Dejá en blanco para ilimitado."*
+
+*43n — Admin service deactivate: confirmation dialog*
+- When clicking "Desactivar" on a service, show a confirmation dialog explaining: *"Este servicio no aparecerá en el sistema de turnos y los clientes no podrán reservarlo. Los turnos existentes no se cancelan automáticamente."*
+
+*43o — Admin service availability: mobile UX*
+- On mobile, replace the day-of-week toggle/checkbox row with a `<select>` dropdown for adding availability rules
+- Replace the "Volver a servicios" full-width button with a top-left back arrow (`← Servicios`) consistent with the rest of the admin nav pattern
+
+*43p — Admin landing settings: color pickers + mobile + typography scope*
+- Replace plain hex text inputs for `primary_color` and `secondary_color` in `/admin/settings/landing` with `<input type="color">` pickers (same approach as #43g)
+- Clarify what each color affects (primary = hero overlay, buttons; secondary = card backgrounds, accents)
+- Fix mobile layout: color and font inputs currently overflow or misalign on narrow viewports
+- Expand font family application: `font_family` must apply to all body text, headings, and UI copy on the landing page (not just the hero) — update the CSS injection to set `font-family` on the root element so all landing page text inherits it
+
+- [x] `ux-interaction-improvements` (552230c)
+
+---
+
+### 44. Business Logic & Backend Changes
+**Description:** Changes that require new or modified backend RPCs, business rule changes, or data-impacting operations.
+
+**Scope:**
+
+*44a — Remove `no_show` status from stats and filters*
+- `no_show` appointments exist in the DB but the system has no mechanism to mark them (staff/admin would just cancel the appointment instead)
+- Admin dashboard (`admin_get_dashboard_stats`): remove `no_show_count` from the RPC response and the stat cards; do NOT sum `cancelled` appointments into revenue
+- Add a dedicated "Cancelados" count card to the dashboard (already available as `cancelled_count` in the RPC)
+- Admin appointments filter: remove "No asistió" option (handled in #43d as a frontend filter change; this item ensures no new `no_show` rows are creatable)
+- Note: existing `no_show` rows in the DB are left as-is for historical data; the `status` CHECK constraint is not altered (non-breaking); the system simply stops surfacing it in UI
+- **Breaking change:** `admin_get_dashboard_stats()` declares `no_show_count` in `RETURNS TABLE` — PostgreSQL requires `DROP FUNCTION` + `CREATE` to change the return shape. The migration, `AdminDashboardStats` TypeScript interface update, `AdminDashboardPage.tsx` stat card removal, and the `no_show` filter chip removal (43d) must all be deployed atomically to avoid a runtime error window
+
+*44b — Business closures on public landing page*
+- Read from `business_closure_exceptions` (already in the DB) and surface upcoming/active closures on the landing page
+- Rules:
+  - If today is a full-day closure: show a banner above the hero section: *"Hoy estamos cerrados."*
+  - If today is a partial-day closure: show *"Hoy cerrado de HH:MM a HH:MM."* in the same banner
+  - If a future closure exists within the next 30 days: show *"El [fecha] estaremos cerrados — [reason]."* (or with time window for partial-day closures)
+  - Multiple upcoming closures: list them in a small section above the footer
+  - The `reason` field from `business_closure_exceptions` is shown publicly (e.g. "Feriado nacional")
+  - Banner is always visible while the closure is active — no dismiss button
+- Data source: new `get_upcoming_closures()` SECURITY DEFINER RPC granted to `anon` — do NOT extend `get_landing_config()` (avoids conflating two semantic concerns and growing the landing payload with a variable-length dataset)
+- `get_upcoming_closures()` returns: `closure_date date`, `closure_type ('full_day'|'half_day')`, `starts_at time`, `ends_at time`, `reason text` — filtered to `closure_date >= today AND closure_date <= today + 30 days`, ordered by `closure_date ASC`; `anon` has no direct SELECT grant on `business_closure_exceptions` — the RPC provides the only read path
+
+*44c — Danger zone: delete all appointments*
+- New section **"Zona de peligro"** in `/admin/settings/business` (collapsible, styled with a red border/warning palette)
+- "Eliminar historial de reservas" action: deletes **all** `appointments` rows for the organization regardless of status (`pending`, `confirmed`, `cancelled`, `completed`, `no_show`) — no scope filter
+- Double-confirmation UX: first dialog shows a warning (*"Esta acción eliminará permanentemente todas las reservas. El historial es irrecuperable."*); second confirmation requires the admin to type **"CONFIRMAR"** before the button becomes enabled
+- New SECURITY DEFINER RPC: `admin_delete_all_appointments()` — admin-only (`is_admin()`); DELETE all `appointments WHERE organization_id = singleton org`; returns count of deleted rows
+- No FK cascade issues — no other table has FKs pointing back to `appointments`; operation succeeds without pre-deletion steps
+- Hard, irreversible operation — no soft-delete or archive mechanism
+
+*44d — DB: `admin_get_stats_by_range` RPC (required by #43f)*
+- New SECURITY DEFINER RPC: `admin_get_stats_by_range(p_date_from timestamptz, p_date_to timestamptz)` — admin-only (`is_admin()`), granted to `authenticated`
+- Returns aggregate counts for the specified date window: `pending_count`, `confirmed_count`, `cancelled_count`, `completed_count`, `total_count`, `revenue_cents` (sum of `services.price_cents` for `completed` appointments in range)
+- Date window applied to `starts_at` — consistent with filtering in `admin_list_appointments`
+- All counts return `0` (not `null`) when no appointments exist in the range
+- Used by `AdminDashboardPage` date-range selector (43f) to populate the analytics section for the selected preset
+
+*44e — Delete user (moved from 43j)*
+- Add a "Eliminar usuario" action in `/admin/users` user row (destructive, with confirmation dialog: *"Esta acción eliminará permanentemente al usuario y su acceso. Sus turnos pasados quedarán sin nombre de cliente."*)
+- Requires a new Supabase Edge Function `supabase/functions/admin-delete-user/` — `supabase.auth.admin.deleteUser(userId)` requires the service-role key and cannot be called from the frontend or a SECURITY DEFINER RPC
+- Pre-deletion steps the Edge Function must execute before calling `deleteUser`:
+  1. Cancel all `pending`/`confirmed` appointments where `customer_user_id = userId` (frees staff slots)
+  2. Set `created_by_user_id = NULL` on all appointments where `created_by_user_id = userId` — resolves the `ON DELETE RESTRICT` FK that otherwise blocks auth user deletion (requires removing the `NOT NULL` constraint on `created_by_user_id` via a prior migration)
+  3. Set `is_active = false` on `staff_members` rows where `profile_user_id = userId` (orphaned staff rows must not appear in slot generation or calendar)
+  4. Call `supabase.auth.admin.deleteUser(userId)` — cascades: `profiles` row deleted, `user_roles` rows deleted, `appointments.customer_user_id` set to `NULL`
+- Authorization: Edge Function validates admin role via JWT before proceeding
+- Returns: `{ deletedUserId, cancelledAppointments: number }` on success; named error on auth failure
+- Frontend: `AdminUsersPage` calls via `supabase.functions.invoke('admin-delete-user', { body: { userId } })`
+
+- [ ] `business-logic-backend-changes`
 
 ---
 
