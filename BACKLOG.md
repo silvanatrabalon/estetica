@@ -683,6 +683,54 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 - [x] `booking-confirmation-page` (e31e44e)
 
+### 19b. Booking Flow — Time-Axis Slot Picker
+**Description:** Replace the current Step 3 slot grid (a flat 3-column grid of time-slot buttons) in `BookingPage` with a visual time-axis day view — the same visual language as the admin `DayView` calendar, adapted for available-slot selection. Available slots are shown as clickable blocks positioned on a time axis; tapping/clicking a block selects the slot and advances to Step 4 (confirm).
+
+**Motivation:**
+The current Step 3 renders available slots as identical-sized square buttons in a grid. This gives no visual sense of time of day, slot duration, or the day's overall rhythm. A time-axis view communicates availability intuitively — customers can see at a glance that a slot is in the morning vs. afternoon, how long it lasts, and which windows are open.
+
+**Scope (MVP):**
+
+*19b-a — New component: `BookingSlotDayView`*
+- Located at `src/components/booking/BookingSlotDayView.tsx`
+- Props: `slots: AvailableSlot[]`, `selectedSlot: AvailableSlot | null`, `onSelectSlot: (slot: AvailableSlot) => void`, `orgTimezone: string`, `openTime: string`, `closeTime: string`, `loading?: boolean`
+- Renders a scrollable time-axis container using `getTopPx`, `getHeightPx`, and `getGridHeightPx` from `src/lib/timeAxis.ts` (same utilities as `DayView`)
+- Business hours (`openTime`/`closeTime` from `organizations`) define the visible range — already available in `BookingPage` via `orgOpenTime`/`orgCloseTime` state
+- Renders hour labels on the left (same pattern as `DayView`)
+- Each available slot is an absolutely-positioned button block with the start time and service duration visible inside
+- Selected slot: distinct highlight (e.g., brand color border + background)
+- Unselected slot: consistent available-slot styling (e.g., teal/green variant)
+- Empty state: "No hay turnos disponibles para este día" (centered, within the grid height)
+- Loading state: time-grid skeleton (same height as grid)
+- No drag-and-drop — this is selection-only
+- All copy in Spanish
+
+*19b-b — Update `BookingPage` Step 3*
+- Replace the `<div className="grid grid-cols-3 gap-2">` slot button grid with `<BookingSlotDayView>`
+- `orgOpenTime` and `orgCloseTime` are already in `BookingPage` state (from business settings loaded on mount); pass them as props
+- `selectedSlot` / `onSelectSlot` replace the existing `selectedSlot` state interaction
+- Step 3 layout: date summary at top ("Turnos disponibles para {fecha formateada}"), then `BookingSlotDayView` component filling the remaining space, then "Siguiente" CTA (disabled until a slot is selected)
+- Remove the old grid import/render; keep all other BookingPage step logic unchanged
+
+**Architecture Decisions:**
+- Reuse `src/lib/timeAxis.ts` utilities — no new positioning logic
+- Component is read-only (selection only), no DnD, no admin-specific actions
+- `openTime`/`closeTime` already in BookingPage state — no new data fetch required
+- Duration for each slot block is derived from `AvailableSlot.ends_at - starts_at` (already available from RPC)
+
+**Dependencies:** #16 (`AvailableSlot` type, `useAvailableSlots` hook, `formatSlotTime`) · `src/lib/timeAxis.ts` (`getTopPx`, `getHeightPx`, `getGridHeightPx`, `PX_PER_MIN`) · `AdminCalendarPage` / `DayView` as visual reference
+
+**Out of Scope:**
+- Redesigning Step 2 (date picker) — remains as `<input type="date">` in MVP
+- Per-slot staff name display
+- Real-time slot refresh (re-query on date change is sufficient)
+
+**Testing Scope:**
+- Unit tests: `BookingSlotDayView` renders correct slot blocks for given slots; selected slot has correct styling; empty state renders Spanish copy; loading state renders skeleton
+- Integration tests: BookingPage Step 3 shows `BookingSlotDayView`; selecting a slot enables "Siguiente" CTA; advancing to Step 4 passes correct `selectedSlot`
+
+- [x] `booking-flow-time-axis-slot-picker`
+
 ---
 
 ## Phase 6: Appointment Management
@@ -1042,13 +1090,45 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 ## Phase 8: Settings & Configuration
 
-### 30. Booking Rules Configuration
-**Description:** Min notice time, max bookings per day, cancellation policies, buffer times.
-- [ ]
+### 30. Admin Calendar — Time-Axis View
+**Description:** Enhance the admin calendar at `/admin/calendar` with a daily time-axis view (Google Calendar style), where each appointment is rendered as a positioned block whose height is proportional to its duration. A 90-minute appointment should visually occupy 3 × 30-minute slots. This replaces the current chip-per-day layout with a true time-axis grid.
 
-### 31. Notification Preferences
-**Description:** User controls for notification types, frequency, channels.
-- [ ]
+**Scope (MVP):**
+
+*30a — UI: Daily time-axis view*
+- New view mode toggle in `AdminCalendarPage`: **Día** (time-axis) alongside the existing **Semana** and **Mes** toggles
+- The day view renders a vertical hour-by-hour grid from business open time to close time (from `business_hours` for the selected day)
+- Each appointment block is absolutely positioned: `top` = minutes from open time, `height` = `duration_minutes` (proportional to the grid's px-per-minute scale)
+- Block content: customer name + service name (2-line, truncated if too short)
+- Uses `starts_at` and `ends_at` already stored on each appointment — no new DB fields needed
+- All times rendered in `organizations.timezone` via `Intl.DateTimeFormat` (existing `formatSlotTime` utility)
+- Navigation: prev/next day arrows + "Hoy" button; selected date defaults to today
+- Loading, empty ("Sin turnos para este día"), and error states in Spanish
+
+*30b — UI: Time-axis in weekly view (admin)*
+- Enhance the existing weekly calendar (`/admin/calendar` week view) to also use a time-axis layout: appointments as positioned blocks within each day column, same height-proportional rendering
+- Replaces the current chip-per-day layout in the weekly view
+
+**Data Model:** No new tables or migrations. All required data (`starts_at`, `ends_at`, `duration_minutes` via service join) is already available from `adminListAppointments`.
+
+**Dependencies:**
+- #25 (`AdminCalendarPage`, `WeeklyCalendar`, `adminListAppointments`) — components enhanced here
+- #23 (`adminListAppointments` with `date_from`/`date_to` filter — reused)
+- #16 (`formatSlotTime` utility)
+- #10 (`business_hours` — defines the open/close times that frame the grid)
+
+**Out of Scope:**
+- Drag-to-create new appointments from empty slots
+- Drag-to-reschedule (already in #25b — can be layered on top later)
+- Staff availability overlay in day view (out of scope for this item)
+- Customer or staff calendar time-axis views (admin only for MVP)
+- Real-time updates via Supabase Realtime
+
+**Testing Scope:**
+- Unit tests: `top` and `height` pixel values computed correctly for a given `starts_at`, `ends_at`, and grid scale; appointment at exactly open time has `top = 0`; back-to-back appointments do not overlap visually; `formatSlotTime` applied to block times
+- Integration tests: day view renders all appointments for the selected date; block height matches `duration_minutes`; "Hoy" button navigates to today; prev/next arrows change the selected date; empty state renders in Spanish; weekly view blocks replace chip layout
+
+- [x] `admin-calendar-time-axis`
 
 ---
 

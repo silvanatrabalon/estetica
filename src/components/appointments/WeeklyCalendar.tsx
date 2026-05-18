@@ -250,6 +250,10 @@ export function WeeklyCalendar({
     if (!byDate[dateKey]) byDate[dateKey] = []
     byDate[dateKey].push(apt)
   }
+  // Sort each day's appointments ascending by start time
+  for (const key of Object.keys(byDate)) {
+    byDate[key].sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+  }
 
   const todayKey = toLocalDateKey(new Date().toISOString(), orgTimezone)
 

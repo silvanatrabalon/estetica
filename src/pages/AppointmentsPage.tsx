@@ -22,8 +22,12 @@ export function AppointmentsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('lista')
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('semanal')
 
-  const proximosApts = appointments.filter(isUpcoming)
-  const historialApts = appointments.filter((apt) => !isUpcoming(apt))
+  const proximosApts = appointments
+    .filter(isUpcoming)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+  const historialApts = appointments
+    .filter((apt) => !isUpcoming(apt))
+    .sort((a, b) => b.startsAt.localeCompare(a.startsAt))
   const activeApts = tab === 'proximos' ? proximosApts : historialApts
 
   const orgTimezone = appointments[0]?.orgTimezone ?? 'UTC'

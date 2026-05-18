@@ -29,7 +29,7 @@ export function SignInPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">Estetica</h1>
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">Estética So Beauty</h1>
         <p className="text-xl text-gray-600">Sistema de reserva de turnos</p>
 
         <div className="mt-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">

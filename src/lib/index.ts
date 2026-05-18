@@ -2,6 +2,7 @@
 // Examples: formatters, validators, constants, etc.
 
 export * from './businessSettings'
+export { deriveGridTimes } from './businessHours'
 export { cn } from './cn'
 export { formatSlotTime } from './formatSlotTime'
 export {

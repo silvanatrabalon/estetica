@@ -4,6 +4,8 @@ import { useActiveServices } from '../hooks/useActiveServices'
 import { useAvailableSlots } from '../hooks/useAvailableSlots'
 import { formatPriceARS } from '../lib/formatPrice'
 import { formatSlotTime } from '../lib/formatSlotTime'
+import { deriveGridTimes } from '../lib/businessHours'
+import { BookingSlotDayView } from '../components/booking'
 import { getBusinessSettings } from '../services/businessSettings'
 import { getLandingConfig } from '../services/landing'
 import { createAppointment, isConflictError } from '../services/appointments'
@@ -27,6 +29,8 @@ export function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null)
   const [orgTimezone, setOrgTimezone] = useState('UTC')
+  const [orgOpenTime, setOrgOpenTime] = useState('08:00')
+  const [orgCloseTime, setOrgCloseTime] = useState('20:00')
   const [maxHorizonDays, setMaxHorizonDays] = useState(60)
   const [primaryColor, setPrimaryColor] = useState('#f3e8ff')
   const [panelService, setPanelService] = useState<Service | null>(null)
@@ -47,6 +51,9 @@ export function BookingPage() {
       getBusinessSettings().then((settings) => {
         setOrgTimezone(settings.timezone)
         setMaxHorizonDays(settings.bookingMaxHorizonDays)
+        const { openTime, closeTime } = deriveGridTimes(settings.weeklyHours)
+        setOrgOpenTime(openTime)
+        setOrgCloseTime(closeTime)
       }),
       getLandingConfig().then((config) => {
         if (config.primaryColor) setPrimaryColor(config.primaryColor)
@@ -82,11 +89,6 @@ export function BookingPage() {
     setStep(3)
   }
 
-  function handleSlotSelect(slot: AvailableSlot) {
-    setSelectedSlot(slot)
-    setBookingError(null)
-    setStep(4)
-  }
 
   function handleBack() {
     if (step === 2) {
@@ -252,7 +254,7 @@ export function BookingPage() {
         </div>
       )}
 
-      {/* Step 3: Slot grid */}
+      {/* Step 3: Time-axis slot picker */}
       {step === 3 && selectedService && selectedDate && (
         <div>
           <button
@@ -263,49 +265,43 @@ export function BookingPage() {
             ← Volver
           </button>
           <p className="text-shell-subtleText mb-4">
-            Elegí un horario disponible para el{' '}
+            Turnos disponibles para{' '}
             <strong>
               {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es', {
                 weekday: 'long',
                 day: 'numeric',
                 month: 'long',
+                timeZone: orgTimezone,
               })}
             </strong>
-            .
           </p>
 
-          {slotsLoading && (
-            <p className="text-shell-subtleText animate-pulse">Buscando horarios disponibles…</p>
-          )}
           {slotsError && (
-            <p className="text-red-600">{slotsError}</p>
+            <p className="text-red-600 mb-3">{slotsError}</p>
           )}
-          {!slotsLoading && !slotsError && slots.length === 0 && (
-            <p className="text-shell-subtleText">
-              No hay horarios disponibles para esta fecha.
-            </p>
+          {!slotsError && (
+            <BookingSlotDayView
+              slots={slots}
+              selectedSlot={selectedSlot}
+              onSelectSlot={setSelectedSlot}
+              orgTimezone={orgTimezone}
+              openTime={orgOpenTime}
+              closeTime={orgCloseTime}
+              loading={slotsLoading}
+            />
           )}
-          {!slotsLoading && !slotsError && slots.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {slots.map((slot) => {
-                const isSelected = selectedSlot?.starts_at === slot.starts_at
-                return (
-                  <button
-                    key={slot.starts_at}
-                    type="button"
-                    onClick={() => handleSlotSelect(slot)}
-                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                      isSelected
-                        ? 'bg-emerald-600 border-emerald-600 text-white'
-                        : 'border-shell-border bg-white text-shell-text hover:bg-emerald-50 hover:border-emerald-400'
-                    }`}
-                  >
-                    {formatSlotTime(slot.starts_at, orgTimezone)}
-                  </button>
-                )
-              })}
-            </div>
-          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              setBookingError(null)
+              setStep(4)
+            }}
+            disabled={selectedSlot === null}
+            className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Siguiente
+          </button>
         </div>
       )}
 

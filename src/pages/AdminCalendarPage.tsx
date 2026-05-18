@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminListAppointments } from '../services/adminAppointments'
-import { WeeklyCalendar } from '../components/appointments/WeeklyCalendar'
+import { getBusinessSettings } from '../services/businessSettings'
+import { TimeAxisWeeklyCalendar } from '../components/appointments/TimeAxisWeeklyCalendar'
+import { DayView } from '../components/appointments/DayView'
+import { cn } from '../lib/cn'
+import { deriveGridTimes } from '../lib/businessHours'
 import type { AppointmentSummary } from '../services/appointments'
 import type { AdminAppointmentRow } from '../services/adminAppointments'
 
-/** Maps an AdminAppointmentRow to the shape WeeklyCalendar expects */
-function toAppointmentSummary(row: AdminAppointmentRow): AppointmentSummary {
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function toAppointmentSummary(row: AdminAppointmentRow, orgTimezone: string): AppointmentSummary {
   return {
     id: row.id,
     startsAt: row.startsAt,
@@ -19,12 +24,11 @@ function toAppointmentSummary(row: AdminAppointmentRow): AppointmentSummary {
     servicePriceCents: 0,
     staffDisplayName: row.staffDisplayName,
     orgName: '',
-    orgTimezone: 'UTC',
+    orgTimezone,
     customerName: row.customerName,
   }
 }
 
-/** Returns the Monday (UTC) of the week containing the given date */
 function getUTCMonday(date: Date): Date {
   const day = date.getUTCDay()
   const offset = day === 0 ? -6 : 1 - day
@@ -39,25 +43,55 @@ function toISODateString(date: Date): string {
   return date.toISOString().slice(0, 10)
 }
 
+// ── AdminCalendarPage ────────────────────────────────────────────────────────
+
 export function AdminCalendarPage() {
+  // View state
+  const [view, setView] = useState<'day' | 'week'>('week')
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date())
   const [weekStart, setWeekStart] = useState(() => getUTCMonday(new Date()))
+
+  // Appointments state
   const [appointments, setAppointments] = useState<AdminAppointmentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Business settings state (timezone + grid hours)
+  const [orgTimezone, setOrgTimezone] = useState('America/Argentina/Buenos_Aires')
+  const [openTime, setOpenTime] = useState('08:00')
+  const [closeTime, setCloseTime] = useState('20:00')
+
+  // Fetch business settings once on mount to resolve timezone and grid hours
+  useEffect(() => {
+    getBusinessSettings()
+      .then((settings) => {
+        setOrgTimezone(settings.timezone || 'America/Argentina/Buenos_Aires')
+        const { openTime: open, closeTime: close } = deriveGridTimes(settings.weeklyHours)
+        setOpenTime(open)
+        setCloseTime(close)
+      })
+      .catch(() => {
+        // Keep defaults on failure — calendar still usable
+      })
+  }, [])
+
+  // Derive fetch date range based on current view
   const weekEnd = addUTCDays(weekStart, 6)
-  const dateFrom = weekStart.toISOString()
-  const dateTo = `${toISODateString(weekEnd)}T23:59:59Z`
+  const weekDateFrom = weekStart.toISOString()
+  const weekDateTo = `${toISODateString(weekEnd)}T23:59:59Z`
+
+  // For day view, fetch ±1 day to safely cover timezone offsets; DayView filters to exact day
+  const dayDateFrom = addUTCDays(selectedDate, -1).toISOString()
+  const dayDateTo = `${toISODateString(addUTCDays(selectedDate, 1))}T23:59:59Z`
+
+  const dateFrom = view === 'day' ? dayDateFrom : weekDateFrom
+  const dateTo = view === 'day' ? dayDateTo : weekDateTo
 
   const fetchAppointments = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const { rows } = await adminListAppointments(
-        { dateFrom, dateTo },
-        1,
-        200,
-      )
+      const { rows } = await adminListAppointments({ dateFrom, dateTo }, 1, 200)
       setAppointments(rows)
     } catch {
       setError('Ocurrió un error al cargar el calendario.')
@@ -72,9 +106,7 @@ export function AdminCalendarPage() {
 
   function handleRescheduleSuccess(appointmentId: string, newStartsAt: string) {
     setAppointments((prev) =>
-      prev.map((apt) =>
-        apt.id === appointmentId ? { ...apt, startsAt: newStartsAt } : apt,
-      ),
+      prev.map((apt) => (apt.id === appointmentId ? { ...apt, startsAt: newStartsAt } : apt)),
     )
   }
 
@@ -82,43 +114,101 @@ export function AdminCalendarPage() {
     setWeekStart(newWeekStart)
   }
 
-  // Org timezone from first appointment (all from same org)
-  const orgTimezone = 'UTC' // Admin calendar uses UTC display; org timezone not available in admin row
+  function handleDayChange(date: Date) {
+    setSelectedDate(date)
+  }
 
-  const summaries = appointments.map(toAppointmentSummary)
+  const summaries = appointments.map((row) => toAppointmentSummary(row, orgTimezone))
+
+  const showDayView = view === 'day'
+  const showWeekEmptyState = !loading && !error && appointments.length === 0 && view === 'week'
 
   return (
     <div className="space-y-4">
+      {/* Page header with view toggle */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-gray-900">Calendario</h2>
+
+        <div
+          className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5"
+          role="group"
+          aria-label="Modo de vista"
+        >
+          <button
+            onClick={() => setView('week')}
+            className={cn(
+              'px-3 py-1.5 text-sm rounded-md font-medium transition-colors',
+              view === 'week'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700',
+            )}
+            aria-pressed={view === 'week'}
+            data-testid="view-toggle-week"
+          >
+            Semana
+          </button>
+          <button
+            onClick={() => setView('day')}
+            className={cn(
+              'px-3 py-1.5 text-sm rounded-md font-medium transition-colors',
+              view === 'day'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700',
+            )}
+            aria-pressed={view === 'day'}
+            data-testid="view-toggle-day"
+          >
+            Día
+          </button>
+        </div>
       </div>
 
-      {loading && (
+      {/* Loading state (week view) */}
+      {loading && !showDayView && (
         <div className="flex items-center justify-center min-h-32">
           <p className="text-gray-500">Cargando turnos...</p>
         </div>
       )}
 
-      {!loading && error && (
+      {/* Error state (week view) */}
+      {!loading && error && !showDayView && (
         <div className="rounded-lg bg-red-50 border border-red-200 p-4">
           <p className="text-red-700">{error}</p>
         </div>
       )}
 
-      {!loading && !error && appointments.length === 0 && (
+      {/* Week view: empty state */}
+      {showWeekEmptyState && (
         <div className="text-center py-12">
           <p className="text-gray-500">No hay turnos esta semana.</p>
         </div>
       )}
 
-      {!loading && !error && (
-        <WeeklyCalendar
+      {/* Week view: calendar */}
+      {!loading && !error && view === 'week' && (
+        <TimeAxisWeeklyCalendar
           appointments={summaries}
           orgTimezone={orgTimezone}
+          openTime={openTime}
+          closeTime={closeTime}
           currentDate={weekStart}
           showCustomerName={true}
           onRescheduleSuccess={handleRescheduleSuccess}
           onWeekChange={handleWeekChange}
+        />
+      )}
+
+      {/* Day view: always rendered when view === 'day', with its own loading/error/nav */}
+      {showDayView && (
+        <DayView
+          appointments={summaries}
+          orgTimezone={orgTimezone}
+          openTime={openTime}
+          closeTime={closeTime}
+          selectedDate={selectedDate}
+          loading={loading}
+          error={error}
+          onDayChange={handleDayChange}
         />
       )}
     </div>

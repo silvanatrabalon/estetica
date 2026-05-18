@@ -13,7 +13,7 @@ export function NavBar() {
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
         {/* Left: Logo */}
         <div className="flex flex-shrink-0 items-center">
-          <h1 className="font-heading text-xl font-semibold text-shell-text md:text-2xl">Estetica</h1>
+          <h1 className="font-heading text-xl font-semibold text-shell-text md:text-2xl">Estética So Beauty</h1>
         </div>
 
         {/* Center: (Optional space for breadcrumbs or title) */}

@@ -107,16 +107,31 @@ export function BookingConfirmationPage() {
   const formattedDate = formatAppointmentDate(apt.startsAt, apt.orgTimezone)
   const formattedTime = formatSlotTime(apt.startsAt, apt.orgTimezone)
 
+  const isCancelled = apt.status === 'cancelled'
+  const isCompleted = apt.status === 'completed' || apt.status === 'no_show'
+
+  const statusBadge = isCancelled
+    ? { label: 'Cancelado', className: 'bg-red-100 text-red-700' }
+    : isCompleted
+      ? { label: 'Completado', className: 'bg-gray-100 text-gray-600' }
+      : { label: 'Confirmado', className: 'bg-green-100 text-green-800' }
+
+  const heading = isCancelled
+    ? 'Este turno fue cancelado'
+    : isCompleted
+      ? 'Este turno ya se realizó'
+      : '¡Tu turno está reservado!'
+
   return (
     <div className="max-w-lg mx-auto py-8 px-4">
       <div className="mb-6">
-        <span className="inline-block px-3 py-1 text-sm font-medium rounded-full bg-green-100 text-green-800">
-          Confirmado
+        <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${statusBadge.className}`}>
+          {statusBadge.label}
         </span>
       </div>
 
       <h1 className="text-3xl font-heading font-bold text-shell-text mb-2">
-        ¡Tu turno está reservado!
+        {heading}
       </h1>
       <p className="text-shell-subtleText mb-8">
         Referencia de reserva:{' '}
@@ -165,18 +180,37 @@ export function BookingConfirmationPage() {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <Link
-          to="/appointments"
-          className="flex-1 text-center px-4 py-3 rounded-lg bg-shell-accent text-white font-medium hover:opacity-90 transition-opacity"
-        >
-          Ver mis turnos
-        </Link>
-        <Link
-          to="/booking"
-          className="flex-1 text-center px-4 py-3 rounded-lg border border-shell-border text-shell-text font-medium hover:bg-shell-surface transition-colors"
-        >
-          Hacer otra reserva
-        </Link>
+        {isCancelled ? (
+          <>
+            <Link
+              to="/booking"
+              className="flex-1 text-center px-4 py-3 rounded-lg bg-shell-accent text-white font-medium hover:opacity-90 transition-opacity"
+            >
+              Reservar de nuevo
+            </Link>
+            <Link
+              to="/appointments"
+              className="flex-1 text-center px-4 py-3 rounded-lg border border-shell-border text-shell-text font-medium hover:bg-shell-surface transition-colors"
+            >
+              Ver mis turnos
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link
+              to="/appointments"
+              className="flex-1 text-center px-4 py-3 rounded-lg bg-shell-accent text-white font-medium hover:opacity-90 transition-opacity"
+            >
+              Ver mis turnos
+            </Link>
+            <Link
+              to="/booking"
+              className="flex-1 text-center px-4 py-3 rounded-lg border border-shell-border text-shell-text font-medium hover:bg-shell-surface transition-colors"
+            >
+              Hacer otra reserva
+            </Link>
+          </>
+        )}
       </div>
     </div>
   )

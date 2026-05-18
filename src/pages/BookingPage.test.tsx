@@ -126,6 +126,7 @@ describe('BookingPage', () => {
     mockGetBusinessSettings.mockResolvedValue({
       timezone: 'UTC',
       bookingMaxHorizonDays: 60,
+      weeklyHours: [],
     })
     mockGetLandingConfig.mockResolvedValue({
       primaryColor: '#f3e8ff',
@@ -221,12 +222,12 @@ describe('BookingPage', () => {
       fireEvent.change(input, { target: { value: '2025-06-10' } })
 
       await waitFor(() =>
-        expect(screen.getByText(/Elegí un horario/)).toBeDefined(),
+        expect(screen.getByText(/Turnos disponibles para/)).toBeDefined(),
       )
     })
   })
 
-  describe('Step 3 — Slot grid', () => {
+  describe('Step 3 — Time-axis slot picker', () => {
     async function goToStep3() {
       mockSupabaseFrom.mockReturnValueOnce(
         buildQueryChain({ data: [mockServiceRow], error: null }),
@@ -238,51 +239,67 @@ describe('BookingPage', () => {
       fireEvent.change(input, { target: { value: '2025-06-10' } })
     }
 
-    it('shows loading state while slots are fetching', async () => {
+    it('renders BookingSlotDayView loading skeleton while slots are fetching', async () => {
       mockGetAvailableSlots.mockImplementationOnce(() => new Promise(() => {}))
       await goToStep3()
-      expect(screen.getByText('Buscando horarios disponibles…')).toBeDefined()
+      await waitFor(() =>
+        expect(screen.getByTestId('booking-slot-loading')).toBeInTheDocument(),
+      )
     })
 
-    it('renders slot buttons when slots are available', async () => {
+    it('renders slot blocks when slots are available', async () => {
       mockGetAvailableSlots.mockResolvedValueOnce([mockSlot])
       await goToStep3()
-      await waitFor(() => {
-        // Slot button shows a time string
-        const buttons = screen.getAllByRole('button')
-        const slotButtons = buttons.filter((b) => b.textContent?.match(/\d+:\d+/))
-        expect(slotButtons.length).toBeGreaterThan(0)
-      })
+      await waitFor(() =>
+        expect(screen.getByTestId('slot-block')).toBeInTheDocument(),
+      )
     })
 
     it('shows Spanish empty state when no slots available', async () => {
       mockGetAvailableSlots.mockResolvedValueOnce([])
       await goToStep3()
       await waitFor(() =>
-        expect(screen.getByText(/No hay horarios disponibles para esta fecha/)).toBeDefined(),
+        expect(screen.getByTestId('booking-slot-empty')).toBeInTheDocument(),
       )
     })
 
-    it('shows Spanish error state on RPC failure', async () => {
+    it('shows error message on RPC failure', async () => {
       mockGetAvailableSlots.mockRejectedValueOnce(new Error('RPC error'))
       await goToStep3()
-      await waitFor(() => expect(screen.getByText(/horarios/)).toBeDefined())
+      await waitFor(() =>
+        expect(screen.getByText(/No pudimos cargar los horarios disponibles/)).toBeDefined(),
+      )
     })
 
-    it('clicking a slot advances to step 4 (review screen)', async () => {
+    it('"Siguiente" button is disabled when no slot is selected', async () => {
       mockGetAvailableSlots.mockResolvedValueOnce([mockSlot])
       await goToStep3()
+      await waitFor(() =>
+        expect(screen.getByTestId('slot-block')).toBeInTheDocument(),
+      )
+      const siguiente = screen.getByRole('button', { name: 'Siguiente' })
+      expect(siguiente).toBeDisabled()
+    })
 
-      await waitFor(() => {
-        const buttons = screen.getAllByRole('button')
-        const slotButtons = buttons.filter((b) => b.textContent?.match(/\d+:\d+/))
-        expect(slotButtons.length).toBeGreaterThan(0)
-      })
+    it('"Siguiente" button is enabled after selecting a slot', async () => {
+      mockGetAvailableSlots.mockResolvedValueOnce([mockSlot])
+      await goToStep3()
+      await waitFor(() =>
+        expect(screen.getByTestId('slot-block')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('slot-block'))
+      const siguiente = screen.getByRole('button', { name: 'Siguiente' })
+      expect(siguiente).not.toBeDisabled()
+    })
 
-      const buttons = screen.getAllByRole('button')
-      const slotButtons = buttons.filter((b) => b.textContent?.match(/\d+:\d+/))
-      fireEvent.click(slotButtons[0])
-
+    it('clicking "Siguiente" after selecting a slot advances to step 4', async () => {
+      mockGetAvailableSlots.mockResolvedValueOnce([mockSlot])
+      await goToStep3()
+      await waitFor(() =>
+        expect(screen.getByTestId('slot-block')).toBeInTheDocument(),
+      )
+      fireEvent.click(screen.getByTestId('slot-block'))
+      fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
       await waitFor(() =>
         expect(screen.getByText(/Revisá tu reserva/)).toBeDefined(),
       )
@@ -320,15 +337,12 @@ describe('BookingPage', () => {
       const input = document.querySelector('input[type="date"]') as HTMLInputElement
       fireEvent.change(input, { target: { value: '2025-06-10' } })
 
-      await waitFor(() => {
-        const buttons = screen.getAllByRole('button')
-        const slotButtons = buttons.filter((b) => b.textContent?.match(/\d+:\d+/))
-        expect(slotButtons.length).toBeGreaterThan(0)
-      })
+      await waitFor(() =>
+        expect(screen.getByTestId('slot-block')).toBeInTheDocument(),
+      )
 
-      const buttons = screen.getAllByRole('button')
-      const slotButtons = buttons.filter((b) => b.textContent?.match(/\d+:\d+/))
-      fireEvent.click(slotButtons[0])
+      fireEvent.click(screen.getByTestId('slot-block'))
+      fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
 
       await waitFor(() => expect(screen.getByText(/Revisá tu reserva/)).toBeDefined())
     }
@@ -402,18 +416,18 @@ describe('BookingPage', () => {
       fireEvent.click(screen.getByText('Elegir otro turno'))
 
       await waitFor(() =>
-        expect(screen.getByText(/Elegí un horario/)).toBeDefined(),
+        expect(screen.getByText(/Turnos disponibles para/)).toBeDefined(),
       )
     })
 
-    it('"← Volver" from step 4 returns to step 3', async () => {
+    it('"\u2190 Volver" from step 4 returns to step 3', async () => {
       await goToStep4()
 
       const backButtons = screen.getAllByText('← Volver')
       fireEvent.click(backButtons[0])
 
       await waitFor(() =>
-        expect(screen.getByText(/Elegí un horario/)).toBeDefined(),
+        expect(screen.getByText(/Turnos disponibles para/)).toBeDefined(),
       )
     })
   })
