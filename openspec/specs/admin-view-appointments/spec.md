@@ -58,7 +58,7 @@ The system SHALL provide an `admin_list_appointments(p_statuses text[], p_date_f
 ---
 
 ### Requirement: Admin can view and filter all appointments at /admin/appointments
-The system SHALL provide an `AdminAppointmentsPage` at `/admin/appointments`, accessible only to users with the `admin` role (enforced by `RoleGuard allowedRoles={['admin']}`). The page MUST display a table/list with columns: **cliente**, **servicio**, **profesional**, **fecha/hora**, **estado**. The page MUST include a filters panel with status multi-select chips (values: `pending`, `confirmed`, `cancelled`, `completed`, `no_show`) and two date inputs for date range (`desde`, `hasta`). The page MUST include previous/next pagination controls and a current page indicator. Status badges MUST use the same color system as the customer `AppointmentsPage`. All user-facing copy MUST be in Spanish.
+The system SHALL provide an `AdminAppointmentsPage` at `/admin/appointments`, accessible only to users with the `admin` role (enforced by `RoleGuard allowedRoles={['admin']}`). The page MUST display a table/list with columns: **cliente**, **servicio**, **profesional**, **fecha/hora**, **estado**. The page MUST include a filters panel with a `<select>` dropdown for status filtering (options: Todos, Confirmado, Pendiente, Cancelado, Completado — `no_show` MUST NOT appear as an option) and two date inputs for date range (`desde`, `hasta`). The page MUST include previous/next pagination controls and a current page indicator. Status badges MUST use the same color system as the customer `AppointmentsPage`. All user-facing copy MUST be in Spanish.
 
 #### Scenario: Page loads and displays all appointments on mount
 - **WHEN** an admin navigates to `/admin/appointments`
@@ -76,17 +76,21 @@ The system SHALL provide an `AdminAppointmentsPage` at `/admin/appointments`, ac
 - **WHEN** the RPC call fails
 - **THEN** a Spanish error message is displayed (e.g., "Ocurrió un error al cargar los turnos.")
 
-#### Scenario: Status filter chip selection triggers re-fetch
-- **WHEN** the admin selects one or more status chips
-- **THEN** `admin_list_appointments` is called with the selected statuses and the result list updates
+#### Scenario: Status dropdown selection triggers re-fetch
+- **WHEN** the admin selects a status from the dropdown
+- **THEN** `admin_list_appointments` is called with the selected status and the result list updates
+
+#### Scenario: "Todos" option returns all statuses
+- **WHEN** the admin selects "Todos" from the dropdown
+- **THEN** `admin_list_appointments` is called with no status filter
+
+#### Scenario: no_show is not available in the dropdown
+- **WHEN** the admin opens the status filter dropdown
+- **THEN** "No asistió" / `no_show` is not present in the options
 
 #### Scenario: Date range filter triggers re-fetch
 - **WHEN** the admin enters a date in the "desde" or "hasta" input
 - **THEN** `admin_list_appointments` is called with the updated date range
-
-#### Scenario: Clearing all filters shows all appointments
-- **WHEN** the admin clears all status chips and date inputs
-- **THEN** `admin_list_appointments` is called with all NULL params
 
 #### Scenario: Next page button advances pagination
 - **WHEN** the admin clicks the next page control
@@ -98,23 +102,7 @@ The system SHALL provide an `AdminAppointmentsPage` at `/admin/appointments`, ac
 
 #### Scenario: Previous page button is disabled on page 1
 - **WHEN** the admin is on page 1
-- **THEN** the previous page control is disabled
-
-#### Scenario: Next page button is disabled on last page
-- **WHEN** the current page contains the last row (total_count ≤ page * page_size)
-- **THEN** the next page control is disabled
-
-#### Scenario: Applying a filter resets to page 1
-- **WHEN** the admin changes a filter while on page 3
-- **THEN** the page resets to 1 and re-fetches
-
-#### Scenario: Status badges match AppointmentsPage color system
-- **WHEN** an appointment with a given status is rendered
-- **THEN** the status badge color matches the equivalent badge on the customer AppointmentsPage
-
-#### Scenario: Non-admin is denied access
-- **WHEN** a user without the `admin` role navigates to `/admin/appointments`
-- **THEN** they are redirected to `/unauthorized`
+- **THEN** the previous page button is disabled
 
 ---
 

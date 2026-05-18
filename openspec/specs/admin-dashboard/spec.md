@@ -37,11 +37,11 @@ The system SHALL provide `src/services/adminDashboard.ts` exporting an `AdminDas
 - **THEN** `getAdminDashboardStats()` throws with the error detail
 
 ### Requirement: Admin Dashboard Page and Route
-The system SHALL render `AdminDashboardPage` at `/admin/dashboard` under a `RoleGuard` allowing only the `admin` role.
+The system SHALL render `AdminDashboardPage` at `/admin/dashboard` under a `RoleGuard` allowing only the `admin` role. The page SHALL display KPI metric cards and a booking analytics section with a date-range selector. The "Turnos de hoy" widget and "Accesos rápidos" cards SHALL NOT be rendered.
 
 #### Scenario: Admin navigates to /admin/dashboard
 - **WHEN** an authenticated admin user navigates to `/admin/dashboard`
-- **THEN** the dashboard page renders with KPI cards, today's appointments widget, and quick-access cards
+- **THEN** the dashboard page renders with KPI cards and the analytics section; no quick-access cards or today's widget are shown
 
 #### Scenario: Non-admin attempts /admin/dashboard
 - **WHEN** an authenticated non-admin user navigates to `/admin/dashboard`
@@ -73,38 +73,32 @@ The page SHALL render five `StatCard` components: "Turnos hoy" (`today_count`), 
 - **WHEN** `getAdminDashboardStats()` rejects
 - **THEN** the page displays a Spanish error message and does not crash
 
-### Requirement: Today's Appointments Widget
-The page SHALL display up to 10 appointments for the current date in the org's timezone, reusing `adminListAppointments` with `dateFrom`/`dateTo` set to today. The widget MUST show columns: hora, cliente, servicio, profesional, estado (with status badge). It MUST include a "Ver todos los turnos" CTA linking to `/admin/appointments`. When no appointments exist for today, it MUST display "No hay turnos para hoy."
-
-#### Scenario: Appointments exist today
-- **WHEN** there are appointments for today
-- **THEN** the widget lists them (up to 10) with all required columns
-
-#### Scenario: No appointments today
-- **WHEN** there are no appointments for today
-- **THEN** the widget shows "No hay turnos para hoy."
-
-#### Scenario: CTA links to appointments
-- **WHEN** the user clicks "Ver todos los turnos"
-- **THEN** the system navigates to `/admin/appointments`
-
-### Requirement: Quick-Access Cards
-The page SHALL render four quick-access link cards: "Turnos" → `/admin/appointments`, "Calendario" → `/admin/calendar`, "Profesionales" → `/admin/staff`, "Servicios" → `/admin/services`.
-
-#### Scenario: Quick-access cards render
-- **WHEN** the admin dashboard page is rendered
-- **THEN** all four quick-access cards are visible with their labels and correct links
-
 ### Requirement: Booking Analytics Status Breakdown
-The page SHALL render a monthly status-breakdown table for the current month showing: Confirmado, Pendiente, Cancelado, Completado, No presentado — each with count and percentage of total. Values are derived from the `admin_get_dashboard_stats` RPC scalars; no additional RPC call is required.
+The page SHALL render a status-breakdown analytics section driven by a date-range preset selector with options: **Hoy**, **Último mes**, **Últimos 6 meses**, **Último año**. The selected range SHALL filter both the status-breakdown table and the analytics KPI cards for that period. The status-breakdown table SHALL show: Confirmado, Pendiente, Cancelado, Completado — each with count and percentage of total. The "No presentado" row MUST NOT appear. Fixed-window KPI cards ("Turnos hoy", "Turnos esta semana") remain independent of the date-range selector. The analytics section MUST call `admin_get_stats_by_range(p_date_from, p_date_to)` RPC. This requirement is BLOCKED on the #44d migration (`admin_get_stats_by_range` RPC).
 
-#### Scenario: Analytics table renders with data
-- **WHEN** stats are loaded
-- **THEN** the table shows each status row with count and percentage (0% if total is zero)
+#### Scenario: Date-range preset selected
+- **WHEN** the admin selects "Último mes"
+- **THEN** `admin_get_stats_by_range` is called with `p_date_from` = today minus 30 days and `p_date_to` = today
 
-#### Scenario: Analytics table loading state
-- **WHEN** stats are loading
-- **THEN** the analytics section shows a skeleton or loading indicator
+#### Scenario: Breakdown table reflects selected range
+- **WHEN** a date-range preset is active
+- **THEN** the status-breakdown table shows counts and percentages for appointments within that range
+
+#### Scenario: No presentado row absent
+- **WHEN** the analytics section renders
+- **THEN** no "No presentado" / `no_show` row appears in the breakdown table
+
+#### Scenario: Fixed KPI cards unaffected by range selector
+- **WHEN** the admin changes the date-range preset
+- **THEN** "Turnos hoy" and "Turnos esta semana" stat cards retain their fixed-window values
+
+#### Scenario: Analytics loading state in Spanish
+- **WHEN** `admin_get_stats_by_range` is in-flight
+- **THEN** a skeleton or Spanish loading indicator is shown for the analytics section
+
+#### Scenario: Analytics error state in Spanish
+- **WHEN** `admin_get_stats_by_range` fails
+- **THEN** a Spanish error message is shown in the analytics section
 
 ### Requirement: Admin Dashboard KPI stat cards are responsive on mobile
 The KPI metric `StatCard` components on `AdminDashboardPage` SHALL render their title labels fully at all viewport widths, including mobile. Titles MUST NOT be truncated with ellipsis on narrow screens. The card layout SHALL use `text-sm` and allow text wrapping so that labels remain legible at all breakpoints.
