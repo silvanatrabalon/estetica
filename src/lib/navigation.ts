@@ -13,7 +13,7 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
       label: navigationCopy.dashboard,
       href: '/dashboard',
       icon: undefined, // TODO: Add dashboard icon from lucide-react or custom
-      roles: ['customer', 'staff', 'admin'],
+      roles: ['customer', 'staff'],
     },
     {
       id: 'profile',
@@ -70,6 +70,13 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
   // Admin-specific navigation
   admin: [
     {
+      id: 'admin-dashboard',
+      label: navigationCopy.adminDashboard,
+      href: '/admin/dashboard',
+      icon: undefined,
+      roles: ['admin'],
+    },
+    {
       id: 'business-settings',
       label: navigationCopy.businessSettings,
       href: '/admin/settings/business',
@@ -112,13 +119,6 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
       roles: ['admin'],
     },
     {
-      id: 'reports',
-      label: navigationCopy.reports,
-      href: '/admin/reports',
-      icon: undefined, // TODO: Add chart icon
-      roles: ['admin'],
-    },
-    {
       id: 'landing-config',
       label: 'Página pública',
       href: '/admin/settings/landing',
@@ -133,7 +133,7 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
  * Combines shared items + role-specific items
  */
 export function getNavigationForRole(role: 'customer' | 'staff' | 'admin'): NavItem[] {
-  const shared = navigationByRole.all || []
+  const shared = (navigationByRole.all || []).filter((item) => item.roles.includes(role))
   const roleSpecific = navigationByRole[role] || []
   return [...shared, ...roleSpecific]
 }

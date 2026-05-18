@@ -136,7 +136,7 @@ describe('redirect resolution', () => {
         role: 'admin',
         currentPath: '/signin',
       }),
-    ).toBe('/admin/users')
+    ).toBe('/admin/dashboard')
   })
 
   it('returns null for unauthenticated users on sign-in', () => {
@@ -162,6 +162,6 @@ describe('redirect resolution', () => {
   it('maps role home paths deterministically', () => {
     expect(resolveRoleHomePath('customer')).toBe('/dashboard')
     expect(resolveRoleHomePath('staff')).toBe('/staff/schedule')
-    expect(resolveRoleHomePath('admin')).toBe('/admin/users')
+    expect(resolveRoleHomePath('admin')).toBe('/admin/dashboard')
   })
 })

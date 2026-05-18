@@ -10,6 +10,7 @@ import { RoleSelector } from './components/auth/RoleSelector'
 import {
   AdminAppointmentsPage,
   AdminCalendarPage,
+  AdminDashboardPage,
   AdminReportsPage,
   AdminServiceAvailabilityPage,
   AdminServicesPage,
@@ -71,6 +72,7 @@ function AppContent() {
           </Route>
 
           <Route element={<RoleGuard allowedRoles={['admin']} />}>
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/settings/business" element={<BusinessSettingsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/staff" element={<AdminStaffPage />} />

@@ -11,7 +11,7 @@ export interface RoutePolicy {
 export const roleHomeByRole: Record<AppRole, string> = {
   customer: '/dashboard',
   staff: '/staff/schedule',
-  admin: '/admin/users',
+  admin: '/admin/dashboard',
 }
 
 export const routePolicies: RoutePolicy[] = [
@@ -36,6 +36,7 @@ export const routePolicies: RoutePolicy[] = [
   { path: '/admin/staff/:staffId/services', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/services', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/services/:serviceId/availability', access: 'role-restricted', allowedRoles: ['admin'] },
+  { path: '/admin/dashboard', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/appointments', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/calendar', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/reports', access: 'role-restricted', allowedRoles: ['admin'] },

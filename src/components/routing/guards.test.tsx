@@ -97,7 +97,7 @@ describe('PublicOnlyGuard', () => {
             <Route element={<PublicOnlyGuard />}>
               <Route path="/signin" element={<div>Sign in page</div>} />
             </Route>
-            <Route path="/admin/users" element={<div>Admin Home</div>} />
+            <Route path="/admin/dashboard" element={<div>Admin Home</div>} />
           </Routes>
         </TestUserProvider>
       </MemoryRouter>,

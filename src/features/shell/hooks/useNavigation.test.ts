@@ -80,7 +80,7 @@ describe('useNavigation hook', () => {
     it('should not include admin-only routes for staff', () => {
       const { result } = renderHook(() => useNavigation('staff'))
 
-      const adminOnlyIds = ['users', 'services', 'reports']
+      const adminOnlyIds = ['users', 'services', 'admin-dashboard']
       const hasAdminRoutes = result.current.some(item =>
         adminOnlyIds.includes(item.id)
       )
@@ -91,7 +91,7 @@ describe('useNavigation hook', () => {
     it('should include admin-only routes for admin', () => {
       const { result } = renderHook(() => useNavigation('admin'))
 
-      const adminOnlyIds = ['users', 'services', 'reports']
+      const adminOnlyIds = ['users', 'services', 'admin-dashboard']
       const hasAllAdminRoutes = adminOnlyIds.every(id =>
         result.current.some(item => item.id === id)
       )
