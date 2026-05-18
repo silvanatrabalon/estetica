@@ -424,136 +424,36 @@ export function AdminServicesPage() {
 
   return (
     <>
-      <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Servicios</h1>
-        {formMode === null && (
-          <button
-            type="button"
-            onClick={openCreateForm}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-          >
-            Agregar servicio
-          </button>
-        )}
-      </div>
+      <div className="space-y-6">
+      <h1 className="font-heading text-2xl font-semibold text-shell-text">Servicios</h1>
 
       {errorMessage && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {errorMessage}
         </div>
       )}
 
       {successMessage && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">
           {successMessage}
         </div>
       )}
 
-      {/* ── Categorías ───────────────────────────────────────────── */}
-      <div className="mb-6 p-4 border border-gray-200 rounded-md bg-white">
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <h2 className="text-base font-medium text-gray-800 flex-shrink-0">Categorías</h2>
-          {!isCategoryFormOpen && !editingCategory && (
+      {/* ── Servicios ────────────────────────────────────────────── */}
+      <section className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-shell-border">
+          <h2 className="font-heading text-base font-semibold text-shell-text">Servicios</h2>
+          {formMode === null && (
             <button
               type="button"
-              onClick={() => { setIsCategoryFormOpen(true); setCategoryError(null); setCategorySuccess(null) }}
-              className="text-xs px-3 py-1.5 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 text-gray-700 font-medium whitespace-nowrap"
+              onClick={openCreateForm}
+              className="rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-strong transition-colors"
             >
-              + Nueva categoría
+              + Agregar servicio
             </button>
           )}
         </div>
-
-        {categoryError && (
-          <p className="mb-2 text-sm text-red-600">{categoryError}</p>
-        )}
-        {categorySuccess && (
-          <p className="mb-2 text-sm text-green-600">{categorySuccess}</p>
-        )}
-
-        {categories.length === 0 && !isCategoryFormOpen && (
-          <p className="text-sm text-gray-400 italic">Sin categorías todavía.</p>
-        )}
-
-        <div className="flex flex-wrap gap-2">
-          {categories.map((cat) =>
-            editingCategory?.id === cat.id ? (
-              <form
-                key={cat.id}
-                onSubmit={(e) => void handleUpdateCategory(e)}
-                className="flex flex-wrap items-center gap-2 w-full sm:w-auto"
-              >
-                <input
-                  autoFocus
-                  value={editCategoryName}
-                  onChange={(e) => setEditCategoryName(e.target.value)}
-                  className="flex-1 min-w-0 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <div className="flex gap-1">
-                  <button type="submit" className="text-xs px-2 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                    Guardar
-                  </button>
-                  <button type="button" onClick={() => setEditingCategory(null)} className="text-xs px-2 py-1 border border-gray-300 rounded-md hover:bg-gray-100">
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <span key={cat.id} className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 rounded-full text-sm text-gray-700">
-                {cat.name}
-                <button
-                  type="button"
-                  aria-label={`Editar ${cat.name}`}
-                  onClick={() => { setEditingCategory(cat); setEditCategoryName(cat.name); setCategoryError(null); setCategorySuccess(null) }}
-                  className="text-gray-400 hover:text-gray-700 ml-1 leading-none"
-                >
-                  ✏️
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Eliminar ${cat.name}`}
-                  onClick={() => void handleDeleteCategory(cat.id)}
-                  className="text-gray-400 hover:text-red-500 leading-none"
-                >
-                  ✕
-                </button>
-              </span>
-            )
-          )}
-        </div>
-
-        {isCategoryFormOpen && (
-          <form
-            onSubmit={(e) => void handleCreateCategory(e)}
-            className="flex flex-col sm:flex-row gap-2 mt-3"
-          >
-            <input
-              autoFocus
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="Nombre de la categoría..."
-              className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <div className="flex gap-2">
-              <button
-                type="submit"
-                disabled={isSavingCategory || !newCategoryName.trim()}
-                className="flex-1 sm:flex-none text-xs px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isSavingCategory ? 'Guardando...' : 'Crear'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setIsCategoryFormOpen(false); setNewCategoryName('') }}
-                className="flex-1 sm:flex-none text-xs px-4 py-1.5 border border-gray-300 rounded-md hover:bg-gray-100"
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
+        <div className="p-5">
 
       {formMode !== null && (
         <div ref={formRef} className="mb-6 p-4 border border-gray-200 rounded-md bg-gray-50">
@@ -930,6 +830,114 @@ export function AdminServicesPage() {
           </div>
         </>
       )}
+        </div>
+      </section>
+
+      {/* ── Categorías ────────────────────────────────────────────── */}
+      <section className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-shell-border">
+          <h2 className="font-heading text-base font-semibold text-shell-text">Categorías</h2>
+          {!isCategoryFormOpen && !editingCategory && (
+            <button
+              type="button"
+              onClick={() => { setIsCategoryFormOpen(true); setCategoryError(null); setCategorySuccess(null) }}
+              className="rounded-lg border border-shell-border px-3 py-1.5 text-xs font-medium text-shell-text hover:bg-shell-muted transition-colors"
+            >
+              + Nueva categoría
+            </button>
+          )}
+        </div>
+        <div className="p-5">
+          {categoryError && (
+            <p className="mb-2 text-sm text-red-600">{categoryError}</p>
+          )}
+          {categorySuccess && (
+            <p className="mb-2 text-sm text-emerald-600">{categorySuccess}</p>
+          )}
+
+          {categories.length === 0 && !isCategoryFormOpen && (
+            <p className="text-sm text-shell-subtleText italic">Sin categorías todavía.</p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {categories.map((cat) =>
+              editingCategory?.id === cat.id ? (
+                <form
+                  key={cat.id}
+                  onSubmit={(e) => void handleUpdateCategory(e)}
+                  className="flex flex-wrap items-center gap-2 w-full sm:w-auto"
+                >
+                  <input
+                    autoFocus
+                    value={editCategoryName}
+                    onChange={(e) => setEditCategoryName(e.target.value)}
+                    className="flex-1 min-w-0 rounded-lg border border-shell-border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
+                  />
+                  <div className="flex gap-1">
+                    <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-brand-primary text-white hover:bg-brand-strong">
+                      Guardar
+                    </button>
+                    <button type="button" onClick={() => setEditingCategory(null)} className="text-xs px-2 py-1 rounded-lg border border-shell-border hover:bg-shell-muted">
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <span key={cat.id} className="inline-flex items-center gap-1 px-3 py-1 bg-shell-muted rounded-full text-sm text-shell-text">
+                  {cat.name}
+                  <button
+                    type="button"
+                    aria-label={`Editar ${cat.name}`}
+                    onClick={() => { setEditingCategory(cat); setEditCategoryName(cat.name); setCategoryError(null); setCategorySuccess(null) }}
+                    className="text-shell-subtleText hover:text-shell-text ml-1 leading-none"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Eliminar ${cat.name}`}
+                    onClick={() => void handleDeleteCategory(cat.id)}
+                    className="text-shell-subtleText hover:text-red-500 leading-none"
+                  >
+                    ✕
+                  </button>
+                </span>
+              )
+            )}
+          </div>
+
+          {isCategoryFormOpen && (
+            <form
+              onSubmit={(e) => void handleCreateCategory(e)}
+              className="flex flex-col sm:flex-row gap-2 mt-3"
+            >
+              <input
+                autoFocus
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                placeholder="Nombre de la categoría..."
+                className="flex-1 rounded-lg border border-shell-border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
+              />
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={isSavingCategory || !newCategoryName.trim()}
+                  className="flex-1 sm:flex-none text-xs px-4 py-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-strong disabled:opacity-50"
+                >
+                  {isSavingCategory ? 'Guardando...' : 'Crear'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setIsCategoryFormOpen(false); setNewCategoryName('') }}
+                  className="flex-1 sm:flex-none text-xs px-4 py-1.5 rounded-lg border border-shell-border hover:bg-shell-muted"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </section>
     </div>
 
       <ConfirmModal
