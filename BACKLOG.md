@@ -1052,19 +1052,7 @@ No new tables. New DB function: `create_appointment`. New constraint: `excl_appo
 
 ---
 
-## Phase 10: Deployment & Ops
-
-### 35. Deployment Pipeline (Vercel + Supabase)
-**Description:** CI/CD setup, environment management, database migrations, production deployment.
-- [ ]
-
-### 36. Monitoring & Error Handling
-**Description:** Error tracking, performance monitoring, health checks, alerting.
-- [ ]
-
----
-
-## Phase 11: Landing Page & Customer Experience
+## Phase 10: Landing Page & Customer Experience
 
 ### 37. Public Business Landing Page
 **Description:** Implement a public-facing landing page at `/` that showcases the business to anyone — no login required. Visitors see a photo carousel, business info, services catalog, social links, business hours, and a "Reservar" CTA. Admins configure all content (copy, colors, fonts, images, social links) from a new admin settings panel. Visual style: pastel / wellness / spa-like, modern and responsive.
@@ -1278,15 +1266,6 @@ create table public.landing_carousel_images (
 
 ---
 
-## Summary
-
-**Total Features:** 35
-**Completed:** 25
-**In Progress:** 0
-**Pending:** 10
-
-**Current Phase:** Phase 7 (Advanced Features)
-**Next Feature:** #26 (Admin Dashboard) or #37 (Landing Page)
 
 ---
 

@@ -62,7 +62,7 @@ The system SHALL apply deterministic redirect behavior for sign-in and role-home
 
 #### Scenario: Role home mapping is applied
 - **WHEN** the system resolves role-home redirection
-- **THEN** it maps `customer` to `/dashboard`, `staff` to `/staff/schedule`, and `admin` to `/admin/users`
+- **THEN** it maps `customer` to `/dashboard`, `staff` to `/staff/schedule`, and `admin` to `/admin/dashboard`
 
 ### Requirement: Unauthorized and Not-Found Handling
 The system SHALL provide explicit handling for unauthorized access and unknown paths.
