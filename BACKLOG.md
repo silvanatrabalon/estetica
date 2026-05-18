@@ -293,18 +293,6 @@ Today `user_roles` enforces a single role per user (`user_id PRIMARY KEY`). An o
 
 - [x] `multi-role-users-role-at-login` (163ec00)
 
-### 13b. Fix: Role Switcher Excludes "Cliente" Role
-**Description:** When an admin assigns the `customer` role to a user who also has `staff` or `admin`, the "Cambiar modo" menu in the app shell does not show the `customer` option — only `staff` and `admin` appear. The user cannot switch to the customer experience without signing out.
-
-**Root Cause (suspected):** The `RoleSelector` or the "Cambiar modo" menu filters out `customer` from the switchable roles list, likely treating it as a non-switchable default role.
-
-**Scope:**
-- Show all assigned roles (including `customer`) in the "Cambiar modo" menu
-- Switching to `customer` active role must redirect to the customer home (`/dashboard`) and apply the customer navigation and route guards
-- No DB or RLS changes needed — this is a frontend context/navigation fix
-
-- [ ]
-
 ---
 
 ## Phase 4: Services & Products
@@ -1647,7 +1635,7 @@ create table public.landing_carousel_images (
 - Returns: `{ deletedUserId, cancelledAppointments: number }` on success; named error on auth failure
 - Frontend: `AdminUsersPage` calls via `supabase.functions.invoke('admin-delete-user', { body: { userId } })`
 
-- [x] `business-logic-backend-changes` (e747aac)
+- [ ] `business-logic-backend-changes`
 
 ---
 
