@@ -331,6 +331,13 @@ interface BusinessHourRow {
   closes_at: string | null
 }
 
+interface TodayClosureRow {
+  closureType: 'full_day' | 'half_day'
+  startsAt: string | null
+  endsAt: string | null
+  reason: string | null
+}
+
 const DAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
 function formatTime(t: string | null): string {
@@ -342,11 +349,13 @@ function formatTime(t: string | null): string {
 interface HoursSectionProps {
   showHours: boolean
   hours: BusinessHourRow[]
+  todayClosure: TodayClosureRow | null
 }
 
-function HoursSection({ showHours, hours }: HoursSectionProps) {
+function HoursSection({ showHours, hours, todayClosure }: HoursSectionProps) {
   if (!showHours) return null
 
+  const todayDow = new Date().getDay()
   const sorted = [...hours].sort((a, b) => a.day_of_week - b.day_of_week)
 
   return (
@@ -355,25 +364,51 @@ function HoursSection({ showHours, hours }: HoursSectionProps) {
         <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Horarios</h2>
         <div className="w-10 h-0.5 mx-auto rounded-full" style={{ backgroundColor: 'var(--lp-primary)' }} />
       </div>
+      {todayClosure && (
+        <div
+          className="mb-4 rounded-xl px-5 py-4 border text-sm"
+          style={{ backgroundColor: 'var(--lp-secondary)', borderColor: 'var(--lp-primary)' }}
+        >
+          <p className="font-semibold text-gray-800">
+            {todayClosure.closureType === 'full_day'
+              ? 'Hoy el negocio está cerrado'
+              : `Hoy hay cierre parcial: ${formatTime(todayClosure.startsAt)} – ${formatTime(todayClosure.endsAt)}`}
+          </p>
+          {todayClosure.reason && (
+            <p className="mt-0.5 text-gray-600">{todayClosure.reason}</p>
+          )}
+        </div>
+      )}
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
-        {sorted.map((h) => (
-          <div
-            key={h.id}
-            className={`flex justify-between items-center px-6 py-4 border-b border-gray-100 last:border-b-0 ${
-              h.is_closed ? 'opacity-50' : ''
-            }`}
-          >
-            <span className={`font-medium ${ h.is_closed ? 'text-gray-400' : 'text-gray-700'}`}>
-              {DAY_LABELS[h.day_of_week]}
-            </span>
-            <span
-              className={`text-sm font-medium ${ h.is_closed ? 'text-gray-400 italic' : ''}`}
-              style={h.is_closed ? {} : { color: 'var(--lp-primary)' }}
+        {sorted.map((h) => {
+          const isToday = h.day_of_week === todayDow
+          return (
+            <div
+              key={h.id}
+              className={`flex justify-between items-center px-6 py-4 border-b border-gray-100 last:border-b-0 ${
+                h.is_closed ? 'opacity-50' : ''
+              }`}
             >
-              {h.is_closed ? 'Cerrado' : `${formatTime(h.opens_at)} – ${formatTime(h.closes_at)}`}
-            </span>
-          </div>
-        ))}
+              <span className={`font-medium flex items-center gap-2 ${h.is_closed ? 'text-gray-400' : 'text-gray-700'}`}>
+                {DAY_LABELS[h.day_of_week]}
+                {isToday && (
+                  <span
+                    className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded text-white"
+                    style={{ backgroundColor: 'var(--lp-primary)' }}
+                  >
+                    hoy
+                  </span>
+                )}
+              </span>
+              <span
+                className={`text-sm font-medium ${h.is_closed ? 'text-gray-400 italic' : ''}`}
+                style={h.is_closed ? {} : { color: 'var(--lp-primary)' }}
+              >
+                {h.is_closed ? 'Cerrado' : `${formatTime(h.opens_at)} – ${formatTime(h.closes_at)}`}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </section>
   )
@@ -483,6 +518,7 @@ export function LandingPage() {
   const [loadingConfig, setLoadingConfig] = useState(true)
   const [loadingServices, setLoadingServices] = useState(true)
   const [categories, setCategories] = useState<ServiceCategory[]>([])
+  const [todayClosure, setTodayClosure] = useState<TodayClosureRow | null>(null)
 
   const isAuthenticated = !!user
   const isCustomer = activeRole === 'customer'
@@ -572,6 +608,25 @@ export function LandingPage() {
         if (!cancelled) setHours((data ?? []) as BusinessHourRow[])
       })
 
+    // Fetch today's closure exception (anon-safe)
+    const todayDate = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local timezone
+    supabase
+      .from('business_closure_exceptions')
+      .select('closure_type, starts_at, ends_at, reason')
+      .eq('closure_date', todayDate)
+      .limit(1)
+      .then(({ data }) => {
+        if (!cancelled && data && data.length > 0) {
+          const row = data[0]
+          setTodayClosure({
+            closureType: row.closure_type as 'full_day' | 'half_day',
+            startsAt: row.starts_at,
+            endsAt: row.ends_at,
+            reason: row.reason,
+          })
+        }
+      })
+
     return () => { cancelled = true }
   }, [])
 
@@ -645,7 +700,7 @@ export function LandingPage() {
         primaryColor={effectiveConfig.primaryColor}
       />
       <AboutSection aboutText={effectiveConfig.aboutText} />
-      <HoursSection showHours={effectiveConfig.showHours} hours={hours} />
+      <HoursSection showHours={effectiveConfig.showHours} hours={hours} todayClosure={todayClosure} />
       <ContactFooter
         instagramUrl={effectiveConfig.instagramUrl}
       />
