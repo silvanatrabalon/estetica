@@ -56,14 +56,17 @@ export function ExceptionDateForm({ isSaving, onAdd }: ExceptionDateFormProps) {
   return (
     <form
       onSubmit={(e) => void handleSubmit(e)}
-      className="p-4 border border-gray-200 rounded-md bg-gray-50"
+      className="rounded-2xl border border-shell-border bg-shell-muted/30 p-4"
       noValidate
     >
-      <h3 className="text-sm font-medium text-gray-800 mb-3">Agregar excepción</h3>
+      <h3 className="text-sm font-semibold text-shell-text mb-4 flex items-center gap-2">
+        <span className="w-5 h-5 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">+</span>
+        Agregar excepción
+      </h3>
 
-      <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label htmlFor="exception-date" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="exception-date" className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide">
             Fecha
           </label>
           <input
@@ -72,13 +75,13 @@ export function ExceptionDateForm({ isSaving, onAdd }: ExceptionDateFormProps) {
             value={exceptionDate}
             onChange={(e) => setExceptionDate(e.target.value)}
             disabled={isSaving}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
           />
-          {dateError && <p className="mt-1 text-xs text-red-600">{dateError}</p>}
+          {dateError && <p className="mt-1.5 text-xs text-red-500">{dateError}</p>}
         </div>
 
         <div>
-          <label htmlFor="exception-type" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="exception-type" className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide">
             Tipo
           </label>
           <Select
@@ -86,7 +89,7 @@ export function ExceptionDateForm({ isSaving, onAdd }: ExceptionDateFormProps) {
             value={exceptionType}
             onChange={(e) => setExceptionType(e.target.value as StaffExceptionType)}
             disabled={isSaving}
-            className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
           >
             <option value="day_off">Día libre</option>
             <option value="custom_hours">Horario especial</option>
@@ -94,8 +97,8 @@ export function ExceptionDateForm({ isSaving, onAdd }: ExceptionDateFormProps) {
         </div>
 
         {exceptionType === 'custom_hours' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Horario</label>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide">Horario</label>
             <TimeRangeInput
               startsAt={startsAt}
               endsAt={endsAt}
@@ -107,9 +110,9 @@ export function ExceptionDateForm({ isSaving, onAdd }: ExceptionDateFormProps) {
           </div>
         )}
 
-        <div>
-          <label htmlFor="exception-reason" className="block text-sm font-medium text-gray-700 mb-1">
-            Motivo (opcional)
+        <div className="sm:col-span-2">
+          <label htmlFor="exception-reason" className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide">
+            Motivo <span className="normal-case font-normal">(opcional)</span>
           </label>
           <input
             id="exception-reason"
@@ -118,15 +121,15 @@ export function ExceptionDateForm({ isSaving, onAdd }: ExceptionDateFormProps) {
             onChange={(e) => setReason(e.target.value)}
             disabled={isSaving}
             placeholder="Ej: Vacaciones, feriado, etc."
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
           />
         </div>
 
-        <div>
+        <div className="sm:col-span-2 flex justify-end">
           <button
             type="submit"
             disabled={isSaving}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+            className="px-5 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 active:bg-teal-800 text-sm font-semibold disabled:opacity-50 transition-colors shadow-sm"
           >
             {isSaving ? 'Guardando...' : '+ Agregar excepción'}
           </button>

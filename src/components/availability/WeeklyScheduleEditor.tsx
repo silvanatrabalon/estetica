@@ -77,7 +77,7 @@ export function WeeklyScheduleEditor({
 
   return (
     <div>
-      <div className="bg-white border border-gray-200 rounded-md divide-y divide-gray-100">
+      <div className="rounded-2xl border border-shell-border overflow-hidden divide-y divide-shell-border">
         {draft.map((day) => (
           <DayScheduleRow
             key={day.day_of_week}
@@ -100,12 +100,12 @@ export function WeeklyScheduleEditor({
         ))}
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 flex justify-end">
         <button
           type="button"
           onClick={handleSave}
           disabled={isSaving}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
+          className="px-5 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 active:bg-teal-800 text-sm font-semibold disabled:opacity-50 transition-colors shadow-sm"
         >
           {isSaving ? 'Guardando...' : 'Guardar horario'}
         </button>

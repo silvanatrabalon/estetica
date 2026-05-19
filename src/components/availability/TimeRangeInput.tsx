@@ -26,27 +26,33 @@ export function TimeRangeInput({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <input
-          type="time"
-          value={startsAt}
-          onChange={handleStartsAtChange}
-          disabled={disabled}
-          aria-label="Hora de inicio"
-          className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        />
-        <span className="text-sm text-gray-500">–</span>
-        <input
-          type="time"
-          value={endsAt}
-          onChange={handleEndsAtChange}
-          disabled={disabled}
-          aria-label="Hora de fin"
-          className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-        />
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-shell-subtleText font-medium">Desde</label>
+          <input
+            type="time"
+            value={startsAt}
+            onChange={handleStartsAtChange}
+            disabled={disabled}
+            aria-label="Hora de inicio"
+            className="border border-shell-border rounded-lg px-2.5 py-1.5 text-sm font-medium text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
+          />
+        </div>
+        <span className="text-sm text-shell-subtleText">–</span>
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs text-shell-subtleText font-medium">Hasta</label>
+          <input
+            type="time"
+            value={endsAt}
+            onChange={handleEndsAtChange}
+            disabled={disabled}
+            aria-label="Hora de fin"
+            className="border border-shell-border rounded-lg px-2.5 py-1.5 text-sm font-medium text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
+          />
+        </div>
       </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-500 mt-0.5">{error}</p>}
     </div>
   )
 }
