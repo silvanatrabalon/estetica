@@ -131,23 +131,28 @@ function HeroSection({ config, isCustomer, isAuthenticated, activeRole }: HeroSe
   const showCTA = !isAuthenticated || isCustomer || activeRole === null
 
   return (
-    <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
+    <section className="relative min-h-[75vh] flex items-center justify-center overflow-hidden">
       <Carousel images={config.carouselImages} primaryColor={config.primaryColor} />
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/40" aria-hidden />
+      {/* Cinematic gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/45 to-black/65" aria-hidden />
       {/* Content */}
       <div className="relative z-10 text-center text-white px-6 max-w-2xl mx-auto">
-        <h1 className="text-4xl sm:text-5xl font-bold mb-4 drop-shadow-lg">
+        {/* Decorative eyebrow */}
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <span className="block w-8 h-px bg-white/50" />
+          <span className="text-[10px] sm:text-xs tracking-[0.35em] uppercase text-white/75 font-light">Bienvenida</span>
+          <span className="block w-8 h-px bg-white/50" />
+        </div>
+        <h1 className="text-4xl sm:text-6xl font-bold mb-5 leading-tight drop-shadow-lg tracking-tight">
           {config.heroTitle ?? 'Bienvenida a nuestro espacio'}
         </h1>
-        <p className="text-lg sm:text-xl mb-8 drop-shadow-md opacity-90">
+        <p className="text-base sm:text-lg mb-10 drop-shadow-md text-white/85 font-light tracking-wide max-w-md mx-auto">
           {config.heroSubtitle ?? 'Tu lugar de bienestar y belleza'}
         </p>
         {showCTA && (
           <Link
             to={ctaHref}
-            className="inline-block px-8 py-3 rounded-full text-white font-semibold shadow-lg hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: 'var(--lp-primary)' }}
+            className="inline-block px-10 py-3.5 rounded-full text-sm font-semibold tracking-wider uppercase border-2 border-white text-white hover:bg-white hover:text-gray-900 transition-all duration-300"
           >
             Reservar turno
           </Link>
@@ -168,26 +173,28 @@ interface ServiceCardProps {
 
 function ServiceCard({ service, primaryColor }: ServiceCardProps) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-pink-100 flex flex-col">
-      {service.imageUrl ? (
-        <img
-          src={service.imageUrl}
-          alt={service.name}
-          className="w-full h-40 object-cover"
-        />
-      ) : (
-        <div
-          className="w-full h-40 flex items-center justify-center text-white text-4xl font-bold"
-          style={{ backgroundColor: primaryColor }}
-          aria-hidden
-        >
-          {service.name.charAt(0).toUpperCase()}
-        </div>
-      )}
-      <div className="p-4 flex flex-col gap-1 flex-1">
-        <h3 className="font-semibold text-gray-800">{service.name}</h3>
-        <p className="text-sm text-gray-500">{service.durationMinutes} min</p>
-        <p className="font-bold mt-auto" style={{ color: 'var(--lp-primary)' }}>
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg group">
+      <div className="overflow-hidden">
+        {service.imageUrl ? (
+          <img
+            src={service.imageUrl}
+            alt={service.name}
+            className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div
+            className="w-full h-44 flex items-center justify-center text-white text-4xl font-light"
+            style={{ backgroundColor: primaryColor }}
+            aria-hidden
+          >
+            {service.name.charAt(0).toUpperCase()}
+          </div>
+        )}
+      </div>
+      <div className="p-5 flex flex-col gap-1.5 flex-1">
+        <h3 className="font-semibold text-gray-800 leading-snug">{service.name}</h3>
+        <p className="text-xs text-gray-400 uppercase tracking-wider">{service.durationMinutes} min</p>
+        <p className="font-bold text-sm mt-auto pt-2" style={{ color: primaryColor }}>
           {formatPriceARS(service.priceCents)}
         </p>
       </div>
@@ -224,8 +231,11 @@ function ServicesSection({ services, categories, loading, primaryColor }: Servic
   }
 
   return (
-    <section className="py-16 px-6 max-w-5xl mx-auto" id="servicios">
-      <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">Nuestros servicios</h2>
+    <section className="py-20 px-6 max-w-5xl mx-auto" id="servicios">
+      <div className="text-center mb-10">
+        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Nuestros servicios</h2>
+        <div className="w-10 h-0.5 mx-auto rounded-full" style={{ backgroundColor: 'var(--lp-primary)' }} />
+      </div>
       {loading && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
           {[...Array(3)].map((_, i) => (
@@ -295,13 +305,15 @@ function AboutSection({ aboutText }: AboutSectionProps) {
 
   return (
     <section
-      className="py-16 px-6"
+      className="py-20 px-6"
       style={{ backgroundColor: 'var(--lp-secondary)' }}
       id="nosotros"
     >
       <div className="max-w-2xl mx-auto text-center">
-        <h2 className="text-3xl font-bold mb-6 text-gray-800">Sobre nosotros</h2>
-        <p className="text-gray-700 leading-relaxed whitespace-pre-line">{aboutText}</p>
+        <h2 className="text-3xl sm:text-4xl font-bold mb-3 text-gray-800">Sobre nosotros</h2>
+        <div className="w-10 h-0.5 mx-auto rounded-full bg-gray-400/50 mb-8" />
+        <p className="text-6xl leading-none font-serif select-none opacity-20 text-gray-600 -mb-2">&ldquo;</p>
+        <p className="text-gray-700 leading-relaxed whitespace-pre-line text-lg">{aboutText}</p>
       </div>
     </section>
   )
@@ -338,16 +350,26 @@ function HoursSection({ showHours, hours }: HoursSectionProps) {
   const sorted = [...hours].sort((a, b) => a.day_of_week - b.day_of_week)
 
   return (
-    <section className="py-16 px-6 max-w-xl mx-auto" id="horarios">
-      <h2 className="text-3xl font-bold text-center mb-8 text-gray-800">Horarios</h2>
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-pink-100">
+    <section className="py-20 px-6 max-w-xl mx-auto" id="horarios">
+      <div className="text-center mb-8">
+        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Horarios</h2>
+        <div className="w-10 h-0.5 mx-auto rounded-full" style={{ backgroundColor: 'var(--lp-primary)' }} />
+      </div>
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
         {sorted.map((h) => (
           <div
             key={h.id}
-            className="flex justify-between items-center px-6 py-3 border-b border-gray-100 last:border-b-0"
+            className={`flex justify-between items-center px-6 py-4 border-b border-gray-100 last:border-b-0 ${
+              h.is_closed ? 'opacity-50' : ''
+            }`}
           >
-            <span className="font-medium text-gray-700">{DAY_LABELS[h.day_of_week]}</span>
-            <span className="text-gray-500 text-sm">
+            <span className={`font-medium ${ h.is_closed ? 'text-gray-400' : 'text-gray-700'}`}>
+              {DAY_LABELS[h.day_of_week]}
+            </span>
+            <span
+              className={`text-sm font-medium ${ h.is_closed ? 'text-gray-400 italic' : ''}`}
+              style={h.is_closed ? {} : { color: 'var(--lp-primary)' }}
+            >
               {h.is_closed ? 'Cerrado' : `${formatTime(h.opens_at)} – ${formatTime(h.closes_at)}`}
             </span>
           </div>
@@ -398,42 +420,53 @@ interface ContactFooterProps {
 function ContactFooter({ instagramUrl }: ContactFooterProps) {
   return (
     <footer
-      className="py-12 px-6 text-center"
+      className="py-16 px-6"
       style={{ backgroundColor: 'var(--lp-primary)' }}
       id="contacto"
     >
-      <h2 className="text-2xl font-bold text-white mb-6">Contacto</h2>
-      <div className="flex flex-row items-center justify-center gap-4">
-        {instagramUrl && (
+      <div className="max-w-sm mx-auto text-center">
+        <div className="w-10 h-px bg-white/40 mx-auto mb-8" />
+        <h2 className="text-2xl font-bold text-white mb-1">Contacto</h2>
+        <p className="text-white/65 text-sm mb-8">Estamos para vos</p>
+        <div className="flex flex-row items-center justify-center gap-8 mb-10">
+          {instagramUrl && (
+            <a
+              href={instagramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+              className="group inline-flex flex-col items-center gap-2"
+            >
+              <span className="inline-flex items-center justify-center bg-white/20 border border-white/30 text-white w-12 h-12 rounded-full group-hover:bg-white group-hover:text-gray-800 transition-all duration-300">
+                <InstagramIcon />
+              </span>
+              <span className="text-[11px] text-white/65 group-hover:text-white/90 transition-colors tracking-wide">Instagram</span>
+            </a>
+          )}
           <a
-            href={instagramUrl}
+            href="https://w.app/bfs0ip"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Instagram"
-            className="inline-flex items-center justify-center bg-white text-gray-800 w-10 h-10 rounded-full hover:opacity-90 transition-opacity"
+            aria-label="WhatsApp"
+            className="group inline-flex flex-col items-center gap-2"
           >
-            <InstagramIcon />
+            <span className="inline-flex items-center justify-center bg-white/20 border border-white/30 text-white w-12 h-12 rounded-full group-hover:bg-white group-hover:text-gray-800 transition-all duration-300">
+              <WhatsAppIcon />
+            </span>
+            <span className="text-[11px] text-white/65 group-hover:text-white/90 transition-colors tracking-wide">WhatsApp</span>
           </a>
-        )}
-        <a
-          href="https://w.app/bfs0ip"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="WhatsApp"
-          className="inline-flex items-center justify-center bg-white text-gray-800 w-10 h-10 rounded-full hover:opacity-90 transition-opacity"
-        >
-          <WhatsAppIcon />
-        </a>
+        </div>
+        <div className="w-10 h-px bg-white/25 mx-auto mb-6" />
+        <p className="text-xs text-white/50">
+          © 2026{' '}
+          <a
+            href="mailto:silvana.trabalon@gmail.com"
+            className="underline underline-offset-2 hover:text-white/80 transition-colors"
+          >
+            Software Queen
+          </a>
+        </p>
       </div>
-      <p className="mt-8 text-sm text-white/70">
-        © 2026{' '}
-        <a
-          href="mailto:silvana.trabalon@gmail.com"
-          className="underline hover:text-white transition-colors"
-        >
-          Software Queen
-        </a>
-      </p>
     </footer>
   )
 }
