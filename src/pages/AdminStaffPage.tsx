@@ -13,6 +13,115 @@ import { Select } from '../components/Select'
 
 type FormMode = 'create' | 'edit' | null
 
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .slice(0, 2)
+    .map((n) => n[0] ?? '')
+    .join('')
+    .toUpperCase()
+}
+
+interface StaffMemberCardProps {
+  member: AdminStaffMember
+  onEdit: (member: AdminStaffMember) => void
+  onToggleActive: (member: AdminStaffMember) => void
+  onNavigate: (path: string) => void
+}
+
+function StaffMemberCard({ member, onEdit, onToggleActive, onNavigate }: StaffMemberCardProps) {
+  const initials = getInitials(member.displayName)
+  const roleLabel =
+    member.role === 'admin' ? 'Admin' : member.role === 'staff' ? 'Staff' : 'Cliente'
+
+  return (
+    <div
+      className={`shell-surface rounded-2xl border shadow-sm overflow-hidden transition-opacity ${
+        !member.isActive ? 'opacity-60' : ''
+      }`}
+    >
+      <div className="p-4 flex items-start gap-3.5">
+        {/* Avatar */}
+        <div
+          className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-heading font-bold text-sm select-none ${
+            member.isActive
+              ? 'bg-teal-100 text-teal-700'
+              : 'bg-gray-100 text-gray-500'
+          }`}
+        >
+          {initials}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            <div className="min-w-0">
+              <p className="font-heading font-semibold text-shell-text leading-tight">
+                {member.displayName}
+              </p>
+              {member.fullName && (
+                <p className="text-xs text-shell-subtleText mt-0.5 truncate">
+                  {member.fullName}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+              <span
+                className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  member.isActive
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {member.isActive ? 'Activo' : 'Inactivo'}
+              </span>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">
+                {roleLabel}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="px-4 pb-4 flex flex-wrap gap-2 border-t border-shell-border pt-3">
+        <button
+          type="button"
+          onClick={() => onEdit(member)}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-shell-border text-shell-subtleText hover:bg-shell-muted hover:text-shell-text transition-colors"
+        >
+          Editar
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate(`/admin/staff/${member.id}/availability`)}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-shell-border text-shell-subtleText hover:bg-shell-muted hover:text-shell-text transition-colors"
+        >
+          Disponibilidad
+        </button>
+        <button
+          type="button"
+          onClick={() => onNavigate(`/admin/staff/${member.id}/services`)}
+          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-shell-border text-shell-subtleText hover:bg-shell-muted hover:text-shell-text transition-colors"
+        >
+          Servicios
+        </button>
+        <button
+          type="button"
+          onClick={() => onToggleActive(member)}
+          className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+            member.isActive
+              ? 'border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700'
+              : 'border border-teal-200 text-teal-600 hover:bg-teal-50 hover:text-teal-800'
+          }`}
+        >
+          {member.isActive ? 'Desactivar' : 'Reactivar'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function validateDisplayName(value: string): string | null {
   const trimmed = value.trim()
   if (trimmed.length < 2) {
@@ -30,7 +139,6 @@ export function AdminStaffPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const [formMode, setFormMode] = useState<FormMode>(null)
-  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null)
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -169,245 +277,194 @@ export function AdminStaffPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <p className="text-gray-500">Cargando profesionales...</p>
+      <div className="space-y-3 max-w-3xl">
+        <div className="h-8 w-48 rounded-xl bg-shell-muted animate-pulse" />
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="shell-surface rounded-2xl border shadow-sm p-4 flex gap-3.5">
+            <div className="w-11 h-11 rounded-full bg-shell-muted animate-pulse shrink-0" />
+            <div className="flex-1 space-y-2 pt-1">
+              <div className="h-4 w-36 rounded bg-shell-muted animate-pulse" />
+              <div className="h-3 w-24 rounded bg-shell-muted animate-pulse" />
+            </div>
+          </div>
+        ))}
       </div>
     )
   }
 
   return (
     <>
-      <div className="p-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Profesionales</h1>
-        {formMode === null && (
-          <button
-            type="button"
-            onClick={openCreateForm}
-            className="hidden md:flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
-          >
-            Agregar profesional
-          </button>
-        )}
-      </div>
-
-      {errorMessage && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-          {errorMessage}
-        </div>
-      )}
-
-      {successMessage && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700 text-sm">
-          {successMessage}
-        </div>
-      )}
-
-      {formMode !== null && (
-        <div className="mb-6 p-4 border border-gray-200 rounded-md bg-gray-50">
-          <h2 className="text-lg font-medium text-gray-800 mb-4">
-            {formMode === 'create' ? 'Nuevo profesional' : 'Editar profesional'}
-          </h2>
-          <form onSubmit={(e) => void handleFormSubmit(e)} noValidate>
-            {formMode === 'create' && (
-              <div className="mb-4">
-                <label htmlFor="staff-user-select" className="block text-sm font-medium text-gray-700 mb-1">
-                  Usuario vinculado
-                </label>
-                {availableUsers.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    No hay usuarios disponibles para vincular. Todos los usuarios existentes ya tienen un profesional asignado.
-                  </p>
-                ) : (
-                  <Select
-                    id="staff-user-select"
-                    value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Seleccioná un usuario</option>
-                    {availableUsers.map((u) => (
-                      <option key={u.userId} value={u.userId}>
-                        {u.name || u.email || u.userId}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </div>
+      <div className="space-y-5 max-w-3xl">
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h1 className="font-heading text-2xl font-semibold text-shell-text">Profesionales</h1>
+            {staffMembers.length > 0 && (
+              <p className="text-sm text-shell-subtleText mt-0.5">
+                {staffMembers.length} {staffMembers.length === 1 ? 'profesional' : 'profesionales'}
+              </p>
             )}
-
-            <div className="mb-4">
-              <label htmlFor="staff-display-name" className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre para mostrar
-              </label>
-              <input
-                id="staff-display-name"
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ej: María González"
-              />
-              {displayNameError && (
-                <p className="mt-1 text-sm text-red-600">{displayNameError}</p>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
-              >
-                {isSaving ? 'Guardando...' : 'Guardar'}
-              </button>
-              <button
-                type="button"
-                onClick={closeForm}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
-              >
-                Cancelar
-              </button>
-            </div>
-          </form>
+          </div>
+          {formMode === null && (
+            <button
+              type="button"
+              onClick={openCreateForm}
+              className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 active:bg-teal-800 text-sm font-semibold shadow-sm transition-colors shrink-0"
+            >
+              + Agregar profesional
+            </button>
+          )}
         </div>
-      )}
 
-      {staffMembers.length === 0 && formMode === null ? (
-        <div className="text-center py-12 text-gray-500">
-          <p className="text-lg mb-2">No hay profesionales registrados todavía.</p>
-          <p className="text-sm">Usá el botón &quot;Agregar profesional&quot; para crear el primero.</p>
-        </div>
-      ) : (
-        <>
-          {/* Mobile list — shown only on small screens */}
-          <div className="md:hidden divide-y divide-gray-100 rounded-lg border border-gray-200">
-            {staffMembers.map((member) => (
-              <div key={member.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedStaffId(selectedStaffId === member.id ? null : member.id)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
-                >
-                  <span className="font-medium text-gray-900 text-sm">{member.displayName}</span>
-                  <span className="text-gray-400 text-xs">{selectedStaffId === member.id ? '▲' : '▼'}</span>
-                </button>
-                {selectedStaffId === member.id && (
-                  <div className="px-4 pb-4 space-y-3 bg-gray-50">
-                    <p className="text-xs text-gray-500">
-                      Cuenta: <span className="text-gray-700">{member.fullName ?? '—'}</span>
-                    </p>
-                    <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {member.role === 'admin' ? 'Administrador' : member.role === 'staff' ? 'Staff' : 'Cliente'}
-                    </span>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button type="button" onClick={() => openEditForm(member)} className="text-blue-600 text-xs font-medium hover:underline">
-                        Editar
-                      </button>
-                      <button type="button" onClick={() => navigate(`/admin/staff/${member.id}/availability`)} className="text-blue-600 text-xs font-medium hover:underline">
-                        Disponibilidad
-                      </button>
-                      <button type="button" onClick={() => navigate(`/admin/staff/${member.id}/services`)} className="text-blue-600 text-xs font-medium hover:underline">
-                        Servicios
-                      </button>
-                      <button type="button" onClick={() => handleToggleActive(member)} className="text-gray-600 text-xs font-medium hover:underline">
-                        {member.isActive ? 'Desactivar' : 'Reactivar'}
-                      </button>
-                    </div>
+        {/* Feedback messages */}
+        {errorMessage && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+            <span className="shrink-0 mt-0.5">⚠️</span>
+            <span>{errorMessage}</span>
+          </div>
+        )}
+        {successMessage && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 flex items-start gap-2">
+            <span className="shrink-0 mt-0.5">✓</span>
+            <span>{successMessage}</span>
+          </div>
+        )}
+
+        {/* Create / Edit form */}
+        {formMode !== null && (
+          <section className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-shell-border bg-shell-muted/20">
+              <h2 className="font-heading text-base font-semibold text-shell-text">
+                {formMode === 'create' ? 'Nuevo profesional' : 'Editar profesional'}
+              </h2>
+            </div>
+            <div className="p-5">
+              <form onSubmit={(e) => void handleFormSubmit(e)} noValidate className="space-y-4">
+                {formMode === 'create' && (
+                  <div>
+                    <label
+                      htmlFor="staff-user-select"
+                      className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide"
+                    >
+                      Usuario vinculado
+                    </label>
+                    {availableUsers.length === 0 ? (
+                      <p className="text-sm text-shell-subtleText">
+                        No hay usuarios disponibles. Todos los usuarios ya tienen un profesional
+                        asignado.
+                      </p>
+                    ) : (
+                      <Select
+                        id="staff-user-select"
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="">Seleccioná un usuario</option>
+                        {availableUsers.map((u) => (
+                          <option key={u.userId} value={u.userId}>
+                            {u.name || u.email || u.userId}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
                   </div>
                 )}
-              </div>
+
+                <div>
+                  <label
+                    htmlFor="staff-display-name"
+                    className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide"
+                  >
+                    Nombre para mostrar
+                  </label>
+                  <input
+                    id="staff-display-name"
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                    placeholder="Ej: María González"
+                  />
+                  {displayNameError && (
+                    <p className="mt-1.5 text-xs text-red-500">{displayNameError}</p>
+                  )}
+                </div>
+
+                <div className="flex gap-3 justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={closeForm}
+                    className="px-4 py-2 border border-shell-border rounded-xl text-sm font-medium text-shell-subtleText hover:bg-shell-muted transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="px-5 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-semibold disabled:opacity-50 transition-colors shadow-sm"
+                  >
+                    {isSaving ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        )}
+
+        {/* Staff cards */}
+        {staffMembers.length === 0 && formMode === null ? (
+          <div className="shell-surface rounded-2xl border shadow-sm text-center py-16 px-6">
+            <div className="w-14 h-14 rounded-full bg-shell-muted flex items-center justify-center mx-auto mb-4 text-xl">
+              👤
+            </div>
+            <p className="font-heading text-base font-semibold text-shell-text mb-1">
+              Sin profesionales registrados
+            </p>
+            <p className="text-sm text-shell-subtleText mb-5">
+              Creá el primero para comenzar a gestionar la agenda del equipo.
+            </p>
+            <button
+              type="button"
+              onClick={openCreateForm}
+              className="px-5 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-semibold transition-colors shadow-sm"
+            >
+              + Agregar profesional
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {staffMembers.map((member) => (
+              <StaffMemberCard
+                key={member.id}
+                member={member}
+                onEdit={openEditForm}
+                onToggleActive={handleToggleActive}
+                onNavigate={navigate}
+              />
             ))}
           </div>
+        )}
 
-          {/* Desktop table — hidden on small screens */}
-          <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-gray-200 text-left text-gray-600">
-                <th className="pb-3 pr-4 font-medium">Nombre visible</th>
-                <th className="pb-3 pr-4 font-medium">Cuenta</th>
-                <th className="pb-3 pr-4 font-medium">Rol</th>
-                <th className="pb-3 pr-4 font-medium">Estado</th>
-                <th className="pb-3 font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {staffMembers.map((member) => (
-                <tr key={member.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 pr-4 font-medium text-gray-900">{member.displayName}</td>
-                  <td className="py-3 pr-4 text-gray-600">{member.fullName ?? '—'}</td>
-                  <td className="py-3 pr-4">
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                      {member.role === 'admin' ? 'Administrador' : member.role === 'staff' ? 'Staff' : 'Cliente'}
-                    </span>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        member.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
-                      {member.isActive ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEditForm(member)}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/admin/staff/${member.id}/availability`)}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                      >
-                        Disponibilidad
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/admin/staff/${member.id}/services`)}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                      >
-                        Servicios
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(member)}
-                        className="text-gray-600 hover:text-gray-800 text-xs font-medium"
-                      >
-                        {member.isActive ? 'Desactivar' : 'Reactivar'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="mt-4 text-xs text-gray-400">
-            Nota: desactivar un profesional no revoca su acceso a la aplicación. Para revocar el acceso, gestioná el usuario desde el panel de usuarios.
-          </p>
-          </div>
-        </>
-      )}
-    </div>
+        <p className="text-xs text-shell-subtleText pb-2">
+          Nota: desactivar un profesional no revoca su acceso a la aplicación. Gestioná el acceso
+          desde el panel de usuarios.
+        </p>
+      </div>
+
       {/* Mobile FAB */}
       {formMode === null && (
         <button
           type="button"
           onClick={openCreateForm}
-          className="fixed bottom-4 right-4 z-50 md:hidden flex items-center gap-1.5 px-4 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 text-sm font-semibold"
+          className="fixed bottom-6 right-6 z-50 sm:hidden flex items-center gap-1.5 px-5 py-3 bg-teal-600 text-white rounded-full shadow-lg hover:bg-teal-700 text-sm font-semibold transition-colors"
           aria-label="Agregar profesional"
         >
           + Agregar
         </button>
       )}
+
       <ConfirmModal
         isOpen={confirmState.isOpen}
         title={confirmState.title}
