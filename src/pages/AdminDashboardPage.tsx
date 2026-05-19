@@ -15,22 +15,6 @@ function formatARS(cents: number): string {
   }).format(cents / 100)
 }
 
-// ── Status helpers ────────────────────────────────────────────────────────────
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  confirmed: 'Confirmado',
-  cancelled: 'Cancelado',
-  completed: 'Completado',
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-700',
-  completed: 'bg-blue-100 text-blue-800',
-}
-
 // ── Analytics breakdown ───────────────────────────────────────────────────────
 
 const ANALYTICS_STATUSES = [
@@ -39,6 +23,20 @@ const ANALYTICS_STATUSES = [
   { key: 'cancelled' as const, label: 'Cancelado' },
   { key: 'completed' as const, label: 'Completado' },
 ]
+
+const STATUS_BAR_COLORS: Record<string, string> = {
+  confirmed: 'bg-emerald-500',
+  pending: 'bg-amber-400',
+  cancelled: 'bg-red-400',
+  completed: 'bg-teal-500',
+}
+
+const STATUS_DOT_COLORS: Record<string, string> = {
+  confirmed: 'bg-emerald-500',
+  pending: 'bg-amber-400',
+  cancelled: 'bg-red-400',
+  completed: 'bg-teal-500',
+}
 
 type RangePreset = 'today' | 'last_month' | 'last_6_months' | 'last_year'
 
@@ -73,6 +71,67 @@ function getPresetRange(preset: RangePreset): { dateFrom: string; dateTo: string
   return { dateFrom: d.toISOString().slice(0, 10), dateTo }
 }
 
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+function IconCalendarDay() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <circle cx="12" cy="16" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function IconCalendarWeek() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <line x1="8" y1="14" x2="16" y2="14" />
+      <line x1="8" y1="18" x2="13" y2="18" />
+    </svg>
+  )
+}
+
+function IconCalendarMonth() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+      <circle cx="8" cy="15" r="1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="15" r="1" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="15" r="1" fill="currentColor" stroke="none" />
+      <circle cx="8" cy="19" r="1" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="19" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function IconCheckCircle() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22,4 12,14.01 9,11.01" />
+    </svg>
+  )
+}
+
+function IconCurrency() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="1" x2="12" y2="23" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  )
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function AdminDashboardPage() {
@@ -82,6 +141,16 @@ export function AdminDashboardPage() {
   const [rangeStats, setRangeStats] = useState<AdminRangeStats | null>(null)
   const [rangeLoading, setRangeLoading] = useState(false)
   const [rangeError, setRangeError] = useState<string | null>(null)
+
+  const formattedDate = (() => {
+    const raw = new Intl.DateTimeFormat('es-AR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date())
+    return raw.charAt(0).toUpperCase() + raw.slice(1)
+  })()
 
   // Fetch business settings for KPI timezone (non-blocking)
   useEffect(() => {
@@ -112,6 +181,11 @@ export function AdminDashboardPage() {
     return `${Math.round((count / analyticsTotal) * 100)}%`
   }
 
+  function pctNum(count: number): number {
+    if (analyticsTotal === 0) return 0
+    return Math.round((count / analyticsTotal) * 100)
+  }
+
   const analyticsCountByKey = rangeStats
     ? {
         confirmed: rangeStats.confirmedCount,
@@ -122,54 +196,89 @@ export function AdminDashboardPage() {
     : null
 
   return (
-    <div className="space-y-8 p-4 md:p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900">Panel de administración</h1>
-
+    <div className="space-y-5 max-w-5xl mx-auto">
       {/* Stats error */}
       {statsError && (
-        <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-red-700 text-sm">
+        <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-700 text-sm">
           {statsError}
         </div>
       )}
 
-      {/* KPI cards */}
+      {/* ── KPI section ──────────────────────────────────────────────────── */}
       <section aria-label="Métricas principales">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          <StatCard label="Turnos hoy" value={stats?.todayCount ?? 0} loading={statsLoading} />
-          <StatCard label="Turnos esta semana" value={stats?.weekCount ?? 0} loading={statsLoading} />
-          <StatCard label="Turnos este mes" value={stats?.monthCount ?? 0} loading={statsLoading} />
+        {/* Header row */}
+        <div className="flex items-start justify-between mb-4 gap-4">
+          <div>
+            <h1 className="text-2xl font-heading font-semibold tracking-tight text-gray-900">
+              Panel de administración
+            </h1>
+            <p className="text-sm mt-0.5 text-gray-400">
+              {formattedDate}
+            </p>
+          </div>
+          <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-medium text-emerald-700">En vivo</span>
+          </div>
+        </div>
+
+        {/* KPI grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <StatCard
+            label="Turnos hoy"
+            value={stats?.todayCount ?? 0}
+            loading={statsLoading}
+            icon={<IconCalendarDay />}
+          />
+          <StatCard
+            label="Turnos esta semana"
+            value={stats?.weekCount ?? 0}
+            loading={statsLoading}
+            icon={<IconCalendarWeek />}
+          />
+          <StatCard
+            label="Turnos este mes"
+            value={stats?.monthCount ?? 0}
+            loading={statsLoading}
+            icon={<IconCalendarMonth />}
+          />
           <StatCard
             label="Confirmados + pendientes hoy"
             value={confirmedPendingToday}
             loading={statsLoading}
+            icon={<IconCheckCircle />}
           />
           <StatCard
             label="Ingresos estimados este mes"
             value={stats ? formatARS(stats.revenueCentsMonth) : '—'}
             loading={statsLoading}
+            icon={<IconCurrency />}
+            accent="bg-orange-50 text-orange-500"
           />
         </div>
       </section>
 
-      {/* Quick-access section removed (43c) */}
-
-      {/* Today's widget removed (43e) */}
-
-      {/* Analytics status breakdown with date-range preset */}
-      <section aria-label="Análisis de turnos">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <h2 className="text-lg font-semibold text-gray-800">Resumen de turnos</h2>
-          <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 gap-0.5">
+      {/* ── Analytics section ─────────────────────────────────────────────── */}
+      <section
+        aria-label="Análisis de turnos"
+        className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm"
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+          <div>
+            <h2 className="text-base font-heading font-semibold text-gray-900">Resumen de turnos</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Desglose por estado del período seleccionado</p>
+          </div>
+          <div className="inline-flex rounded-xl border border-gray-100 bg-gray-50 p-1 gap-0.5">
             {(Object.keys(PRESET_LABELS) as RangePreset[]).map((preset) => (
               <button
                 key={preset}
                 type="button"
                 onClick={() => setRangePreset(preset)}
                 className={cn(
-                  'px-3 py-1.5 text-xs rounded-md font-medium transition-colors',
+                  'px-3 py-1.5 text-xs rounded-lg font-medium transition-all duration-150',
                   rangePreset === preset
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700',
+                    ? 'bg-white text-gray-900 shadow-sm border border-gray-100'
+                    : 'text-gray-400 hover:text-gray-600',
                 )}
               >
                 {PRESET_LABELS[preset]}
@@ -179,45 +288,62 @@ export function AdminDashboardPage() {
         </div>
 
         {rangeLoading ? (
-          <div className="space-y-2">
+          <div className="space-y-5">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-8 rounded bg-gray-200 animate-pulse" />
+              <div key={i} className="space-y-2">
+                <div className="flex justify-between">
+                  <div className="h-4 w-24 rounded bg-gray-100 animate-pulse" />
+                  <div className="h-4 w-16 rounded bg-gray-100 animate-pulse" />
+                </div>
+                <div className="h-2.5 w-full rounded-full bg-gray-100 animate-pulse" />
+              </div>
             ))}
           </div>
         ) : rangeError ? (
-          <p className="text-sm text-gray-500 italic py-4">{rangeError}</p>
+          <div className="py-10 flex flex-col items-center justify-center gap-3 text-center">
+            <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 8v4M12 16h.01" />
+              </svg>
+            </div>
+            <p className="text-sm text-gray-400 max-w-xs leading-relaxed">{rangeError}</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-gray-200">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-gray-600 text-xs uppercase tracking-wide">
-                <tr>
-                  <th className="px-4 py-2 text-left">Estado</th>
-                  <th className="px-4 py-2 text-right">Cantidad</th>
-                  <th className="px-4 py-2 text-right">% del total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {ANALYTICS_STATUSES.map(({ key, label }) => {
-                  const count = analyticsCountByKey?.[key] ?? 0
-                  return (
-                    <tr key={key}>
-                      <td className="px-4 py-2">
-                        <span
-                          className={cn(
-                            'inline-block rounded-full px-2 py-0.5 text-xs font-medium',
-                            STATUS_COLORS[key] ?? 'bg-gray-100 text-gray-600',
-                          )}
-                        >
-                          {label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-right font-medium">{count}</td>
-                      <td className="px-4 py-2 text-right text-gray-500">{pct(count)}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <div className="space-y-5">
+            <div className="flex items-center justify-between pb-5 border-b border-gray-50">
+              <span className="text-sm text-gray-400 font-medium">Total de turnos</span>
+              <span className="text-3xl font-heading font-bold text-gray-900 tabular-nums leading-none">
+                {analyticsTotal}
+              </span>
+            </div>
+            {ANALYTICS_STATUSES.map(({ key, label }) => {
+              const count = analyticsCountByKey?.[key] ?? 0
+              const percentage = pctNum(count)
+              return (
+                <div key={key}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', STATUS_DOT_COLORS[key])} />
+                      <span className="text-sm font-medium text-gray-700">{label}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="font-semibold text-gray-900 tabular-nums w-5 text-right">{count}</span>
+                      <span className="text-gray-400 tabular-nums w-9 text-right text-xs">{pct(count)}</span>
+                    </div>
+                  </div>
+                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className={cn('h-full rounded-full', STATUS_BAR_COLORS[key])}
+                      style={{
+                        width: `${percentage}%`,
+                        transition: 'width 0.7s cubic-bezier(0.22, 1, 0.36, 1)',
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </section>

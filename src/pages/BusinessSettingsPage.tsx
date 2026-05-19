@@ -1,4 +1,5 @@
 import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import { cn } from '../lib/cn'
 import {
   deleteBusinessClosure,
   getBusinessSettings,
@@ -80,6 +81,7 @@ export function BusinessSettingsPage() {
   const [closures, setClosures] = useState<BusinessClosureRecord[]>([])
   const [closureDraft, setClosureDraft] = useState<ClosureDraft>(emptyClosureDraft())
   const [missingReadiness, setMissingReadiness] = useState<string[]>([])
+  const [activeTab, setActiveTab] = useState<'identity' | 'hours' | 'closures' | 'policy'>('identity')
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [isSavingClosure, setIsSavingClosure] = useState(false)
@@ -147,6 +149,16 @@ export function BusinessSettingsPage() {
               ...hour,
               [field]: value || null,
             }
+          : hour,
+      ),
+    )
+  }
+
+  const handleClosedSet = (dayOfWeek: number, closed: boolean) => {
+    setWeeklyHours((current) =>
+      current.map((hour) =>
+        hour.dayOfWeek === dayOfWeek
+          ? { ...hour, isClosed: closed, opensAt: closed ? null : hour.opensAt, closesAt: closed ? null : hour.closesAt }
           : hour,
       ),
     )
@@ -246,9 +258,7 @@ export function BusinessSettingsPage() {
     setBookingPolicyError(null)
     setSuccessMessage(null)
 
-    const composedNotice = Number(noticeDays) * 1440 + Number(noticeHours) * 60 + Number(noticeMins)
-
-    if (composedNotice < 0 || composedNotice > 10080) {
+    if (bookingMinNoticeMinutes < 0 || bookingMinNoticeMinutes > 10080) {
       setBookingPolicyError('La anticipación mínima debe estar entre 0 y 10080 minutos.')
       return
     }
@@ -259,10 +269,9 @@ export function BusinessSettingsPage() {
     }
 
     setIsSavingPolicy(true)
-    setBookingMinNoticeMinutes(composedNotice)
 
     try {
-      await updateBookingPolicy(composedNotice, bookingMaxHorizonDays)
+      await updateBookingPolicy(bookingMinNoticeMinutes, bookingMaxHorizonDays)
       setSuccessMessage('Política de reservas actualizada.')
     } catch {
       setBookingPolicyError('No se pudo guardar la configuración.')
@@ -275,376 +284,466 @@ export function BusinessSettingsPage() {
     return <p className="text-sm text-shell-subtleText">{commonCopy.loading}</p>
   }
 
+  const fieldCls =
+    'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition-colors'
+  const saveBtnCls =
+    'rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong transition-colors disabled:opacity-50'
+
+  const TABS = [
+    {
+      key: 'identity' as const,
+      label: 'Identidad',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="12" cy="10" r="3" /><path d="M6 20c0-3 2-5 6-5s6 2 6 5" />
+        </svg>
+      ),
+    },
+    {
+      key: 'hours' as const,
+      label: 'Horarios',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
+        </svg>
+      ),
+    },
+    {
+      key: 'closures' as const,
+      label: 'Cierres',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /><path d="M9 16l2 2 4-4" />
+        </svg>
+      ),
+    },
+    {
+      key: 'policy' as const,
+      label: 'Política',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2l9 4v6c0 5-3.5 9.7-9 11-5.5-1.3-9-6-9-11V6l9-4z" />
+        </svg>
+      ),
+    },
+  ]
+
   return (
-    <section className="space-y-6">
-      <div>
+    <div className="max-w-2xl mx-auto">
+      {/* Alerts */}
+      <div className="space-y-2 mb-4">
+        {!organizationId ? (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            Aun no se pudo resolver el negocio principal. Reintenta la carga.
+          </p>
+        ) : null}
+        {missingReadiness.length > 0 ? (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            Configuracion incompleta. Falta definir: {missingReadiness.map(missingLabel).join(', ')}.
+          </p>
+        ) : null}
+        {errorMessage ? (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>
+        ) : null}
+        {successMessage ? (
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMessage}</p>
+        ) : null}
+      </div>
+
+      {/* Page header */}
+      <div className="mb-4">
         <h2 className="font-heading text-2xl font-semibold text-shell-text">Negocio</h2>
-        <p className="mt-2 text-sm text-shell-subtleText">
-          Configura la identidad del salon, la zona horaria canónica, los horarios generales y los cierres excepcionales.
+        <p className="mt-1 text-sm text-shell-subtleText">
+          Configura la identidad, horarios y política de reservas del salón.
         </p>
       </div>
 
-      {!organizationId ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-          Aun no se pudo resolver el negocio principal. Reintenta la carga.
-        </p>
-      ) : null}
+      {/* Sticky tab bar */}
+      <div className="sticky top-0 z-10 -mx-6 px-6 pt-2 pb-4 bg-shell-base/95 backdrop-blur-sm">
+        <div className="flex gap-1 rounded-2xl bg-white border border-shell-border p-1 shadow-sm">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-medium transition-all',
+                activeTab === tab.key
+                  ? 'bg-brand-primary text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
+              )}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {missingReadiness.length > 0 ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-          Configuracion incompleta. Falta definir: {missingReadiness.map(missingLabel).join(', ')}.
-        </p>
-      ) : null}
+      {/* ── IDENTIDAD ── */}
+      <div className={activeTab !== 'identity' ? 'hidden' : ''}>
+        <form onSubmit={handleSaveSettings} className="space-y-4">
+          <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5 space-y-4">
+            <h3 className="font-semibold text-gray-900 text-sm">Identidad y branding</h3>
 
-      {errorMessage ? (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{errorMessage}</p>
-      ) : null}
-
-      {successMessage ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{successMessage}</p>
-      ) : null}
-
-      <form className="space-y-6" onSubmit={handleSaveSettings}>
-        <section className="shell-surface rounded-2xl border p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-shell-text">Identidad y branding</h3>
-
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <label className="text-sm text-shell-text">
-              Nombre del negocio
-              <input
-                className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </label>
-
-            <label className="text-sm text-shell-text">
-              Zona horaria (IANA)
-              <input
-                className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                value={timezone}
-                onChange={(event) => setTimezone(event.target.value)}
-              />
-            </label>
-
-            <label className="text-sm text-shell-text">
-              URL del logo
-              <input
-                className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                value={logoUrl}
-                onChange={(event) => setLogoUrl(event.target.value)}
-              />
-            </label>
-
-            <div className="text-sm text-shell-text">
-              <label className="block">
-                Color principal
+            <div className="space-y-3">
+              <div>
+                <label htmlFor="business-name" className="mb-1.5 block text-xs font-medium text-gray-600">Nombre del negocio</label>
                 <input
-                  type="color"
-                  className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-shell-border bg-white px-1 py-1"
-                  value={primaryColor || '#22c55e'}
-                  onChange={(event) => setPrimaryColor(event.target.value)}
+                  id="business-name"
+                  className={fieldCls}
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ej: Estética Luminosa"
                 />
-              </label>
-              <p className="mt-1 text-xs text-shell-subtleText">
-                Define el color de acento del sistema de turnos (botones, badges, resaltados &mdash; actualmente verde).
-              </p>
-            </div>
-
-            <label className="text-sm text-shell-text">
-              Titulo del header de reservas
-              <input
-                className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                value={bookingHeaderText}
-                onChange={(event) => setBookingHeaderText(event.target.value)}
-              />
-            </label>
-
-            <label className="text-sm text-shell-text">
-              Subtitulo del header de reservas
-              <input
-                className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                value={bookingSubtitleText}
-                onChange={(event) => setBookingSubtitleText(event.target.value)}
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="shell-surface rounded-2xl border p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-shell-text">Horarios del negocio</h3>
-          <div className="mt-4 space-y-3">
-            {weeklyHours.map((hour) => (
-              <div key={hour.dayOfWeek} className="grid gap-3 rounded-xl border border-shell-border p-3 md:grid-cols-[140px_120px_1fr_1fr] md:items-center">
-                <p className="text-sm font-medium text-shell-text">{dayLabels[hour.dayOfWeek]}</p>
-
-                <label className="flex items-center gap-2 text-sm text-shell-text">
-                  <input
-                    checked={hour.isClosed}
-                    onChange={(event) => handleClosedToggle(hour.dayOfWeek, event)}
-                    type="checkbox"
-                  />
-                  Cerrado
-                </label>
-
-                <label className="text-sm text-shell-text">
-                  Apertura
-                  <input
-                    aria-label={`Apertura ${dayLabels[hour.dayOfWeek]}`}
-                    className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                    disabled={hour.isClosed}
-                    onChange={(event) => handleHourChange(hour.dayOfWeek, 'opensAt', event.target.value)}
-                    type="time"
-                    value={hour.opensAt ?? ''}
-                  />
-                </label>
-
-                <label className="text-sm text-shell-text">
-                  Cierre
-                  <input
-                    aria-label={`Cierre ${dayLabels[hour.dayOfWeek]}`}
-                    className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                    disabled={hour.isClosed}
-                    onChange={(event) => handleHourChange(hour.dayOfWeek, 'closesAt', event.target.value)}
-                    type="time"
-                    value={hour.closesAt ?? ''}
-                  />
-                </label>
               </div>
-            ))}
-          </div>
-        </section>
 
-        <div className="flex justify-end">
-          <button
-            className="rounded-lg bg-shell-text px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-            disabled={isSavingSettings}
-            type="submit"
-          >
-            {isSavingSettings ? commonCopy.saving : 'Guardar configuracion del negocio'}
-          </button>
-        </div>
-      </form>
-
-      <section className="shell-surface rounded-2xl border p-5 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h3 className="text-sm font-semibold text-shell-text">Cierres excepcionales</h3>
-            <p className="mt-1 text-sm text-shell-subtleText">
-              Registra cierres de dia completo o media jornada para feriados, capacitaciones o mantenimiento.
-            </p>
-          </div>
-        </div>
-
-        <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={handleSaveClosure}>
-          <label className="text-sm text-shell-text">
-            Fecha
-            <input
-              className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-              onChange={(event) => setClosureDraft((current) => ({ ...current, closureDate: event.target.value }))}
-              type="date"
-              value={closureDraft.closureDate}
-            />
-          </label>
-
-          <label className="text-sm text-shell-text">
-            Tipo de cierre
-            <Select
-              className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-              wrapperClassName="mt-1"
-              onChange={(event) =>
-                setClosureDraft((current) => ({
-                  ...current,
-                  closureType: event.target.value as BusinessClosureType,
-                }))
-              }
-              value={closureDraft.closureType}
-            >
-              <option value="full_day">Dia completo</option>
-              <option value="half_day">Media jornada</option>
-            </Select>
-          </label>
-
-          {closureDraft.closureType === 'half_day' ? (
-            <>
-              <label className="text-sm text-shell-text">
-                Inicio del cierre
-                <input
-                  className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                  onChange={(event) => setClosureDraft((current) => ({ ...current, startsAt: event.target.value }))}
-                  type="time"
-                  value={closureDraft.startsAt}
+              <div>
+                <label htmlFor="business-timezone" className="mb-1.5 block text-xs font-medium text-gray-600">Zona horaria</label>
+                <Select
+                  id="business-timezone"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  options={[
+                    { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires (ART)' },
+                    { value: 'America/Santiago', label: 'Santiago (CLT)' },
+                    { value: 'America/Bogota', label: 'Bogotá (COT)' },
+                    { value: 'America/Mexico_City', label: 'Ciudad de México (CST)' },
+                    { value: 'America/Lima', label: 'Lima (PET)' },
+                    { value: 'UTC', label: 'UTC' },
+                  ]}
                 />
-              </label>
+              </div>
 
-              <label className="text-sm text-shell-text">
-                Fin del cierre
+              <div>
+                <label htmlFor="business-logo" className="mb-1.5 block text-xs font-medium text-gray-600">URL del logo</label>
                 <input
-                  className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                  onChange={(event) => setClosureDraft((current) => ({ ...current, endsAt: event.target.value }))}
-                  type="time"
-                  value={closureDraft.endsAt}
+                  id="business-logo"
+                  className={fieldCls}
+                  type="url"
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder="https://…"
                 />
-              </label>
-            </>
-          ) : null}
+              </div>
 
-          <label className="text-sm text-shell-text md:col-span-2">
-            Motivo (opcional)
-            <input
-              className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-              onChange={(event) => setClosureDraft((current) => ({ ...current, reason: event.target.value }))}
-              value={closureDraft.reason}
-            />
-          </label>
-
-          <div className="md:col-span-2 flex gap-3">
-            <button
-              className="rounded-lg bg-shell-text px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-              disabled={isSavingClosure}
-              type="submit"
-            >
-              {isSavingClosure ? commonCopy.saving : closureDraft.id ? 'Actualizar cierre' : 'Guardar cierre'}
-            </button>
-
-            {closureDraft.id ? (
-              <button
-                className="rounded-lg border border-shell-border px-4 py-2 text-sm font-medium text-shell-text"
-                onClick={() => setClosureDraft(emptyClosureDraft())}
-                type="button"
-              >
-                Cancelar edicion
-              </button>
-            ) : null}
-          </div>
-        </form>
-
-        {closures.length === 0 ? (
-          <p className="mt-4 text-sm text-shell-subtleText">Todavia no hay cierres excepcionales configurados.</p>
-        ) : (
-          <ul className="mt-4 space-y-3">
-            {closures.map((closure) => (
-              <li key={closure.id} className="flex flex-col gap-3 rounded-xl border border-shell-border p-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm font-medium text-shell-text">{closure.closureDate}</p>
-                  <p className="text-sm text-shell-subtleText">
-                    {closure.closureType === 'full_day'
-                      ? 'Dia completo'
-                      : `Media jornada (${closure.startsAt ?? '--'} a ${closure.endsAt ?? '--'})`}
-                    {closure.reason ? ` · ${closure.reason}` : ''}
-                  </p>
+              <div>
+                <label htmlFor="business-color" className="mb-1.5 block text-xs font-medium text-gray-600">Color principal (hex)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={primaryColor}
+                    onChange={(e) => setPrimaryColor(e.target.value)}
+                    className="h-9 w-14 cursor-pointer rounded-lg border border-gray-200 bg-white p-0.5"
+                  />
+                  <input
+                    id="business-color"
+                    className={cn(fieldCls, 'flex-1')}
+                    type="text"
+                    value={primaryColor}
+                    onChange={(e) => setPrimaryColor(e.target.value)}
+                    placeholder="#0f766e"
+                  />
                 </div>
-
-                <div className="flex gap-2">
-                  <button
-                    className="rounded-lg border border-shell-border px-3 py-2 text-sm font-medium text-shell-text"
-                    onClick={() => setClosureDraft(toDraft(closure))}
-                    type="button"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700"
-                    onClick={() => handleDeleteClosure(closure.id)}
-                    type="button"
-                  >
-                    Eliminar
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="shell-surface rounded-2xl border p-5 shadow-sm">
-        <h3 className="text-sm font-semibold text-shell-text">Configuración de reservas</h3>
-        <p className="mt-1 text-sm text-shell-subtleText">
-          Define la anticipación mínima para nuevas reservas y el horizonte máximo de disponibilidad.
-        </p>
-
-        {bookingPolicyError ? (
-          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {bookingPolicyError}
-          </p>
-        ) : null}
-
-        <form className="mt-4 grid gap-4 md:grid-cols-2" onSubmit={(e) => void handleSaveBookingPolicy(e)}>
-          <div className="text-sm text-shell-text">
-            <span className="block mb-1 font-medium">Anticipación mínima</span>
-            <div className="flex gap-2">
-              <label className="flex-1">
-                <span className="text-xs text-shell-subtleText">Días</span>
-                <input
-                  aria-label="Días"
-                  className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                  min={0}
-                  max={7}
-                  type="number"
-                  value={noticeDays}
-                  onChange={(e) => setNoticeDays(e.target.value)}
-                />
-              </label>
-              <label className="flex-1">
-                <span className="text-xs text-shell-subtleText">Horas</span>
-                <input
-                  aria-label="Horas"
-                  className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                  min={0}
-                  max={23}
-                  type="number"
-                  value={noticeHours}
-                  onChange={(e) => setNoticeHours(e.target.value)}
-                />
-              </label>
-              <label className="flex-1">
-                <span className="text-xs text-shell-subtleText">Minutos</span>
-                <input
-                  aria-label="Minutos"
-                  className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                  min={0}
-                  max={59}
-                  type="number"
-                  value={noticeMins}
-                  onChange={(e) => setNoticeMins(e.target.value)}
-                />
-              </label>
+              </div>
             </div>
-            <p className="mt-1.5 text-xs text-shell-subtleText">
-              Tiempo mínimo de anticipación para que un cliente pueda reservar un turno. Ej: 2 horas significa que no se pueden reservar turnos con menos de 2 horas de anticipación.
-            </p>
           </div>
 
-          <div className="text-sm text-shell-text">
-            <label className="block">
-              Horizonte de reservas (días)
-              <span className="ml-1 text-xs text-shell-subtleText">(1–365)</span>
-              <input
-                aria-label="Horizonte de reservas (días)"
-                className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-                min={1}
-                max={365}
-                onChange={(event) => setBookingMaxHorizonDays(Number(event.target.value))}
-                type="number"
-                value={bookingMaxHorizonDays}
-              />
-            </label>
-            <p className="mt-1.5 text-xs text-shell-subtleText">
-              Cuántos días hacia adelante puede reservar un cliente. Ej: 30 días significa que solo se pueden ver disponibilidades dentro del próximo mes.
-            </p>
+          <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5 space-y-4">
+            <h3 className="font-semibold text-gray-900 text-sm">Textos de reserva</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-600">Título principal</label>
+                <input
+                  className={fieldCls}
+                  type="text"
+                  value={bookingHeaderText}
+                  onChange={(e) => setBookingHeaderText(e.target.value)}
+                  placeholder="Ej: Reserva tu turno"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-600">Subtítulo</label>
+                <input
+                  className={fieldCls}
+                  type="text"
+                  value={bookingSubtitleText}
+                  onChange={(e) => setBookingSubtitleText(e.target.value)}
+                  placeholder="Ej: Elegí el servicio y horario"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="md:col-span-2 flex justify-end">
-            <button
-              className="rounded-lg bg-shell-text px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-              disabled={isSavingPolicy}
-              type="submit"
-            >
-              {isSavingPolicy ? commonCopy.saving : 'Guardar política de reservas'}
+          <div className="flex justify-end">
+            <button type="submit" disabled={isSavingSettings} className={saveBtnCls}>
+              {isSavingSettings ? 'Guardando…' : 'Guardar configuracion del negocio'}
             </button>
           </div>
         </form>
-      </section>
+      </div>
+
+      {/* ── HORARIOS ── */}
+      <div className={activeTab !== 'hours' ? 'hidden' : ''}>
+      {true && (
+        <form onSubmit={handleSaveSettings} className="space-y-4">
+          <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5">
+            <h3 className="font-semibold text-gray-900 text-sm mb-4">Horarios del negocio</h3>
+            <div className="space-y-3">
+              {weeklyHours.map((hour) => {
+                const isOpen = !hour.isClosed
+                return (
+                  <div key={hour.dayOfWeek} className="flex items-center gap-3">
+                    <span className="w-20 shrink-0 text-sm text-gray-700 font-medium">
+                      {dayLabels[hour.dayOfWeek]}
+                    </span>
+                    {/* Toggle switch */}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={isOpen}
+                      onClick={() => handleClosedSet(hour.dayOfWeek, isOpen)}
+                      className={cn(
+                        'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-300',
+                        isOpen ? 'bg-brand-primary' : 'bg-gray-200',
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                          isOpen ? 'translate-x-4' : 'translate-x-0.5',
+                        )}
+                      />
+                    </button>
+                    {isOpen ? (
+                      <div className="flex flex-1 items-center gap-1 min-w-0">
+                        <input
+                          type="time"
+                          value={hour.opensAt ?? ''}
+                          onChange={(e) => handleHourChange(hour.dayOfWeek, 'opensAt', e.target.value)}
+                          className="flex-1 min-w-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+                        />
+                        <span className="text-gray-300 text-xs shrink-0">—</span>
+                        <input
+                          type="time"
+                          value={hour.closesAt ?? ''}
+                          onChange={(e) => handleHourChange(hour.dayOfWeek, 'closesAt', e.target.value)}
+                          className="flex-1 min-w-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">Cerrado</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex justify-end mt-5">
+              <button type="submit" disabled={isSavingSettings} className={saveBtnCls}>
+                {isSavingSettings ? 'Guardando…' : 'Guardar horarios'}
+              </button>
+            </div>
+          </div>
+        </form>
+      )}
+      </div>
+
+      {/* ── CIERRES ── */}
+      <div className={activeTab !== 'closures' ? 'hidden' : ''}>
+      {true && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5">
+            <h3 className="font-semibold text-gray-900 text-sm mb-4">Cierres excepcionales</h3>
+            <form onSubmit={handleSaveClosure} className="space-y-3">
+              <div>
+                <label htmlFor="closure-date" className="block text-sm text-gray-700">Fecha</label>
+                <input
+                  id="closure-date"
+                  className={cn(fieldCls, 'mt-1')}
+                  type="date"
+                  value={closureDraft.closureDate}
+                  onChange={(e) => setClosureDraft((d) => ({ ...d, closureDate: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="closure-type" className="block text-sm text-gray-700">Tipo de cierre</label>
+                <Select
+                  id="closure-type"
+                  wrapperClassName="mt-1"
+                  value={closureDraft.closureType}
+                  onChange={(e) =>
+                    setClosureDraft((d) => ({
+                      ...d,
+                      closureType: e.target.value as BusinessClosureType,
+                    }))
+                  }
+                >
+                  <option value="full_day">Dia completo</option>
+                  <option value="half_day">Media jornada</option>
+                </Select>
+              </div>
+
+              {closureDraft.closureType === 'half_day' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="closure-starts" className="block text-sm text-gray-700">Inicio del cierre</label>
+                    <input
+                      id="closure-starts"
+                      className={cn(fieldCls, 'mt-1')}
+                      type="time"
+                      value={closureDraft.startsAt}
+                      onChange={(e) => setClosureDraft((d) => ({ ...d, startsAt: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="closure-ends" className="block text-sm text-gray-700">Fin del cierre</label>
+                    <input
+                      id="closure-ends"
+                      className={cn(fieldCls, 'mt-1')}
+                      type="time"
+                      value={closureDraft.endsAt}
+                      onChange={(e) => setClosureDraft((d) => ({ ...d, endsAt: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="closure-reason" className="block text-sm text-gray-700">Motivo (opcional)</label>
+                <input
+                  id="closure-reason"
+                  className={cn(fieldCls, 'mt-1')}
+                  type="text"
+                  value={closureDraft.reason}
+                  onChange={(e) => setClosureDraft((d) => ({ ...d, reason: e.target.value }))}
+                  placeholder="Ej: Feriado nacional"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button type="submit" disabled={isSavingClosure} className={saveBtnCls}>
+                  {isSavingClosure ? 'Guardando…' : closureDraft.id ? 'Actualizar cierre' : 'Guardar cierre'}
+                </button>
+                {closureDraft.id && (
+                  <button
+                    type="button"
+                    onClick={() => setClosureDraft(emptyClosureDraft())}
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {closures.length > 0 && (
+            <div className="bg-white rounded-2xl border border-shell-border shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-100">
+                <h3 className="font-semibold text-gray-900 text-sm">Cierres programados</h3>
+              </div>
+              <ul className="divide-y divide-gray-50">
+                {closures.map((closure) => (
+                  <li key={closure.id} className="flex items-start justify-between gap-4 px-5 py-3.5">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{closure.closureDate}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {closure.closureType === 'full_day'
+                          ? 'Dia completo'
+                          : `Media jornada (${closure.startsAt ?? '--'} a ${closure.endsAt ?? '--'})`}
+                        {closure.reason ? ` · ${closure.reason}` : ''}
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setClosureDraft(toDraft(closure))}
+                        className="text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteClosure(closure.id)}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {closures.length === 0 && (
+            <p className="text-center py-6 text-sm text-gray-400">Todavia no hay cierres excepcionales configurados.</p>
+          )}
+        </div>
+      )}
+      </div>
+
+      {/* ── POLÍTICA ── */}
+      <div className={activeTab !== 'policy' ? 'hidden' : ''}>
+      {true && (
+        <form onSubmit={handleSaveBookingPolicy} className="space-y-4">
+          <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5 space-y-5">
+            <h3 className="font-semibold text-gray-900 text-sm">Configuración de reservas</h3>
+
+            {bookingPolicyError && (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {bookingPolicyError}
+              </p>
+            )}
+
+            <div>
+              <p className="text-xs text-gray-500 mb-3">
+                Tiempo mínimo antes del turno para que un cliente pueda reservar.
+              </p>
+              <label htmlFor="notice-minutes" className="mb-1.5 block text-xs font-medium text-gray-600">
+                Anticipación mínima (minutos)
+              </label>
+              <input
+                id="notice-minutes"
+                className={cn(fieldCls, 'max-w-[10rem]')}
+                type="number"
+                min="0"
+                max="10080"
+                value={bookingMinNoticeMinutes}
+                onChange={(e) => setBookingMinNoticeMinutes(Number(e.target.value))}
+              />
+            </div>
+
+            <div className="border-t border-gray-100 pt-5">
+              <p className="text-xs text-gray-500 mb-3">
+                Cuántos días hacia el futuro puede reservar un cliente.
+              </p>
+              <label htmlFor="horizon-days" className="mb-1.5 block text-xs font-medium text-gray-600">
+                Horizonte de reservas (días)
+              </label>
+              <input
+                id="horizon-days"
+                className={cn(fieldCls, 'max-w-[10rem]')}
+                type="number"
+                min="1"
+                max="365"
+                value={bookingMaxHorizonDays}
+                onChange={(e) => setBookingMaxHorizonDays(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button type="submit" disabled={isSavingPolicy} className={saveBtnCls}>
+              {isSavingPolicy ? 'Guardando…' : 'Guardar política'}
+            </button>
+          </div>
+        </form>
+      )}
+      </div>
+
       <ConfirmModal
         isOpen={confirmState.isOpen}
         title={confirmState.title}
@@ -652,6 +751,6 @@ export function BusinessSettingsPage() {
         onConfirm={confirmState.onConfirm}
         onCancel={closeConfirm}
       />
-    </section>
+    </div>
   )
 }

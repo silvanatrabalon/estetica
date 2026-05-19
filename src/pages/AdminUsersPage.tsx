@@ -61,6 +61,8 @@ export function AdminUsersPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [nameError, setNameError] = useState<string | null>(null)
 
+  const [searchQuery, setSearchQuery] = useState('')
+
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean; message: string; title: string; onConfirm: () => void
   }>({ isOpen: false, message: '', title: 'Confirmar', onConfirm: () => {} })
@@ -78,6 +80,16 @@ export function AdminUsersPage() {
     () => users.filter((user) => user.roles.includes('admin') && user.isActive).length,
     [users],
   )
+
+  const filteredUsers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return users
+    return users.filter(
+      (user) =>
+        user.name.toLowerCase().includes(q) ||
+        (user.email ?? '').toLowerCase().includes(q),
+    )
+  }, [users, searchQuery])
 
   const loadData = async () => {
     setIsLoading(true)
@@ -338,13 +350,27 @@ export function AdminUsersPage() {
             </button>
           </div>
 
+          <div className="mt-3">
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por nombre o email..."
+              className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text placeholder:text-shell-subtleText focus:border-brand-primary focus:outline-none"
+              aria-label="Buscar usuarios"
+            />
+          </div>
+
           {isLoading ? <p className="mt-3 text-sm text-shell-subtleText">Cargando usuarios...</p> : null}
           {!isLoading && users.length === 0 ? (
             <p className="mt-3 text-sm text-shell-subtleText">No hay usuarios disponibles para administrar.</p>
           ) : null}
+          {!isLoading && users.length > 0 && filteredUsers.length === 0 ? (
+            <p className="mt-3 text-sm text-shell-subtleText">No se encontraron usuarios con ese criterio.</p>
+          ) : null}
 
           <ul className="mt-3 space-y-2">
-            {users.map((user) => {
+            {filteredUsers.map((user) => {
               const selected = user.userId === selectedUserId
               return (
                 <li key={user.userId}>
