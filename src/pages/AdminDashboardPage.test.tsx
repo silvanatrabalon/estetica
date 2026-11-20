@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthGuard } from '../components/routing/AuthGuard'
 import { RoleGuard } from '../components/routing/RoleGuard'
@@ -9,7 +9,7 @@ import { AdminDashboardPage } from './AdminDashboardPage'
 import * as adminDashboardService from '../services/adminDashboard'
 import * as adminAppointmentsService from '../services/adminAppointments'
 import * as businessSettingsService from '../services/businessSettings'
-import type { AdminDashboardStats } from '../services/adminDashboard'
+import type { AdminDashboardStats, StatsByRange } from '../services/adminDashboard'
 
 // ── Mocks ──────────────────────────────────────────────────────────────────────
 
@@ -21,12 +21,21 @@ const mockStats: AdminDashboardStats = {
   confirmedCount: 10,
   cancelledCount: 4,
   completedCount: 40,
-  noShowCount: 3,
   revenueCentsMonth: 200000,
+}
+
+const mockRangeStats: StatsByRange = {
+  pendingCount: 2,
+  confirmedCount: 6,
+  cancelledCount: 1,
+  completedCount: 1,
+  totalCount: 10,
+  revenueCents: 100000,
 }
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  vi.spyOn(adminDashboardService, 'getStatsByRange').mockResolvedValue(mockRangeStats)
   vi.spyOn(businessSettingsService, 'getBusinessSettings').mockResolvedValue({
     organizationId: 'org-1',
     name: 'Test Org',
@@ -128,36 +137,16 @@ describe('AdminDashboardPage — content', () => {
     })
   })
 
-  it('renders quick-access cards with correct links', async () => {
+  it('renders the Cancelados KPI card and no longer renders "No presentado"', async () => {
     renderDashboard('admin')
 
     await waitFor(() => {
-      expect(screen.getByRole('link', { name: 'Turnos' })).toBeDefined()
-      expect(screen.getByRole('link', { name: 'Calendario' })).toBeDefined()
-      expect(screen.getByRole('link', { name: 'Profesionales' })).toBeDefined()
-      expect(screen.getByRole('link', { name: 'Servicios' })).toBeDefined()
+      expect(screen.getByText('Cancelados')).toBeDefined()
     })
+    expect(screen.queryByText('No presentado')).toBeNull()
   })
 
-  it('renders "Ver todos los turnos" CTA linking to /admin/appointments', async () => {
-    renderDashboard('admin')
-
-    await waitFor(() => {
-      const cta = screen.getByRole('link', { name: 'Ver todos los turnos' })
-      expect(cta).toBeDefined()
-      expect(cta.getAttribute('href')).toBe('/admin/appointments')
-    })
-  })
-
-  it('renders "No hay turnos para hoy." when today list is empty', async () => {
-    renderDashboard('admin')
-
-    await waitFor(() => {
-      expect(screen.getByText('No hay turnos para hoy.')).toBeDefined()
-    })
-  })
-
-  it('renders analytics table with status rows', async () => {
+  it('renders analytics table with status rows and total', async () => {
     renderDashboard('admin')
 
     await waitFor(() => {
@@ -165,7 +154,45 @@ describe('AdminDashboardPage — content', () => {
       expect(screen.getByText('Pendiente')).toBeDefined()
       expect(screen.getByText('Cancelado')).toBeDefined()
       expect(screen.getByText('Completado')).toBeDefined()
-      expect(screen.getByText('No presentado')).toBeDefined()
+      expect(screen.getByText('Total de turnos')).toBeDefined()
+    })
+    expect(screen.queryByText('No presentado')).toBeNull()
+  })
+
+  it('shows 0 total and 0% for every status when the range has no appointments (edge case)', async () => {
+    vi.spyOn(adminDashboardService, 'getStatsByRange').mockResolvedValue({
+      pendingCount: 0,
+      confirmedCount: 0,
+      cancelledCount: 0,
+      completedCount: 0,
+      totalCount: 0,
+      revenueCents: 0,
+    })
+    renderDashboard('admin')
+
+    await waitFor(() => {
+      expect(screen.getAllByText('0%')).toHaveLength(4)
+    })
+  })
+
+  it('requests analytics again when another range preset is selected', async () => {
+    const spy = vi.spyOn(adminDashboardService, 'getStatsByRange').mockResolvedValue(mockRangeStats)
+    renderDashboard('admin')
+
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Hoy' }))
+
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(2))
+    const [from, to] = spy.mock.calls[1]
+    expect(from).toBe(to)
+  })
+
+  it('shows the analytics error message when the range request fails (edge case)', async () => {
+    vi.spyOn(adminDashboardService, 'getStatsByRange').mockRejectedValue(new Error('boom'))
+    renderDashboard('admin')
+
+    await waitFor(() => {
+      expect(screen.getByText('Error al cargar las analíticas. Intentá nuevamente.')).toBeDefined()
     })
   })
 })

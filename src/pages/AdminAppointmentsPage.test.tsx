@@ -110,30 +110,26 @@ describe('AdminAppointmentsPage', () => {
       mockAdminListAppointments.mockResolvedValue({ rows: [makeRow()], totalCount: 1 })
       renderPage()
       await waitFor(() => {
-        expect(screen.getByText('Cliente')).toBeDefined()
-        expect(screen.getByText('Servicio')).toBeDefined()
-        expect(screen.getByText('Profesional')).toBeDefined()
-        expect(screen.getByText('Fecha/hora')).toBeDefined()
-        expect(screen.getByText('Estado')).toBeDefined()
+        expect(screen.getByRole('columnheader', { name: 'Cliente' })).toBeDefined()
+        expect(screen.getByRole('columnheader', { name: 'Servicio' })).toBeDefined()
+        expect(screen.getByRole('columnheader', { name: 'Profesional' })).toBeDefined()
+        expect(screen.getByRole('columnheader', { name: 'Fecha / hora' })).toBeDefined()
+        expect(screen.getByRole('columnheader', { name: 'Estado' })).toBeDefined()
       })
     })
   })
 
-  describe('status filter chips', () => {
-    it('clicking a status chip calls service with updated statuses and resets to page 1', async () => {
+  describe('status filter', () => {
+    it('selecting a status calls service with updated statuses and resets to page 1', async () => {
       mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
       renderPage()
 
-      await waitFor(() => {
-        expect(screen.getByText('Cancelado')).toBeDefined()
-      })
+      const select = await screen.findByLabelText('Filtrar por estado')
 
-      // Clear mock calls so far (initial load)
       mockAdminListAppointments.mockClear()
       mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
 
-      const chip = screen.getByRole('button', { name: 'Cancelado' })
-      fireEvent.click(chip)
+      fireEvent.change(select, { target: { value: 'cancelled' } })
 
       await waitFor(() => {
         expect(mockAdminListAppointments).toHaveBeenCalledWith(
@@ -142,6 +138,39 @@ describe('AdminAppointmentsPage', () => {
           PAGE_SIZE,
         )
       })
+    })
+
+    it('selecting "Todos los estados" clears the status filter (edge case)', async () => {
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+      renderPage()
+
+      const select = await screen.findByLabelText('Filtrar por estado')
+      fireEvent.change(select, { target: { value: 'pending' } })
+      await waitFor(() => {
+        expect(mockAdminListAppointments).toHaveBeenLastCalledWith(
+          expect.objectContaining({ statuses: ['pending'] }),
+          1,
+          PAGE_SIZE,
+        )
+      })
+
+      fireEvent.change(select, { target: { value: '' } })
+
+      await waitFor(() => {
+        expect(mockAdminListAppointments).toHaveBeenLastCalledWith(
+          expect.objectContaining({ statuses: undefined }),
+          1,
+          PAGE_SIZE,
+        )
+      })
+    })
+
+    it('does not offer the removed "No asistió" option (edge case)', async () => {
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+      renderPage()
+
+      await screen.findByLabelText('Filtrar por estado')
+      expect(screen.queryByRole('option', { name: 'No asistió' })).toBeNull()
     })
   })
 

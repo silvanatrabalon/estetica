@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { cn } from '../lib/cn'
 import {
   deleteBusinessClosure,
@@ -73,9 +73,6 @@ export function BusinessSettingsPage() {
   const [bookingHeaderText, setBookingHeaderText] = useState('')
   const [bookingSubtitleText, setBookingSubtitleText] = useState('')
   const [bookingMinNoticeMinutes, setBookingMinNoticeMinutes] = useState(60)
-  const [noticeDays, setNoticeDays] = useState('0')
-  const [noticeHours, setNoticeHours] = useState('1')
-  const [noticeMins, setNoticeMins] = useState('0')
   const [bookingMaxHorizonDays, setBookingMaxHorizonDays] = useState(60)
   const [bookingPolicyError, setBookingPolicyError] = useState<string | null>(null)
   const [weeklyHours, setWeeklyHours] = useState<BusinessHoursRecord[]>([])
@@ -133,10 +130,6 @@ export function BusinessSettingsPage() {
     setBookingHeaderText(data.bookingHeaderText ?? '')
     setBookingSubtitleText(data.bookingSubtitleText ?? '')
     setBookingMinNoticeMinutes(data.bookingMinNoticeMinutes)
-    const minutes = data.bookingMinNoticeMinutes
-    setNoticeDays(String(Math.floor(minutes / 1440)))
-    setNoticeHours(String(Math.floor((minutes % 1440) / 60)))
-    setNoticeMins(String(minutes % 60))
     setBookingMaxHorizonDays(data.bookingMaxHorizonDays)
     setWeeklyHours(data.weeklyHours)
     setClosures(data.closures)
@@ -168,21 +161,6 @@ export function BusinessSettingsPage() {
       current.map((hour) =>
         hour.dayOfWeek === dayOfWeek
           ? { ...hour, isClosed: closed, opensAt: closed ? null : hour.opensAt, closesAt: closed ? null : hour.closesAt }
-          : hour,
-      ),
-    )
-  }
-
-  const handleClosedToggle = (dayOfWeek: number, event: ChangeEvent<HTMLInputElement>) => {
-    setWeeklyHours((current) =>
-      current.map((hour) =>
-        hour.dayOfWeek === dayOfWeek
-          ? {
-              ...hour,
-              isClosed: event.target.checked,
-              opensAt: event.target.checked ? null : hour.opensAt,
-              closesAt: event.target.checked ? null : hour.closesAt,
-            }
           : hour,
       ),
     )
@@ -414,15 +392,14 @@ export function BusinessSettingsPage() {
                   id="business-timezone"
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
-                  options={[
-                    { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires (ART)' },
-                    { value: 'America/Santiago', label: 'Santiago (CLT)' },
-                    { value: 'America/Bogota', label: 'Bogotá (COT)' },
-                    { value: 'America/Mexico_City', label: 'Ciudad de México (CST)' },
-                    { value: 'America/Lima', label: 'Lima (PET)' },
-                    { value: 'UTC', label: 'UTC' },
-                  ]}
-                />
+                >
+                  <option value="America/Argentina/Buenos_Aires">Buenos Aires (ART)</option>
+                  <option value="America/Santiago">Santiago (CLT)</option>
+                  <option value="America/Bogota">Bogotá (COT)</option>
+                  <option value="America/Mexico_City">Ciudad de México (CST)</option>
+                  <option value="America/Lima">Lima (PET)</option>
+                  <option value="UTC">UTC</option>
+                </Select>
               </div>
 
               <div>

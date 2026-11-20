@@ -76,14 +76,15 @@ describe('AdminStaffPage', () => {
   it('shows loading state initially', () => {
     mockListAdminStaffMembers.mockReturnValue(new Promise(() => {}))
     renderAdminStaffPage()
-    expect(screen.getByText('Cargando profesionales...')).toBeDefined()
+    // Loading state renders skeletons only: the page heading must not be shown yet
+    expect(screen.queryByRole('heading', { name: 'Profesionales' })).toBeNull()
   })
 
   it('shows empty state when no staff members exist', async () => {
     mockListAdminStaffMembers.mockResolvedValue([])
     renderAdminStaffPage()
     await waitFor(() => {
-      expect(screen.getByText('No hay profesionales registrados todavía.')).toBeDefined()
+      expect(screen.getByText('Sin profesionales registrados')).toBeDefined()
     })
   })
 
@@ -102,10 +103,10 @@ describe('AdminStaffPage', () => {
     renderAdminStaffPage()
 
     await waitFor(() => {
-      expect(screen.getByText('Agregar profesional')).toBeDefined()
+      expect(screen.getAllByRole('button', { name: /Agregar profesional/ }).length).toBeGreaterThan(0)
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar profesional' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Agregar profesional/ })[0])
 
     await waitFor(() => {
       expect(screen.getByLabelText('Nombre para mostrar')).toBeDefined()
@@ -124,10 +125,10 @@ describe('AdminStaffPage', () => {
     renderAdminStaffPage()
 
     await waitFor(() => {
-      expect(screen.getByText('Agregar profesional')).toBeDefined()
+      expect(screen.getAllByRole('button', { name: /Agregar profesional/ }).length).toBeGreaterThan(0)
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar profesional' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Agregar profesional/ })[0])
 
     await waitFor(() => {
       expect(screen.getByLabelText('Nombre para mostrar')).toBeDefined()
@@ -174,10 +175,10 @@ describe('AdminStaffPage', () => {
     renderAdminStaffPage()
 
     await waitFor(() => {
-      expect(screen.getByText('Agregar profesional')).toBeDefined()
+      expect(screen.getAllByRole('button', { name: /Agregar profesional/ }).length).toBeGreaterThan(0)
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar profesional' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /Agregar profesional/ })[0])
 
     await waitFor(() => {
       expect(screen.getByLabelText('Usuario vinculado')).toBeDefined()

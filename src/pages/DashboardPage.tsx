@@ -40,7 +40,7 @@ const ACTION_CARDS: ActionCard[] = [
 export function DashboardPage() {
   const { profile } = useUser()
 
-  const firstName = profile?.fullName?.split(' ')[0] ?? null
+  const firstName = profile?.name?.split(' ')[0] ?? null
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 sm:py-12">

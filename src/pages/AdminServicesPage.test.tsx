@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AdminServicesPage } from './AdminServicesPage'
 import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
@@ -46,6 +46,22 @@ function renderPage() {
   )
 }
 
+// The page renders both mobile cards and a desktop table (CSS-hidden, so both
+// exist in jsdom). Scope row queries to the desktop table to avoid duplicates.
+function getTable() {
+  return within(screen.getByRole('table'))
+}
+
+function setDuration(hours: string, mins: string) {
+  fireEvent.change(screen.getByLabelText('Horas'), { target: { value: hours } })
+  fireEvent.change(screen.getByLabelText('Minutos'), { target: { value: mins } })
+}
+
+async function openCreateForm() {
+  fireEvent.click(await screen.findByRole('button', { name: /Agregar servicio/ }))
+  await screen.findByLabelText('Nombre')
+}
+
 const mockService = {
   id: 'svc-1',
   organizationId: 'org-1',
@@ -84,9 +100,9 @@ describe('AdminServicesPage', () => {
     mockListServices.mockResolvedValue([mockService])
     renderPage()
     await waitFor(() => {
-      expect(screen.getByText('Corte de cabello')).toBeDefined()
-      expect(screen.getByText('60 min')).toBeDefined()
-      expect(screen.getByText('Activo')).toBeDefined()
+      expect(getTable().getByText('Corte de cabello')).toBeDefined()
+      expect(getTable().getByText('60 min')).toBeDefined()
+      expect(getTable().getByText('Activo')).toBeDefined()
     })
   })
 
@@ -94,18 +110,10 @@ describe('AdminServicesPage', () => {
     mockListServices.mockResolvedValue([])
     renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByText('Agregar servicio')).toBeDefined()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Nombre')).toBeDefined()
-    })
+    await openCreateForm()
 
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: '' } })
-    fireEvent.change(screen.getByLabelText('Duración (minutos)'), { target: { value: '60' } })
+    setDuration('1', '0')
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => {
@@ -117,23 +125,15 @@ describe('AdminServicesPage', () => {
     mockListServices.mockResolvedValue([])
     renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByText('Agregar servicio')).toBeDefined()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Nombre')).toBeDefined()
-    })
+    await openCreateForm()
 
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte' } })
-    fireEvent.change(screen.getByLabelText('Duración (minutos)'), { target: { value: '999' } })
+    setDuration('8', '1')
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => {
       expect(
-        screen.getByText('La duración debe ser un número entero entre 1 y 480 minutos.'),
+        screen.getByText('La duración debe ser entre 1 y 480 minutos (hasta 8 horas).'),
       ).toBeDefined()
     })
   })
@@ -142,11 +142,7 @@ describe('AdminServicesPage', () => {
     mockListServices.mockResolvedValue([])
     renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByText('Agregar servicio')).toBeDefined()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
+    await openCreateForm()
 
     await waitFor(() => {
       expect(screen.getByLabelText(/Descripción/)).toBeDefined()
@@ -158,19 +154,11 @@ describe('AdminServicesPage', () => {
     mockCreateService.mockResolvedValue(mockService)
     renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByText('Agregar servicio')).toBeDefined()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Nombre')).toBeDefined()
-    })
+    await openCreateForm()
 
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte de cabello' } })
-    fireEvent.change(screen.getByLabelText('Duración (minutos)'), { target: { value: '60' } })
-    fireEvent.change(screen.getByLabelText('Precio (centavos)'), { target: { value: '500000' } })
+    setDuration('1', '0')
+    fireEvent.change(screen.getByLabelText('Precio ($)'), { target: { value: '5000' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => {
@@ -193,10 +181,10 @@ describe('AdminServicesPage', () => {
     renderPage()
 
     await waitFor(() => {
-      expect(screen.getByText('Corte de cabello')).toBeDefined()
+      expect(getTable().getByText('Corte de cabello')).toBeDefined()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    fireEvent.click(getTable().getByRole('button', { name: 'Editar' }))
 
     await waitFor(() => {
       expect(screen.getByLabelText('Nombre')).toBeDefined()
@@ -222,10 +210,10 @@ describe('AdminServicesPage', () => {
     renderPage()
 
     await waitFor(() => {
-      expect(screen.getByText('Corte de cabello')).toBeDefined()
+      expect(getTable().getByText('Corte de cabello')).toBeDefined()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Desactivar' }))
+    fireEvent.click(getTable().getByRole('button', { name: 'Desactivar' }))
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDefined()
@@ -245,10 +233,10 @@ describe('AdminServicesPage', () => {
     renderPage()
 
     await waitFor(() => {
-      expect(screen.getByText('Inactivo')).toBeDefined()
+      expect(getTable().getByText('Inactivo')).toBeDefined()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reactivar' }))
+    fireEvent.click(getTable().getByRole('button', { name: 'Reactivar' }))
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDefined()
@@ -276,11 +264,7 @@ describe('AdminServicesPage', () => {
     mockListServices.mockResolvedValue([])
     renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByText('Agregar servicio')).toBeDefined()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
+    await openCreateForm()
 
     await waitFor(() => {
       expect(screen.getByLabelText(/Capacidad simult/)).toBeDefined()
@@ -291,18 +275,10 @@ describe('AdminServicesPage', () => {
     mockListServices.mockResolvedValue([])
     renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByText('Agregar servicio')).toBeDefined()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Nombre')).toBeDefined()
-    })
+    await openCreateForm()
 
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte' } })
-    fireEvent.change(screen.getByLabelText('Duración (minutos)'), { target: { value: '60' } })
+    setDuration('1', '0')
     fireEvent.change(screen.getByLabelText(/Capacidad simult/), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
@@ -318,19 +294,11 @@ describe('AdminServicesPage', () => {
     mockCreateService.mockResolvedValue({ ...mockService, maxConcurrentBookings: null })
     renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByText('Agregar servicio')).toBeDefined()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar servicio' }))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Nombre')).toBeDefined()
-    })
+    await openCreateForm()
 
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte de cabello' } })
-    fireEvent.change(screen.getByLabelText('Duración (minutos)'), { target: { value: '60' } })
-    fireEvent.change(screen.getByLabelText('Precio (centavos)'), { target: { value: '500000' } })
+    setDuration('1', '0')
+    fireEvent.change(screen.getByLabelText('Precio ($)'), { target: { value: '5000' } })
     // leave capacity blank
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
@@ -346,9 +314,9 @@ describe('AdminServicesPage', () => {
     renderPage()
 
     await waitFor(() => {
-      expect(screen.getByText('Corte de cabello')).toBeDefined()
+      expect(getTable().getByText('Corte de cabello')).toBeDefined()
     })
 
-    expect(screen.getByRole('button', { name: 'Gestionar disponibilidad' })).toBeDefined()
+    expect(getTable().getByRole('button', { name: 'Gestionar disponibilidad' })).toBeDefined()
   })
 })

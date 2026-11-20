@@ -155,7 +155,7 @@ function configToFormState(config: LandingConfig): FormState {
 export function LandingConfigPage() {
   const { activeRole, isLoading: authLoading } = useUser()
 
-  const [config, setConfig] = useState<LandingConfig | null>(null)
+  const [, setConfig] = useState<LandingConfig | null>(null)
   const [form, setForm] = useState<FormState>({
     heroTitle: '',
     heroSubtitle: '',

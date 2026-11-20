@@ -49,6 +49,7 @@ export function formatSlotTime(isoUtc: string, orgTimezone: string): string {
     timeZone: timezone,
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true,
+    // hourCycle (not hour12) so noon renders as 12:00, not 0:00, in the 'es' locale
+    hourCycle: 'h12',
   }).format(new Date(isoUtc))
 }

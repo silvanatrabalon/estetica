@@ -29,13 +29,13 @@ describe('WeeklyScheduleEditor', () => {
       />,
     )
 
-    expect(screen.getByLabelText('Dom trabaja')).toBeInTheDocument()
-    expect(screen.getByLabelText('Lun trabaja')).toBeInTheDocument()
-    expect(screen.getByLabelText('Mar trabaja')).toBeInTheDocument()
-    expect(screen.getByLabelText('Mié trabaja')).toBeInTheDocument()
-    expect(screen.getByLabelText('Jue trabaja')).toBeInTheDocument()
-    expect(screen.getByLabelText('Vie trabaja')).toBeInTheDocument()
-    expect(screen.getByLabelText('Sáb trabaja')).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Domingo trabaja/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Lunes trabaja/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Martes trabaja/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Miércoles trabaja/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Jueves trabaja/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Viernes trabaja/)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Sábado trabaja/)).toBeInTheDocument()
   })
 
   it('shows time inputs for working days from loaded schedule', () => {
