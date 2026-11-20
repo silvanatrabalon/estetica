@@ -25,6 +25,7 @@ import {
   LandingConfigPage,
   LandingPage,
   NotFoundPage,
+  PrivacyPage,
   ProfilePage,
   ProfileSetupPage,
   ReschedulePage,
@@ -32,6 +33,7 @@ import {
   StaffAppointmentsPage,
   StaffAvailabilityPage,
   StaffSchedulePage,
+  TermsPage,
   UnauthorizedPage,
 } from './pages'
 
@@ -39,6 +41,8 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/privacidad" element={<PrivacyPage />} />
+      <Route path="/terminos" element={<TermsPage />} />
 
       <Route element={<PublicOnlyGuard />}>
         <Route path="/signin" element={<SignInPage />} />
