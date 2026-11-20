@@ -9,6 +9,7 @@ import {
   type BusinessClosureRecord,
   type BusinessHoursRecord,
 } from '../services/businessSettings'
+import { adminDeleteAllAppointments } from '../services/adminAppointments'
 import type { BusinessClosureType, BusinessHoursInput } from '../lib/businessSettings'
 import { commonCopy } from '../lib/uiCopy'
 import { useUser } from '../hooks/useUser'
@@ -92,6 +93,14 @@ export function BusinessSettingsPage() {
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean; message: string; title: string; onConfirm: () => void
   }>({ isOpen: false, message: '', title: 'Confirmar', onConfirm: () => {} })
+
+  // ── Danger zone state ──────────────────────────────────────────────────────
+  const [dangerOpen, setDangerOpen] = useState(false)
+  const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const showConfirm = (title: string, message: string, onConfirm: () => void) => {
     setConfirmState({ isOpen: true, title, message, onConfirm })
   }
@@ -751,6 +760,136 @@ export function BusinessSettingsPage() {
         onConfirm={confirmState.onConfirm}
         onCancel={closeConfirm}
       />
+
+      {/* ── ZONA DE PELIGRO ── */}
+      <div className="mt-8">
+        <button
+          type="button"
+          onClick={() => setDangerOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-5 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100 transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            Zona de peligro
+          </span>
+          <svg
+            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+            className={cn('transition-transform', dangerOpen ? 'rotate-180' : '')}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {dangerOpen && (
+          <div className="mt-2 rounded-xl border border-red-200 bg-white p-5 space-y-4">
+            {deleteSuccess && (
+              <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {deleteSuccess}
+              </p>
+            )}
+
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Eliminar historial de reservas</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Elimina permanentemente todos los turnos del sistema. Esta acción no se puede deshacer.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setDeleteStep(1); setDeleteSuccess(null); setDeleteError(null) }}
+                className="shrink-0 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors"
+              >
+                Eliminar historial
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* First confirmation dialog */}
+      {deleteStep === 1 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-2">Eliminar historial de reservas</h2>
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+              Esta acción eliminará permanentemente todas las reservas. El historial es irrecuperable.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setDeleteStep(0)}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => { setDeleteStep(2); setDeleteConfirmText('') }}
+                className="px-4 py-2 text-sm rounded-lg font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Second confirmation dialog — requires typing CONFIRMAR */}
+      {deleteStep === 2 && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}>
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-2">Confirmación final</h2>
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+              Para confirmar, escribí <span className="font-mono font-bold">CONFIRMAR</span> en el campo de abajo.
+            </p>
+            <input
+              type="text"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="CONFIRMAR"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono mb-4 focus:outline-none focus:ring-2 focus:ring-red-300"
+              autoFocus
+            />
+            {deleteError && (
+              <p className="text-sm text-red-600 mb-4">{deleteError}</p>
+            )}
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => { setDeleteStep(0); setDeleteConfirmText('') }}
+                className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={deleteConfirmText !== 'CONFIRMAR' || isDeleting}
+                onClick={async () => {
+                  setIsDeleting(true)
+                  setDeleteError(null)
+                  try {
+                    const count = await adminDeleteAllAppointments()
+                    setDeleteSuccess(`Se eliminaron ${count} turno${count !== 1 ? 's' : ''} correctamente.`)
+                    setDeleteStep(0)
+                    setDeleteConfirmText('')
+                  } catch {
+                    setDeleteError('Ocurrió un error al eliminar los turnos. Intentá nuevamente.')
+                  } finally {
+                    setIsDeleting(false)
+                  }
+                }}
+                className="px-4 py-2 text-sm rounded-lg font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {isDeleting ? 'Eliminando…' : 'Eliminar todo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

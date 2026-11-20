@@ -78,3 +78,17 @@ export async function adminListAppointments(
     totalCount: rows[0]?.total_count ?? 0,
   }
 }
+
+// ── Danger zone ───────────────────────────────────────────────────────────────
+
+export async function adminDeleteAllAppointments(): Promise<number> {
+  const supabase = initSupabase()
+
+  const { data, error } = await supabase.rpc('admin_delete_all_appointments')
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return Number(data)
+}

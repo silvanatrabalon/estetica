@@ -16,7 +16,6 @@ const STATUS_LABELS: Record<string, string> = {
   confirmed: 'Confirmado',
   cancelled: 'Cancelado',
   completed: 'Completado',
-  no_show: 'No asistió',
 }
 
 const STATUS_COLORS: Record<string, string> = {

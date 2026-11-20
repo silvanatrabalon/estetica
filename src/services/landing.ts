@@ -106,3 +106,38 @@ export async function getLandingConfig(): Promise<LandingConfig> {
 
   return toLandingConfig(rows[0])
 }
+
+// ── Upcoming closures ─────────────────────────────────────────────────────────
+
+export interface UpcomingClosure {
+  closureDate: string
+  closureType: 'full_day' | 'half_day'
+  startsAt: string | null
+  endsAt: string | null
+  reason: string | null
+}
+
+interface UpcomingClosureRpcRow {
+  closure_date: string
+  closure_type: string
+  starts_at: string | null
+  ends_at: string | null
+  reason: string | null
+}
+
+export async function getUpcomingClosures(): Promise<UpcomingClosure[]> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('get_upcoming_closures')
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return ((data ?? []) as UpcomingClosureRpcRow[]).map((row) => ({
+    closureDate: row.closure_date,
+    closureType: row.closure_type as 'full_day' | 'half_day',
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    reason: row.reason,
+  }))
+}

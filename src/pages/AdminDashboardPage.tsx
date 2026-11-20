@@ -3,7 +3,7 @@ import { cn } from '../lib/cn'
 import { getBusinessSettings } from '../services/businessSettings'
 import { StatCard } from '../components/StatCard'
 import { useAdminDashboardStats } from '../hooks/useAdminDashboardStats'
-import { getAdminStatsByRange, type AdminRangeStats } from '../services/adminDashboard'
+import { getStatsByRange, type StatsByRange } from '../services/adminDashboard'
 
 // ── Currency formatter ────────────────────────────────────────────────────────
 
@@ -123,6 +123,16 @@ function IconCheckCircle() {
   )
 }
 
+function IconXCircle() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="15" y1="9" x2="9" y2="15" />
+      <line x1="9" y1="9" x2="15" y2="15" />
+    </svg>
+  )
+}
+
 function IconCurrency() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -138,7 +148,7 @@ export function AdminDashboardPage() {
   const { stats, loading: statsLoading, error: statsError } = useAdminDashboardStats()
 
   const [rangePreset, setRangePreset] = useState<RangePreset>('last_month')
-  const [rangeStats, setRangeStats] = useState<AdminRangeStats | null>(null)
+  const [rangeStats, setRangeStats] = useState<StatsByRange | null>(null)
   const [rangeLoading, setRangeLoading] = useState(false)
   const [rangeError, setRangeError] = useState<string | null>(null)
 
@@ -163,9 +173,9 @@ export function AdminDashboardPage() {
     setRangeLoading(true)
     setRangeError(null)
     const { dateFrom, dateTo } = getPresetRange(rangePreset)
-    getAdminStatsByRange(dateFrom, dateTo)
+    getStatsByRange(dateFrom, dateTo)
       .then((data) => { if (!cancelled) setRangeStats(data) })
-      .catch(() => { if (!cancelled) setRangeError('Las analíticas por rango estarán disponibles próximamente.') })
+      .catch(() => { if (!cancelled) setRangeError('Error al cargar las analíticas. Intentá nuevamente.') })
       .finally(() => { if (!cancelled) setRangeLoading(false) })
     return () => { cancelled = true }
   }, [rangePreset])
@@ -223,7 +233,7 @@ export function AdminDashboardPage() {
         </div>
 
         {/* KPI grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <StatCard
             label="Turnos hoy"
             value={stats?.todayCount ?? 0}
@@ -247,6 +257,12 @@ export function AdminDashboardPage() {
             value={confirmedPendingToday}
             loading={statsLoading}
             icon={<IconCheckCircle />}
+          />
+          <StatCard
+            label="Cancelados"
+            value={stats?.cancelledCount ?? 0}
+            loading={statsLoading}
+            icon={<IconXCircle />}
           />
           <StatCard
             label="Ingresos estimados este mes"

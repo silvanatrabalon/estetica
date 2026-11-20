@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
-import { getLandingConfig } from '../services/landing'
+import { getLandingConfig, getUpcomingClosures } from '../services/landing'
 import { formatPriceARS } from '../lib/formatPrice'
 import { initSupabase } from '../lib/supabase'
 import { resolveRoleHomePath } from '../lib/routing'
-import type { LandingConfig, CarouselImage } from '../services/landing'
+import type { LandingConfig, CarouselImage, UpcomingClosure } from '../services/landing'
 import type { Service } from '../services/adminServices'
 import type { ServiceCategory } from '../services/adminCategories'
 import { RouteLoadingState } from '../components/routing'
@@ -331,13 +331,6 @@ interface BusinessHourRow {
   closes_at: string | null
 }
 
-interface TodayClosureRow {
-  closureType: 'full_day' | 'half_day'
-  startsAt: string | null
-  endsAt: string | null
-  reason: string | null
-}
-
 const DAY_LABELS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
 function formatTime(t: string | null): string {
@@ -346,13 +339,82 @@ function formatTime(t: string | null): string {
   return `${h}:${m}`
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Today Closure Banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface TodayClosureBannerProps {
+  closure: UpcomingClosure
+}
+
+function TodayClosureBanner({ closure }: TodayClosureBannerProps) {
+  const message =
+    closure.closureType === 'full_day'
+      ? 'Hoy estamos cerrados.'
+      : `Hoy cerrado de ${formatTime(closure.startsAt)} a ${formatTime(closure.endsAt)}.`
+
+  return (
+    <div
+      className="w-full py-3 px-6 text-center text-sm font-semibold"
+      style={{ backgroundColor: 'var(--lp-primary)', color: '#fff' }}
+      role="alert"
+    >
+      {message}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Upcoming Closures Section
+// ─────────────────────────────────────────────────────────────────────────────
+
+function formatDateLong(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
+interface UpcomingClosuresSectionProps {
+  closures: UpcomingClosure[]
+}
+
+function UpcomingClosuresSection({ closures }: UpcomingClosuresSectionProps) {
+  if (closures.length === 0) return null
+
+  return (
+    <section
+      className="py-12 px-6"
+      style={{ backgroundColor: 'var(--lp-secondary)' }}
+      aria-label="Próximos cierres"
+    >
+      <div className="max-w-xl mx-auto">
+        <h2 className="text-lg font-bold text-gray-800 mb-4">Próximos cierres</h2>
+        <ul className="space-y-2">
+          {closures.map((c) => {
+            const timeWindow =
+              c.closureType === 'half_day' && c.startsAt && c.endsAt
+                ? ` (de ${formatTime(c.startsAt)} a ${formatTime(c.endsAt)})`
+                : ''
+            return (
+              <li key={c.closureDate} className="text-sm text-gray-700">
+                El {formatDateLong(c.closureDate)} estaremos cerrados
+                {c.reason ? ` — ${c.reason}.` : '.'}
+                {timeWindow && <span className="text-gray-500">{timeWindow}</span>}
+              </li>
+            )
+          })}
+        </ul>
+      </div>
+    </section>
+  )
+}
+
 interface HoursSectionProps {
   showHours: boolean
   hours: BusinessHourRow[]
-  todayClosure: TodayClosureRow | null
 }
 
-function HoursSection({ showHours, hours, todayClosure }: HoursSectionProps) {
+function HoursSection({ showHours, hours }: HoursSectionProps) {
   if (!showHours) return null
 
   const todayDow = new Date().getDay()
@@ -364,21 +426,6 @@ function HoursSection({ showHours, hours, todayClosure }: HoursSectionProps) {
         <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Horarios</h2>
         <div className="w-10 h-0.5 mx-auto rounded-full" style={{ backgroundColor: 'var(--lp-primary)' }} />
       </div>
-      {todayClosure && (
-        <div
-          className="mb-4 rounded-xl px-5 py-4 border text-sm"
-          style={{ backgroundColor: 'var(--lp-secondary)', borderColor: 'var(--lp-primary)' }}
-        >
-          <p className="font-semibold text-gray-800">
-            {todayClosure.closureType === 'full_day'
-              ? 'Hoy el negocio está cerrado'
-              : `Hoy hay cierre parcial: ${formatTime(todayClosure.startsAt)} – ${formatTime(todayClosure.endsAt)}`}
-          </p>
-          {todayClosure.reason && (
-            <p className="mt-0.5 text-gray-600">{todayClosure.reason}</p>
-          )}
-        </div>
-      )}
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
         {sorted.map((h) => {
           const isToday = h.day_of_week === todayDow
@@ -518,7 +565,7 @@ export function LandingPage() {
   const [loadingConfig, setLoadingConfig] = useState(true)
   const [loadingServices, setLoadingServices] = useState(true)
   const [categories, setCategories] = useState<ServiceCategory[]>([])
-  const [todayClosure, setTodayClosure] = useState<TodayClosureRow | null>(null)
+  const [upcomingClosures, setUpcomingClosures] = useState<UpcomingClosure[]>([])
 
   const isAuthenticated = !!user
   const isCustomer = activeRole === 'customer'
@@ -608,24 +655,10 @@ export function LandingPage() {
         if (!cancelled) setHours((data ?? []) as BusinessHourRow[])
       })
 
-    // Fetch today's closure exception (anon-safe)
-    const todayDate = new Date().toLocaleDateString('en-CA') // YYYY-MM-DD in local timezone
-    supabase
-      .from('business_closure_exceptions')
-      .select('closure_type, starts_at, ends_at, reason')
-      .eq('closure_date', todayDate)
-      .limit(1)
-      .then(({ data }) => {
-        if (!cancelled && data && data.length > 0) {
-          const row = data[0]
-          setTodayClosure({
-            closureType: row.closure_type as 'full_day' | 'half_day',
-            startsAt: row.starts_at,
-            endsAt: row.ends_at,
-            reason: row.reason,
-          })
-        }
-      })
+    // Fetch upcoming closures via RPC (anon-safe)
+    getUpcomingClosures()
+      .then((rows) => { if (!cancelled) setUpcomingClosures(rows) })
+      .catch(() => { if (!cancelled) setUpcomingClosures([]) })
 
     return () => { cancelled = true }
   }, [])
@@ -674,6 +707,10 @@ export function LandingPage() {
     carouselImages: [],
   }
 
+  const todayStr = new Date().toLocaleDateString('en-CA')
+  const todayClosure = upcomingClosures.find((c) => c.closureDate === todayStr) ?? null
+  const futureClosures = upcomingClosures.filter((c) => c.closureDate > todayStr)
+
   if (authLoading || loadingConfig) {
     return <RouteLoadingState />
   }
@@ -687,6 +724,7 @@ export function LandingPage() {
       } as React.CSSProperties}
       className="min-h-screen"
     >
+      {todayClosure && <TodayClosureBanner closure={todayClosure} />}
       <HeroSection
         config={effectiveConfig}
         isCustomer={isCustomer}
@@ -700,7 +738,8 @@ export function LandingPage() {
         primaryColor={effectiveConfig.primaryColor}
       />
       <AboutSection aboutText={effectiveConfig.aboutText} />
-      <HoursSection showHours={effectiveConfig.showHours} hours={hours} todayClosure={todayClosure} />
+      <HoursSection showHours={effectiveConfig.showHours} hours={hours} />
+      <UpcomingClosuresSection closures={futureClosures} />
       <ContactFooter
         instagramUrl={effectiveConfig.instagramUrl}
       />

@@ -8,7 +8,6 @@ export interface AdminDashboardStats {
   confirmedCount: number
   cancelledCount: number
   completedCount: number
-  noShowCount: number
   // NOTE: price-at-query — reflects current services.price_cents at call time.
   // If service prices have changed since the appointment was booked, this value
   // is approximate. There is no total_price_cents snapshot on appointments in MVP.
@@ -23,7 +22,6 @@ interface AdminDashboardStatsRpcRow {
   confirmed_count: number
   cancelled_count: number
   completed_count: number
-  no_show_count: number
   revenue_cents_month: number
 }
 
@@ -50,14 +48,13 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
     confirmedCount: Number(row.confirmed_count),
     cancelledCount: Number(row.cancelled_count),
     completedCount: Number(row.completed_count),
-    noShowCount: Number(row.no_show_count),
     revenueCentsMonth: Number(row.revenue_cents_month),
   }
 }
 
-// ── Date-range analytics (stub — blocked on #44d) ─────────────────────────
+// ── Date-range analytics ─────────────────────────────────────────────────────
 
-export interface AdminRangeStats {
+export interface StatsByRange {
   pendingCount: number
   confirmedCount: number
   cancelledCount: number
@@ -66,13 +63,42 @@ export interface AdminRangeStats {
   revenueCents: number
 }
 
-/**
- * Stub: will call `admin_get_stats_by_range` RPC once #44d is deployed.
- * Throws an error so callers can show a friendly "not yet available" state.
- */
-export async function getAdminStatsByRange(
-  _dateFrom: string,
-  _dateTo: string,
-): Promise<AdminRangeStats> {
-  throw new Error('admin_get_stats_by_range RPC not yet deployed (#44d)')
+interface StatsByRangeRpcRow {
+  pending_count: number
+  confirmed_count: number
+  cancelled_count: number
+  completed_count: number
+  total_count: number
+  revenue_cents: number
+}
+
+export async function getStatsByRange(
+  dateFrom: string,
+  dateTo: string,
+): Promise<StatsByRange> {
+  const supabase = initSupabase()
+
+  const { data, error } = await supabase.rpc('admin_get_stats_by_range', {
+    p_date_from: new Date(`${dateFrom}T00:00:00`).toISOString(),
+    p_date_to: new Date(`${dateTo}T23:59:59`).toISOString(),
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  const row = (data as StatsByRangeRpcRow[] | null)?.[0]
+
+  if (!row) {
+    throw new Error('No se recibieron estadísticas del servidor.')
+  }
+
+  return {
+    pendingCount: Number(row.pending_count),
+    confirmedCount: Number(row.confirmed_count),
+    cancelledCount: Number(row.cancelled_count),
+    completedCount: Number(row.completed_count),
+    totalCount: Number(row.total_count),
+    revenueCents: Number(row.revenue_cents),
+  }
 }

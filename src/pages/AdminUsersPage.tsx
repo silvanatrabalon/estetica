@@ -19,6 +19,7 @@ import {
 } from '../services/adminUsers'
 import { useUser } from '../hooks/useUser'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { initSupabase } from '../lib/supabase'
 
 function formatRelativeDate(dateValue: string | null): string {
   if (!dateValue) {
@@ -70,6 +71,9 @@ export function AdminUsersPage() {
     setConfirmState({ isOpen: true, title, message, onConfirm })
   }
   const closeConfirm = () => setConfirmState((prev) => ({ ...prev, isOpen: false }))
+
+  const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
+  const [isDeletingUser, setIsDeletingUser] = useState(false)
 
   const selectedUser = useMemo(
     () => users.find((user) => user.userId === selectedUserId) ?? null,
@@ -298,6 +302,27 @@ export function AdminUsersPage() {
     )
   }
 
+  const handleDeleteUser = async (userId: string) => {
+    const supabase = initSupabase()
+    setIsDeletingUser(true)
+    setErrorMessage(null)
+    try {
+      const { error } = await supabase.functions.invoke('admin-delete-user', { body: { userId } })
+      if (error) throw error
+      setUsers((prev) => prev.filter((u) => u.userId !== userId))
+      if (selectedUserId === userId) setSelectedUserId('')
+      setDeleteUserId(null)
+      setSuccessMessage('Usuario eliminado correctamente.')
+      void refreshAnalytics()
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : 'Ocurrió un error al eliminar el usuario.',
+      )
+    } finally {
+      setIsDeletingUser(false)
+    }
+  }
+
   return (
     <section className="space-y-6">
       <div>
@@ -373,12 +398,12 @@ export function AdminUsersPage() {
             {filteredUsers.map((user) => {
               const selected = user.userId === selectedUserId
               return (
-                <li key={user.userId}>
+                <li key={user.userId} className="flex gap-1 items-stretch">
                   <button
                     type="button"
                     onClick={() => setSelectedUserId(user.userId)}
                     className={[
-                      'w-full rounded-lg border px-3 py-2 text-left text-sm transition-micro',
+                      'flex-1 min-w-0 rounded-lg border px-3 py-2 text-left text-sm transition-micro',
                       selected
                         ? 'border-brand-primary bg-teal-50 text-shell-text'
                         : 'border-shell-border bg-white text-shell-subtleText hover:bg-shell-muted',
@@ -397,6 +422,20 @@ export function AdminUsersPage() {
                     </div>
                     <p className="truncate text-xs">{user.email ?? user.userId}</p>
                     <p className="mt-1 text-xs">{user.roles.map(roleLabel).join(', ')}</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteUserId(user.userId)}
+                    title="Eliminar usuario"
+                    aria-label={`Eliminar usuario ${user.name || (user.email ?? '')}`}
+                    className="shrink-0 rounded-lg border border-red-100 bg-white text-red-300 hover:bg-red-50 hover:text-red-500 transition-colors px-2.5"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      <path d="M10 11v6M14 11v6" />
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                    </svg>
                   </button>
                 </li>
               )
@@ -514,6 +553,17 @@ export function AdminUsersPage() {
         message={confirmState.message}
         onConfirm={confirmState.onConfirm}
         onCancel={closeConfirm}
+      />
+
+      <ConfirmModal
+        isOpen={deleteUserId !== null}
+        title="Eliminar usuario"
+        message="Esta acción eliminará permanentemente al usuario y su acceso. Sus turnos pasados quedarán sin nombre de cliente."
+        confirmLabel={isDeletingUser ? 'Eliminando…' : 'Eliminar'}
+        cancelLabel="Cancelar"
+        destructive
+        onConfirm={() => { if (deleteUserId) void handleDeleteUser(deleteUserId) }}
+        onCancel={() => setDeleteUserId(null)}
       />
     </section>
   )
