@@ -49,7 +49,7 @@ begin
     join public.services      s  on s.id  = a.service_id
     join public.staff_members sm on sm.id = a.staff_member_id
     join public.organizations o  on o.id  = a.organization_id
-    left join public.profiles pr on pr.id  = a.customer_user_id
+    left join public.profiles pr on pr.user_id = a.customer_user_id
     where a.id = p_appointment_id
       and (
         a.customer_user_id = auth.uid()
