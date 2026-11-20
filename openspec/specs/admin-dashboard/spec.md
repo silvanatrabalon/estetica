@@ -1,9 +1,9 @@
 ### Requirement: Admin Dashboard Stats RPC
-The system SHALL expose a `admin_get_dashboard_stats()` SECURITY DEFINER PostgreSQL function accessible only to authenticated users with the `admin` role. It MUST return a single row with the following integer/bigint fields: `today_count`, `week_count`, `month_count`, `pending_count`, `confirmed_count`, `cancelled_count`, `completed_count`, `no_show_count`, `revenue_cents_month`. All count fields MUST return `0` (not NULL) when no matching rows exist. Time windows (today, this week, this month) MUST be computed using the organization's timezone from `organizations.timezone`, falling back to `UTC` if unset.
+The system SHALL expose a `admin_get_dashboard_stats()` SECURITY DEFINER PostgreSQL function accessible only to authenticated users with the `admin` role. It MUST return a single row with the following integer/bigint fields: `today_count`, `week_count`, `month_count`, `pending_count`, `confirmed_count`, `cancelled_count`, `completed_count`, `revenue_cents_month`. The `no_show_count` field is **REMOVED** from the return shape. All count fields MUST return `0` (not NULL) when no matching rows exist. Time windows (today, this week, this month) MUST be computed using the organization's timezone from `organizations.timezone`, falling back to `UTC` if unset. **BREAKING**: this change requires a `DROP FUNCTION` + `CREATE` migration and must be deployed atomically with the TypeScript interface update and frontend stat card removal.
 
 #### Scenario: Admin calls RPC
 - **WHEN** an authenticated user with role `admin` calls `admin_get_dashboard_stats()`
-- **THEN** the function returns one row with all KPI fields populated and no NULLs
+- **THEN** the function returns one row with all KPI fields populated and no NULLs; the response does NOT include `no_show_count`
 
 #### Scenario: Non-admin calls RPC
 - **WHEN** an authenticated user without role `admin` calls `admin_get_dashboard_stats()`

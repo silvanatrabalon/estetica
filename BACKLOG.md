@@ -1635,7 +1635,7 @@ create table public.landing_carousel_images (
 - Returns: `{ deletedUserId, cancelledAppointments: number }` on success; named error on auth failure
 - Frontend: `AdminUsersPage` calls via `supabase.functions.invoke('admin-delete-user', { body: { userId } })`
 
-- [ ] `business-logic-backend-changes`
+- [x] `business-logic-backend-changes` (93f955e)
 
 ---
 
