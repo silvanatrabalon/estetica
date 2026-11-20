@@ -42,6 +42,8 @@ function createSettingsResponse(overrides?: Partial<Awaited<ReturnType<typeof mo
     readiness: { isReady: true, missing: [] },
     bookingMinNoticeMinutes: 60,
     bookingMaxHorizonDays: 60,
+    notificationEmail: null,
+    notificationsEnabled: true,
     ...overrides,
   }
 }
@@ -133,6 +135,83 @@ describe('BusinessSettingsPage', () => {
         reason: 'Capacitacion',
       })
       expect(screen.getByText('Cierre excepcional guardado correctamente.')).toBeDefined()
+    })
+  })
+
+  describe('Notification email field', () => {
+    it('shows the stored notification email', async () => {
+      mockGetBusinessSettings.mockResolvedValue(
+        createSettingsResponse({ notificationEmail: 'inbox@negocio.com' }),
+      )
+      renderBusinessSettingsPage()
+
+      const input = await screen.findByLabelText('Email para notificaciones del negocio')
+      expect((input as HTMLInputElement).value).toBe('inbox@negocio.com')
+    })
+
+    it('renders empty when no notification email is configured (edge case)', async () => {
+      renderBusinessSettingsPage()
+
+      const input = await screen.findByLabelText('Email para notificaciones del negocio')
+      expect((input as HTMLInputElement).value).toBe('')
+    })
+
+    it('sends the notification email when saving business settings', async () => {
+      mockSaveBusinessSettings.mockResolvedValue(createSettingsResponse())
+      renderBusinessSettingsPage()
+
+      const input = await screen.findByLabelText('Email para notificaciones del negocio')
+      fireEvent.change(input, { target: { value: 'nuevo@negocio.com' } })
+      fireEvent.submit(input.closest('form')!)
+
+      await waitFor(() => {
+        expect(mockSaveBusinessSettings).toHaveBeenCalledWith(
+          expect.objectContaining({ notificationEmail: 'nuevo@negocio.com' }),
+        )
+      })
+    })
+
+    it('shows notifications enabled by default and sends the toggle value when saving', async () => {
+      mockSaveBusinessSettings.mockResolvedValue(createSettingsResponse())
+      renderBusinessSettingsPage()
+
+      const toggle = (await screen.findByLabelText(/Enviar notificaciones por email/)) as HTMLInputElement
+      expect(toggle.checked).toBe(true)
+
+      fireEvent.click(toggle)
+      fireEvent.submit(toggle.closest('form')!)
+
+      await waitFor(() => {
+        expect(mockSaveBusinessSettings).toHaveBeenCalledWith(
+          expect.objectContaining({ notificationsEnabled: false }),
+        )
+      })
+    })
+
+    it('reflects notifications disabled from the stored settings (edge case)', async () => {
+      mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ notificationsEnabled: false }))
+      renderBusinessSettingsPage()
+
+      const toggle = (await screen.findByLabelText(/Enviar notificaciones por email/)) as HTMLInputElement
+      expect(toggle.checked).toBe(false)
+    })
+
+    it('can be cleared: saves an empty notification email (edge case)', async () => {
+      mockGetBusinessSettings.mockResolvedValue(
+        createSettingsResponse({ notificationEmail: 'inbox@negocio.com' }),
+      )
+      mockSaveBusinessSettings.mockResolvedValue(createSettingsResponse())
+      renderBusinessSettingsPage()
+
+      const input = await screen.findByLabelText('Email para notificaciones del negocio')
+      fireEvent.change(input, { target: { value: '' } })
+      fireEvent.submit(input.closest('form')!)
+
+      await waitFor(() => {
+        expect(mockSaveBusinessSettings).toHaveBeenCalledWith(
+          expect.objectContaining({ notificationEmail: '' }),
+        )
+      })
     })
   })
 

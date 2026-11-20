@@ -20,14 +20,20 @@ The appointment lifecycle (booking, cancellation, reschedule) is fully implement
 
 ## Decisions
 
-### Trigger point: Frontend service layer (not DB trigger, not inside RPC)
+### Trigger point: Database trigger + pg_net (not frontend, not inside RPC)
 
-**Decision**: Call `notifyAppointmentEvent()` in `src/services/appointments.ts` after each RPC returns successfully.
+**Decision**: An `AFTER INSERT OR UPDATE` trigger on `public.appointments` calls the `send-appointment-notification` Edge Function through `pg_net` (`net.http_post`). Events: INSERT → `booking_confirmed`; status becomes `cancelled` → `cancelled`; `starts_at` changes on a non-cancelled appointment → `rescheduled`. The function URL and a shared secret are read from Supabase Vault (`notification_function_url`, `notification_webhook_secret`); the Edge Function is deployed with `verify_jwt = false` and authenticates the call with the `x-webhook-secret` header.
+
+**Master switch**: `organizations.notifications_enabled` (default `true`, editable in business settings) is checked by the trigger. It exists because local development points at the production database, so test bookings would otherwise send real emails.
+
+**Why this replaced the original frontend-call design**:
+- The email is sent even if the customer closes the tab right after booking.
+- It covers every code path that changes an appointment (customer, admin, staff, and the `admin-delete-user` function cancelling appointments), with no per-caller hookups.
+- `pg_net` is asynchronous and the trigger swallows all errors, so a notification problem can never block or roll back a booking.
 
 **Alternatives considered**:
-- *DB trigger via `pg_net`*: Would require `pg_net` extension, adds migration complexity, and makes the notification tightly coupled to the transaction. Harder to test and debug.
-- *Inside the SECURITY DEFINER RPC*: Couples email delivery to the DB transaction — a Brevo failure could affect RPC behavior. Violates the "email never blocks booking" constraint.
-- *Frontend service layer* ✓: Simple, testable, consistent with the BaaS-first philosophy. The service layer already owns the RPC call; adding a fire-and-forget call afterward is minimal complexity.
+- *Frontend service layer*: lost notifications when the tab closes; each new flow needs its own hookup.
+- *Inside the SECURITY DEFINER RPC*: couples email delivery to the transaction.
 
 ### Email provider: Brevo REST API via native `fetch` (not Resend SDK)
 
@@ -38,11 +44,9 @@ The appointment lifecycle (booking, cancellation, reschedule) is fully implement
 - *Brevo SDK (`sib-api-v3-sdk`)*: Not Deno-compatible without shims. REST API is straightforward and sufficient.
 - *Brevo REST API via fetch* ✓: Deno-native, no npm dependency, Brevo verifies individual sender addresses (not full domains). Sender already verified.
 
-### Notification trigger: fire-and-forget (not awaited)
+### Notification delivery: asynchronous and non-blocking
 
-**Decision**: `notifyAppointmentEvent()` does not `await` the Edge Function call. The returned Promise is deliberately discarded. Errors are caught and logged as `console.warn`.
-
-**Rationale**: Email delivery latency (Edge Function cold start + Brevo API round-trip) would add perceptible delay to the booking confirmation, cancel, and reschedule flows. The booking UX must remain snappy regardless of email provider availability.
+**Decision**: `net.http_post` only enqueues the request; the trigger never waits for the email and wraps everything in an exception handler. The Edge Function returns HTTP 200 even when Brevo fails (errors are logged with `appointmentId` and `eventType`). Each recipient gets their own email, so recipients never see each other's addresses.
 
 ### Email templates: inline TypeScript string interpolation (no template engine)
 
@@ -74,11 +78,11 @@ The appointment lifecycle (booking, cancellation, reschedule) is fully implement
 
 ## Migration Plan
 
-1. Deploy migration: `ALTER TABLE public.organizations ADD COLUMN notification_email text`
-2. Update `get_business_settings` and `admin_update_business_settings` RPCs to include `notification_email`
-3. Deploy Edge Function `send-appointment-notification`
-4. Deploy frontend changes (`AdminSettingsPage`, `notifications.ts`, `appointments.ts` hookups)
-5. **No rollback impact**: if the Edge Function is removed, `notifyAppointmentEvent()` calls silently fail (fire-and-forget); the rest of the app is unaffected
+1. Deploy migration `20260521100000_appointment_notifications.sql`: `pg_net`, `organizations.notification_email`, trigger function and trigger.
+2. Set Edge Function secret `NOTIFICATION_WEBHOOK_SECRET` and store the same value plus the function URL in Vault.
+3. Deploy Edge Function `send-appointment-notification` (`verify_jwt = false`).
+4. Deploy frontend (business settings field for `notification_email`).
+5. **Rollback**: drop the trigger; no other part of the app depends on it. If Vault secrets are missing, the trigger silently does nothing.
 
 ## Open Questions
 

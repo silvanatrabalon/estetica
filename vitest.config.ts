@@ -28,7 +28,7 @@ export default defineConfig({
         statements: 80,
       },
     },
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'supabase/functions/**/*.test.ts'],
   },
   resolve: {
     alias: {

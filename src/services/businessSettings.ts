@@ -6,6 +6,7 @@ import {
   validateBusinessClosure,
   validateBusinessHours,
   validateBusinessIdentity,
+  validateNotificationEmail,
   type BusinessClosureInput,
   type BusinessClosureType,
   type BusinessHoursInput,
@@ -42,6 +43,8 @@ export interface BusinessSettingsRecord {
   bookingSubtitleText: string | null
   bookingMinNoticeMinutes: number
   bookingMaxHorizonDays: number
+  notificationEmail: string | null
+  notificationsEnabled: boolean
   weeklyHours: BusinessHoursRecord[]
   closures: BusinessClosureRecord[]
   readiness: {
@@ -61,6 +64,8 @@ interface OrganizationRow {
   booking_subtitle_text: string | null
   booking_min_notice_minutes: number | null
   booking_max_horizon_days: number | null
+  notification_email: string | null
+  notifications_enabled: boolean | null
   created_at: string
 }
 
@@ -94,6 +99,8 @@ const ORGANIZATION_SELECT = [
   'booking_subtitle_text',
   'booking_min_notice_minutes',
   'booking_max_horizon_days',
+  'notification_email',
+  'notifications_enabled',
   'created_at',
 ].join(', ')
 
@@ -152,6 +159,8 @@ function toBusinessSettingsRecord(
     bookingSubtitleText: organization.booking_subtitle_text,
     bookingMinNoticeMinutes: organization.booking_min_notice_minutes ?? 60,
     bookingMaxHorizonDays: organization.booking_max_horizon_days ?? 60,
+    notificationEmail: organization.notification_email ?? null,
+    notificationsEnabled: organization.notifications_enabled ?? true,
     weeklyHours,
     closures,
     readiness: computeBusinessReadiness({
@@ -291,6 +300,8 @@ export async function saveBusinessSettings(input: {
   primaryColor: string
   bookingHeaderText: string
   bookingSubtitleText: string
+  notificationEmail?: string
+  notificationsEnabled?: boolean
   weeklyHours: BusinessHoursInput[]
 }): Promise<BusinessSettingsRecord> {
   const identityValidation = validateBusinessIdentity({
@@ -301,6 +312,11 @@ export async function saveBusinessSettings(input: {
 
   if (!identityValidation.valid) {
     throw new Error(Object.values(identityValidation.errors)[0] ?? 'La configuracion del negocio es invalida.')
+  }
+
+  const notificationEmailError = validateNotificationEmail(input.notificationEmail ?? '')
+  if (notificationEmailError) {
+    throw new Error(notificationEmailError)
   }
 
   for (const hour of input.weeklyHours) {
@@ -323,6 +339,8 @@ export async function saveBusinessSettings(input: {
       brand_primary_color: normalizeBusinessColor(input.primaryColor),
       booking_header_text: normalizeBusinessText(input.bookingHeaderText),
       booking_subtitle_text: normalizeBusinessText(input.bookingSubtitleText),
+      notification_email: normalizeBusinessText(input.notificationEmail ?? '')?.toLowerCase() ?? null,
+      ...(input.notificationsEnabled === undefined ? {} : { notifications_enabled: input.notificationsEnabled }),
       updated_at: now,
     })
     .eq('id', organization.id)

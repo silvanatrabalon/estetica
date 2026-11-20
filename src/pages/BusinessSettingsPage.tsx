@@ -72,6 +72,8 @@ export function BusinessSettingsPage() {
   const [primaryColor, setPrimaryColor] = useState('')
   const [bookingHeaderText, setBookingHeaderText] = useState('')
   const [bookingSubtitleText, setBookingSubtitleText] = useState('')
+  const [notificationEmail, setNotificationEmail] = useState('')
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [bookingMinNoticeMinutes, setBookingMinNoticeMinutes] = useState(60)
   const [bookingMaxHorizonDays, setBookingMaxHorizonDays] = useState(60)
   const [bookingPolicyError, setBookingPolicyError] = useState<string | null>(null)
@@ -129,6 +131,8 @@ export function BusinessSettingsPage() {
     setPrimaryColor(data.primaryColor ?? '')
     setBookingHeaderText(data.bookingHeaderText ?? '')
     setBookingSubtitleText(data.bookingSubtitleText ?? '')
+    setNotificationEmail(data.notificationEmail ?? '')
+    setNotificationsEnabled(data.notificationsEnabled ?? true)
     setBookingMinNoticeMinutes(data.bookingMinNoticeMinutes)
     setBookingMaxHorizonDays(data.bookingMaxHorizonDays)
     setWeeklyHours(data.weeklyHours)
@@ -180,6 +184,8 @@ export function BusinessSettingsPage() {
         primaryColor,
         bookingHeaderText,
         bookingSubtitleText,
+        notificationEmail,
+        notificationsEnabled,
         weeklyHours: toHoursInput(weeklyHours),
       })
 
@@ -459,6 +465,40 @@ export function BusinessSettingsPage() {
                   placeholder="Ej: Elegí el servicio y horario"
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-3">
+            <h3 className="font-semibold text-gray-900 text-sm">Notificaciones</h3>
+            <label className="flex items-start gap-2.5 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={notificationsEnabled}
+                onChange={(e) => setNotificationsEnabled(e.target.checked)}
+              />
+              <span>
+                Enviar notificaciones por email
+                <span className="block text-xs text-gray-400">
+                  Desactivalo mientras hacés pruebas para que no se envíen emails reales a clientes.
+                </span>
+              </span>
+            </label>
+            <div>
+              <label htmlFor="business-notification-email" className="mb-1.5 block text-xs font-medium text-gray-600">
+                Email para notificaciones del negocio
+              </label>
+              <input
+                id="business-notification-email"
+                className={fieldCls}
+                type="email"
+                value={notificationEmail}
+                onChange={(e) => setNotificationEmail(e.target.value)}
+                placeholder="negocio@ejemplo.com"
+              />
+              <p className="mt-1.5 text-xs text-gray-400">
+                Recibirás una copia de cada turno confirmado, cancelado y reprogramado. Es opcional.
+              </p>
             </div>
           </div>
 

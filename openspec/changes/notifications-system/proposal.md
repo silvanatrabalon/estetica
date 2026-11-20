@@ -16,7 +16,7 @@ After a booking is created, cancelled, or rescheduled, no automated notification
 
 ### New Capabilities
 
-- `appointment-notifications`: Transactional email delivery via Brevo for the three appointment lifecycle events — booking confirmation, cancellation, and reschedule. Covers Edge Function, email templates, notification service, and frontend hookups.
+- `appointment-notifications`: Transactional email delivery via Brevo for the three appointment lifecycle events — booking confirmation, cancellation, and reschedule. Covers a database trigger, Edge Function and email templates.
 
 ### Modified Capabilities
 
@@ -26,6 +26,6 @@ After a booking is created, cancelled, or rescheduled, no automated notification
 
 - **Database**: one new nullable column `organizations.notification_email`; one new migration
 - **Backend**: one new Supabase Edge Function (`send-appointment-notification`); two existing RPCs updated
-- **Frontend**: `AdminSettingsPage` gains one field; `src/services/appointments.ts` gains three `notifyAppointmentEvent` calls; new `src/services/notifications.ts`
+- **Frontend**: `AdminSettingsPage` gains one field; a database trigger on `appointments` (via `pg_net`) replaces frontend hookups
 - **Secrets**: `BREVO_API_KEY` and `BREVO_FROM_EMAIL` added to Supabase project secrets (already set)
 - **Dependencies**: Brevo REST API (no new npm dependency — uses native `fetch`)
