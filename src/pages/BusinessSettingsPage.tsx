@@ -16,10 +16,15 @@ import type { BusinessClosureType, BusinessHoursInput } from '../lib/businessSet
 import { commonCopy } from '../lib/uiCopy'
 import { useUser } from '../hooks/useUser'
 import { ConfirmModal } from '../components/ConfirmModal'
+import {
+  describeClosureType,
+  formatClosureDate,
+  noticeOptions,
+} from '../lib/businessSettingsFormat'
 import { FeedbackToast } from '../components/FeedbackToast'
 import { Select } from '../components/Select'
 
-const dayLabels = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
+const dayLabels = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
 
 interface ClosureDraft {
   id?: string
@@ -140,7 +145,7 @@ export function BusinessSettingsPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       console.error('Failed to load business settings:', message)
-      setErrorMessage('No pudimos cargar la configuracion del negocio en este momento.')
+      setErrorMessage('No pudimos cargar los datos del negocio en este momento. Probá de nuevo en unos minutos.')
     } finally {
       setIsLoading(false)
     }
@@ -396,12 +401,12 @@ export function BusinessSettingsPage() {
       <div className="space-y-2 mb-4">
         {!organizationId ? (
           <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            Aun no se pudo resolver el negocio principal. Reintenta la carga.
+            Todavía no pudimos encontrar tu negocio. Recargá la página para intentar de nuevo.
           </p>
         ) : null}
         {missingReadiness.length > 0 ? (
           <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-            Configuracion incompleta. Falta definir: {missingReadiness.map(missingLabel).join(', ')}.
+            Configuración incompleta. Falta definir: {missingReadiness.map(missingLabel).join(', ')}.
           </p>
         ) : null}
       </div>
@@ -410,7 +415,7 @@ export function BusinessSettingsPage() {
       <div className="mb-4">
         <h2 className="font-heading text-2xl font-semibold text-shell-text">Negocio</h2>
         <p className="mt-1 text-sm text-shell-subtleText">
-          Configura la identidad, horarios y política de reservas del salón.
+          Configurá los datos, los horarios y las reglas de reserva de tu salón.
         </p>
       </div>
 
@@ -490,7 +495,7 @@ export function BusinessSettingsPage() {
           <div className="flex flex-wrap items-center justify-end gap-3">
             {generalDirty && <span className="text-sm text-amber-700">Hay cambios sin guardar</span>}
             <button type="submit" disabled={isSavingSettings} className={saveBtnCls}>
-              {isSavingSettings ? 'Guardando…' : 'Guardar configuracion del negocio'}
+              {isSavingSettings ? 'Guardando…' : 'Guardar datos del negocio'}
             </button>
           </div>
         </form>
@@ -584,7 +589,10 @@ export function BusinessSettingsPage() {
       {true && (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5">
-            <h3 className="font-semibold text-gray-900 text-sm mb-4">Cierres excepcionales</h3>
+            <h3 className="font-semibold text-gray-900 text-sm">Cierres excepcionales</h3>
+            <p className="mt-1 mb-4 text-sm text-gray-500">
+              Para feriados, vacaciones o un día que no atendés. Un cierre tiene prioridad sobre tus horarios de la semana.
+            </p>
             <form onSubmit={handleSaveClosure} className="space-y-3">
               <div>
                 <label htmlFor="closure-date" className="block text-sm text-gray-700">Fecha</label>
@@ -611,7 +619,7 @@ export function BusinessSettingsPage() {
                     }))
                   }
                 >
-                  <option value="full_day">Dia completo</option>
+                  <option value="full_day">Todo el día</option>
                   <option value="half_day">Media jornada</option>
                 </Select>
               </div>
@@ -619,7 +627,7 @@ export function BusinessSettingsPage() {
               {closureDraft.closureType === 'half_day' && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label htmlFor="closure-starts" className="block text-sm text-gray-700">Inicio del cierre</label>
+                    <label htmlFor="closure-starts" className="block text-sm text-gray-700">Cierra desde</label>
                     <input
                       id="closure-starts"
                       className={cn(fieldCls, 'mt-1')}
@@ -629,7 +637,7 @@ export function BusinessSettingsPage() {
                     />
                   </div>
                   <div>
-                    <label htmlFor="closure-ends" className="block text-sm text-gray-700">Fin del cierre</label>
+                    <label htmlFor="closure-ends" className="block text-sm text-gray-700">Reabre a las</label>
                     <input
                       id="closure-ends"
                       className={cn(fieldCls, 'mt-1')}
@@ -679,18 +687,16 @@ export function BusinessSettingsPage() {
                 {closures.map((closure) => (
                   <li key={closure.id} className="flex items-start justify-between gap-4 px-5 py-3.5">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{closure.closureDate}</p>
+                      <p className="text-sm font-medium text-gray-900">{formatClosureDate(closure.closureDate)}</p>
                       <p className="text-sm text-gray-500 mt-0.5">
-                        {closure.closureType === 'full_day'
-                          ? 'Dia completo'
-                          : `Media jornada (${closure.startsAt ?? '--'} a ${closure.endsAt ?? '--'})`}
+                        {describeClosureType(closure.closureType, closure.startsAt, closure.endsAt)}
                         {closure.reason ? ` · ${closure.reason}` : ''}
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-1">
                       <button
                         type="button"
-                        aria-label={`Editar cierre del ${closure.closureDate}`}
+                        aria-label={`Editar cierre del ${formatClosureDate(closure.closureDate)}`}
                         onClick={() => setClosureDraft(toDraft(closure))}
                         className="min-h-11 rounded-lg px-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
                       >
@@ -698,7 +704,7 @@ export function BusinessSettingsPage() {
                       </button>
                       <button
                         type="button"
-                        aria-label={`Eliminar cierre del ${closure.closureDate}`}
+                        aria-label={`Eliminar cierre del ${formatClosureDate(closure.closureDate)}`}
                         onClick={() => handleDeleteClosure(closure.id)}
                         className="min-h-11 rounded-lg px-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
                       >
@@ -712,7 +718,7 @@ export function BusinessSettingsPage() {
           )}
 
           {closures.length === 0 && (
-            <p className="text-center py-6 text-sm text-gray-500">Todavia no hay cierres excepcionales configurados.</p>
+            <p className="text-center py-6 text-sm text-gray-500">Todavía no cargaste ningún cierre excepcional.</p>
           )}
         </div>
       )}
@@ -733,28 +739,32 @@ export function BusinessSettingsPage() {
 
             <div>
               <p className="text-sm text-gray-500 mb-3">
-                Tiempo mínimo antes del turno para que un cliente pueda reservar.
+                Cuánto antes del turno tiene que reservar una clienta. Por ejemplo, con 2 horas no se puede reservar un turno que empieza en 1 hora.
               </p>
               <label htmlFor="notice-minutes" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Anticipación mínima (minutos)
+                Anticipación mínima para reservar
               </label>
-              <input
+              <Select
                 id="notice-minutes"
-                className={cn(fieldCls, 'max-w-[10rem]')}
-                type="number"
-                min="0"
-                max="10080"
+                className={fieldCls}
+                wrapperClassName="max-w-xs"
                 value={bookingMinNoticeMinutes}
                 onChange={(e) => setBookingMinNoticeMinutes(Number(e.target.value))}
-              />
+              >
+                {noticeOptions(bookingMinNoticeMinutes).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
             </div>
 
             <div className="border-t border-gray-100 pt-5">
               <p className="text-sm text-gray-500 mb-3">
-                Cuántos días hacia el futuro puede reservar un cliente.
+                Hasta qué fecha pueden reservar tus clientas, contando desde hoy.
               </p>
               <label htmlFor="horizon-days" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Horizonte de reservas (días)
+                Cuántos días hacia adelante se puede reservar
               </label>
               <input
                 id="horizon-days"
