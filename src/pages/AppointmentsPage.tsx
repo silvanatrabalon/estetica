@@ -17,7 +17,7 @@ function isUpcoming(apt: AppointmentSummary): boolean {
 }
 
 export function AppointmentsPage() {
-  const { appointments, loading, error, setAppointments } = useAppointments()
+  const { appointments, loading, error, setAppointments } = useAppointments({ scope: 'customer' })
   const [tab, setTab] = useState<Tab>('proximos')
   const [viewMode, setViewMode] = useState<ViewMode>('lista')
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('semanal')

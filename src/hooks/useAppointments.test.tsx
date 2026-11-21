@@ -7,10 +7,12 @@ import type { AppointmentSummary } from '../services/appointments'
 
 const mockListAppointments = vi.fn()
 const mockListMyStaffAppointments = vi.fn()
+const mockListMyCustomerAppointments = vi.fn()
 
 vi.mock('../services/appointments', () => ({
   listAppointments: (...args: unknown[]) => mockListAppointments(...args),
   listMyStaffAppointments: (...args: unknown[]) => mockListMyStaffAppointments(...args),
+  listMyCustomerAppointments: (...args: unknown[]) => mockListMyCustomerAppointments(...args),
 }))
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -100,6 +102,26 @@ describe('useAppointments', () => {
     it('reports an error when the staff list fails (edge case)', async () => {
       mockListMyStaffAppointments.mockRejectedValue(new Error('down'))
       const { result } = renderHook(() => useAppointments({ scope: 'staff' }))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.error).toBeTruthy()
+    })
+  })
+
+  describe("scope 'customer'", () => {
+    it('loads only the appointments booked as a client, even for users with other roles', async () => {
+      mockListMyCustomerAppointments.mockResolvedValue([mockAppointment])
+      const { result } = renderHook(() => useAppointments({ scope: 'customer' }))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      expect(mockListMyCustomerAppointments).toHaveBeenCalledTimes(1)
+      expect(mockListAppointments).not.toHaveBeenCalled()
+      expect(mockListMyStaffAppointments).not.toHaveBeenCalled()
+      expect(result.current.appointments).toEqual([mockAppointment])
+    })
+
+    it('reports an error when the customer list fails (edge case)', async () => {
+      mockListMyCustomerAppointments.mockRejectedValue(new Error('down'))
+      const { result } = renderHook(() => useAppointments({ scope: 'customer' }))
       await waitFor(() => expect(result.current.loading).toBe(false))
       expect(result.current.error).toBeTruthy()
     })

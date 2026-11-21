@@ -11,7 +11,7 @@ import type { AppointmentSummary } from '../services/appointments'
 const mockListAppointments = vi.fn()
 
 vi.mock('../services/appointments', () => ({
-  listAppointments: (...args: unknown[]) => mockListAppointments(...args),
+  listMyCustomerAppointments: (...args: unknown[]) => mockListAppointments(...args),
 }))
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────

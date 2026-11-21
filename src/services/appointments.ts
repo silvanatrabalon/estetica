@@ -417,6 +417,19 @@ export async function listAppointments(): Promise<AppointmentSummary[]> {
   return ((data ?? []) as AppointmentSummaryRow[]).map(toAppointmentSummary)
 }
 
+/** Only the appointments the logged-in user booked as a client, whatever other roles they have. */
+export async function listMyCustomerAppointments(): Promise<AppointmentSummary[]> {
+  const supabase = initSupabase()
+
+  const { data, error } = await supabase.rpc('list_my_customer_appointments')
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as AppointmentSummaryRow[]).map(toAppointmentSummary)
+}
+
 /** Only the appointments where the logged-in user is the professional (admins included). */
 export async function listMyStaffAppointments(): Promise<AppointmentSummary[]> {
   const supabase = initSupabase()

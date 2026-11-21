@@ -1,5 +1,10 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react'
-import { listAppointments, listMyStaffAppointments, type AppointmentSummary } from '../services/appointments'
+import {
+  listAppointments,
+  listMyCustomerAppointments,
+  listMyStaffAppointments,
+  type AppointmentSummary,
+} from '../services/appointments'
 
 export interface UseAppointmentsResult {
   appointments: AppointmentSummary[]
@@ -9,10 +14,13 @@ export interface UseAppointmentsResult {
 }
 
 /**
- * `scope: 'staff'` loads only the appointments where the user is the professional,
- * even for admins. The default scope depends on the user's role (customer: own bookings).
+ * `scope: 'staff'` loads only the appointments where the user is the professional, even for admins.
+ * `scope: 'customer'` loads only the ones the user booked as a client, whatever other roles they have.
+ * The default scope depends on the user's real roles.
  */
-export function useAppointments(options: { scope?: 'default' | 'staff' } = {}): UseAppointmentsResult {
+export function useAppointments(
+  options: { scope?: 'default' | 'staff' | 'customer' } = {},
+): UseAppointmentsResult {
   const scope = options.scope ?? 'default'
   const [appointments, setAppointments] = useState<AppointmentSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -24,7 +32,13 @@ export function useAppointments(options: { scope?: 'default' | 'staff' } = {}): 
     setLoading(true)
     setError(null)
 
-    ;(scope === 'staff' ? listMyStaffAppointments() : listAppointments())
+    const load =
+      scope === 'staff'
+        ? listMyStaffAppointments()
+        : scope === 'customer'
+          ? listMyCustomerAppointments()
+          : listAppointments()
+    load
       .then((data) => {
         if (!cancelled) {
           setAppointments(data)
