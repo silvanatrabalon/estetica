@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthGuard } from '../components/routing/AuthGuard'
@@ -219,5 +219,56 @@ describe('AdminDashboardPage — loading state', () => {
 
     const skeletons = screen.getAllByTestId('stat-card-skeleton')
     expect(skeletons.length).toBeGreaterThanOrEqual(5)
+  })
+})
+
+describe('AdminDashboardPage — today agenda', () => {
+  const TODAY_ROW = {
+    id: 'a1',
+    startsAt: '2026-11-21T13:30:00Z', // 10:30 in Buenos Aires
+    endsAt: '2026-11-21T14:30:00Z',
+    status: 'confirmed',
+    serviceId: 's1',
+    serviceName: 'Semi permanentes',
+    staffDisplayName: 'Sil',
+    customerName: 'Camila Ríos',
+    createdAt: '2026-11-01T00:00:00Z',
+    totalCount: 1,
+  }
+
+  beforeEach(() => {
+    vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockResolvedValue(mockStats)
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-21T13:18:00Z')) // 10:18 in Buenos Aires
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows the next appointment first, then the day', async () => {
+    vi.spyOn(adminAppointmentsService, 'adminListAppointments').mockResolvedValue({
+      rows: [TODAY_ROW],
+      totalCount: 1,
+    })
+    renderDashboard('admin')
+
+    expect(await screen.findByRole('heading', { name: 'Próximo turno' })).toBeDefined()
+    expect(screen.getByText('en 12 min')).toBeDefined()
+    expect(screen.getAllByText('Camila Ríos').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByRole('heading', { name: 'Hoy · 1 turno' })).toBeDefined()
+  })
+
+  it('tells the owner when there is nothing today (edge case)', async () => {
+    renderDashboard('admin')
+    expect(await screen.findByText('Hoy no tenés turnos.')).toBeDefined()
+  })
+
+  it('shows a clear error in the agenda without hiding the numbers (edge case)', async () => {
+    vi.spyOn(adminAppointmentsService, 'adminListAppointments').mockRejectedValue(new Error('down'))
+    renderDashboard('admin')
+
+    expect(await screen.findByText(/No pudimos cargar los turnos de hoy/)).toBeDefined()
+    expect(screen.getByText('Turnos hoy')).toBeDefined()
   })
 })

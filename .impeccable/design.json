@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-21T12:00:00Z",
+  "title": "Design System: Estética So Beauty",
+  "extensions": {
+    "colorMeta": {
+      "plum": { "role": "primary", "displayName": "Plum", "canonical": "#5b3f73", "tonalRamp": ["#1e1428", "#2f2040", "#46305b", "#5b3f73", "#7a5e92", "#9c86b8", "#cbbfdc", "#ece7f3"] },
+      "plum-strong": { "role": "primary", "displayName": "Deep Plum", "canonical": "#46305b", "tonalRamp": ["#1a1124", "#2a1d38", "#46305b", "#5b3f73", "#7a5e92", "#9c86b8", "#cbbfdc", "#ece7f3"] },
+      "sage": { "role": "secondary", "displayName": "Sage Band", "canonical": "#dce8dc", "tonalRamp": ["#1f2d22", "#35503b", "#587d62", "#7fae8f", "#a9c9b2", "#c4d9c6", "#dce8dc", "#eef4ee"] },
+      "lilac": { "role": "secondary", "displayName": "Lilac", "canonical": "#e6dff1", "tonalRamp": ["#2a1f3a", "#46305b", "#6a4f87", "#9c86b8", "#c3b3d6", "#d7cce6", "#e6dff1", "#f4f0f9"] },
+      "peach": { "role": "tertiary", "displayName": "Peach", "canonical": "#fbe3d6", "tonalRamp": ["#3d1c08", "#6a3010", "#8a3f14", "#c2723f", "#efb392", "#f5cdb8", "#fbe3d6", "#fdf2eb"] },
+      "peach-ink": { "role": "tertiary", "displayName": "Peach Ink", "canonical": "#8a3f14", "tonalRamp": ["#2e1305", "#4d230b", "#6a3010", "#8a3f14", "#a95a2c", "#c2723f", "#da9a73", "#efb392"] },
+      "sage-ground": { "role": "neutral", "displayName": "Sage Ground", "canonical": "#f4f7f3", "tonalRamp": ["#1c211b", "#363e34", "#586454", "#8a9886", "#b7c2b3", "#d9e3d6", "#eaf0e8", "#f4f7f3"] },
+      "ink": { "role": "neutral", "displayName": "Plum Ink", "canonical": "#3b2a4a", "tonalRamp": ["#150f1b", "#241a2e", "#3b2a4a", "#4f3c60", "#6c5b7b", "#9a8da6", "#c9c1d1", "#ede9f1"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Clock Display", "purpose": "The next turn's time of day, weight 800, tabular numerals." },
+      "headline": { "displayName": "Headline", "purpose": "Page title and the next client's name." },
+      "title": { "displayName": "Row Title", "purpose": "Client names in agenda rows." },
+      "body": { "displayName": "Body", "purpose": "Services, descriptions and secondary text in Soft Plum." },
+      "label": { "displayName": "Label", "purpose": "Status pills, tab-bar labels, the En vivo chip." }
+    },
+    "shadows": [
+      { "name": "drawer", "value": "0 10px 30px -14px rgba(15, 23, 42, 0.24)", "purpose": "Mobile menu drawer only; removed from 768px up. Cards carry no shadows." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "The single easing for every transition." },
+      { "name": "structural", "value": "300ms", "purpose": "Drawer slide." },
+      { "name": "overlay", "value": "200ms", "purpose": "Backdrop fade." },
+      { "name": "micro", "value": "200ms", "purpose": "Hover and focus changes on nav links and buttons." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Next-turn Card",
+      "kind": "card",
+      "refersTo": "next-turn-card",
+      "description": "Lilac card with the next appointment's clock time, client and service.",
+      "html": "<div class=\"ds-next\"><time class=\"ds-next-time\">14:30</time><h2 class=\"ds-next-name\">Lucía Fernández</h2><p class=\"ds-next-service\">Limpieza facial · con Camila</p></div>",
+      "css": ".ds-next { background: var(--color-lilac, #e6dff1); border-radius: 24px; padding: 20px; color: var(--color-text-primary, #3b2a4a); font-family: var(--font-body, 'Nunito Sans', sans-serif); } .ds-next-time { display: block; font-size: 3.75rem; font-weight: 800; line-height: 1; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; } .ds-next-name { margin: 12px 0 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; } .ds-next-service { margin: 2px 0 0; font-size: 1rem; color: var(--color-text-secondary, #6c5b7b); }"
+    },
+    {
+      "name": "Agenda Row",
+      "kind": "custom",
+      "refersTo": "agenda-list",
+      "description": "Time, client and service, state pill; the next row is lilac.",
+      "html": "<ul class=\"ds-agenda\"><li class=\"ds-row ds-row-next\"><time class=\"ds-row-time\">14:30</time><div><p class=\"ds-row-name\">Lucía Fernández</p><p class=\"ds-row-service\">Limpieza facial</p></div><span class=\"ds-pill\">Confirmado</span></li><li class=\"ds-row\"><time class=\"ds-row-time\">16:00</time><div><p class=\"ds-row-name\">Marta Gómez</p><p class=\"ds-row-service\">Masaje descontracturante</p></div><span class=\"ds-pill ds-pill-pending\">Pendiente</span></li></ul>",
+      "css": ".ds-agenda { list-style: none; margin: 0; padding: 0 16px; background: #fff; border: 1px solid var(--color-border-subtle, #d9e3d6); border-radius: 24px; font-family: var(--font-body, 'Nunito Sans', sans-serif); color: var(--color-text-primary, #3b2a4a); } .ds-row { display: grid; grid-template-columns: 3.5rem 1fr auto; align-items: center; gap: 4px 12px; min-height: 64px; padding: 12px 0; } .ds-row + .ds-row { border-top: 1px solid var(--color-border-subtle, #d9e3d6); } .ds-row-next { background: var(--color-lilac, #e6dff1); margin: 0 -16px; padding: 12px 16px; border-radius: 16px; border-top: 0; } .ds-row-time { font-size: 1.125rem; font-weight: 800; font-variant-numeric: tabular-nums; } .ds-row-name { margin: 0; font-size: 1rem; font-weight: 600; line-height: 1.375; } .ds-row-service { margin: 0; font-size: 0.875rem; color: var(--color-text-secondary, #6c5b7b); } .ds-pill { border-radius: 9999px; padding: 4px 10px; font-size: 0.75rem; font-weight: 700; background: var(--color-secondary, #dce8dc); color: var(--color-text-primary, #3b2a4a); } .ds-pill-pending { background: var(--color-peach, #fbe3d6); color: var(--color-peach-ink, #8a3f14); }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "Sage by default, peach with peach ink for pending.",
+      "html": "<span class=\"ds-chip\">Confirmado</span> <span class=\"ds-chip ds-chip-pending\">Pendiente</span>",
+      "css": ".ds-chip { display: inline-block; border-radius: 9999px; padding: 4px 10px; font-family: var(--font-body, 'Nunito Sans', sans-serif); font-size: 0.75rem; font-weight: 700; background: var(--color-secondary, #dce8dc); color: var(--color-text-primary, #3b2a4a); } .ds-chip-pending { background: var(--color-peach, #fbe3d6); color: var(--color-peach-ink, #8a3f14); }"
+    },
+    {
+      "name": "Side Menu Link",
+      "kind": "nav",
+      "refersTo": "nav-link-active",
+      "description": "44px link, Soft Plum at rest, Lilac Wash on hover, lilac when current.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link\" href=\"#\">Turnos</a><a class=\"ds-nav-link ds-nav-active\" href=\"#\" aria-current=\"page\">Inicio</a></nav>",
+      "css": ".ds-nav { display: flex; flex-direction: column; gap: 8px; width: 220px; font-family: var(--font-body, 'Nunito Sans', sans-serif); } .ds-nav-link { display: flex; align-items: center; min-height: 44px; padding: 10px 12px; border-radius: 12px; font-size: 0.875rem; font-weight: 500; color: var(--color-text-secondary, #6c5b7b); text-decoration: none; transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), background-color 200ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-nav-link:hover, .ds-nav-link:focus-visible { background: var(--color-surface-muted, #ede8f5); transform: scale(1.01); } .ds-nav-link:focus-visible { outline: 3px solid var(--color-focus-ring, #5b3f73); outline-offset: 2px; } .ds-nav-active, .ds-nav-active:hover { background: var(--color-lilac, #e6dff1); color: var(--color-text-primary, #3b2a4a); font-weight: 600; }"
+    },
+    {
+      "name": "Phone Tab Bar",
+      "kind": "nav",
+      "refersTo": "mobile-tab-active-indicator",
+      "description": "Bottom bar with four items; the current one sits on a lilac pill.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab ds-tab-active\" href=\"#\"><span class=\"ds-tab-ico\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z\"/></svg></span>Inicio</a><a class=\"ds-tab\" href=\"#\"><span class=\"ds-tab-ico\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01\"/></svg></span>Turnos</a><a class=\"ds-tab\" href=\"#\"><span class=\"ds-tab-ico\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 5h18v16H3zM16 3v4M8 3v4M3 10h18\"/></svg></span>Calendario</a><a class=\"ds-tab\" href=\"#\"><span class=\"ds-tab-ico\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 6h16M4 12h16M4 18h16\"/></svg></span>Más</a></nav>",
+      "css": ".ds-tabs { display: flex; background: #fff; border-top: 1px solid var(--color-border-subtle, #d9e3d6); font-family: var(--font-body, 'Nunito Sans', sans-serif); } .ds-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 64px; font-size: 0.75rem; font-weight: 700; color: var(--color-text-secondary, #6c5b7b); text-decoration: none; } .ds-tab:focus-visible { outline: 3px solid var(--color-focus-ring, #5b3f73); outline-offset: -3px; } .ds-tab-ico { display: flex; align-items: center; justify-content: center; width: 56px; height: 32px; border-radius: 9999px; } .ds-tab-active { color: var(--color-text-primary, #3b2a4a); } .ds-tab-active .ds-tab-ico { background: var(--color-lilac, #e6dff1); }"
+    },
+    {
+      "name": "Stat Card",
+      "kind": "card",
+      "refersTo": "stat-card",
+      "description": "White 16px card with an icon chip, a label and a value.",
+      "html": "<div class=\"ds-stat\"><span class=\"ds-stat-chip\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><line x1=\"16\" y1=\"2\" x2=\"16\" y2=\"6\"/><line x1=\"8\" y1=\"2\" x2=\"8\" y2=\"6\"/><line x1=\"3\" y1=\"10\" x2=\"21\" y2=\"10\"/></svg></span><span class=\"ds-stat-label\">Turnos este mes</span><span class=\"ds-stat-value\">42</span></div>",
+      "css": ".ds-stat { display: flex; flex-direction: column; gap: 12px; width: 180px; padding: 16px; background: #fff; border: 1px solid var(--color-border-subtle, #d9e3d6); border-radius: 16px; font-family: var(--font-body, 'Nunito Sans', sans-serif); } .ds-stat-chip { display: inline-flex; width: fit-content; padding: 6px; border-radius: 8px; background: var(--color-surface-muted, #ede8f5); color: var(--color-primary, #5b3f73); } .ds-stat-label { font-size: 0.875rem; font-weight: 500; line-height: 1.375; color: var(--color-text-secondary, #6c5b7b); } .ds-stat-value { font-size: 1.5rem; font-weight: 700; color: var(--color-text-primary, #3b2a4a); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Carta de spa",
+    "overview": "The admin reads like a calm spa treatment menu for the day: what is next, then the day in time order, then the month. Soft sage, lilac and peach surfaces carry the structure; plum ink carries the text and the actions. The warmth of the voice (Rioplatense Spanish, \"vos\") is matched by large rounded cards, one humane typeface and no chrome.\n\nDensity is low and phone-first. Every screen is designed at phone width first and then opens into two columns on desktop. Depth comes from tone and thin sage rules, not from shadows. State is told with pastel pills and dots, never with saturated alarms.\n\nThe previous teal and orange look with Space Grotesk and Manrope is retired. The name \"Estética So Beauty\" and its logo are the only inherited identity.",
+    "keyCharacteristics": [
+      "Pastel sage ground, white cards, lilac for \"this one, now\", peach for \"waiting\".",
+      "One family, Nunito Sans, from weight 400 to 800; heavy weights carry hierarchy so size can stay modest.",
+      "Cards at 24px radius, no shadows at rest, thin sage borders.",
+      "Time is the hero: clock times set at weight 800 with tabular numerals.",
+      "Touch targets of at least 44px (nav links) and 64px (agenda rows, tab bar)."
+    ],
+    "rules": [
+      { "name": "The One Lilac Rule", "body": "Lilac marks the single current thing in a view (next turn, current page). If three things are lilac, none of them is.", "section": "colors" },
+      { "name": "The Peach Ink Rule", "body": "Peach is only legible with its own ink (#8a3f14). Never put plum or gray text on peach.", "section": "colors" },
+      { "name": "The Weight Does the Work Rule", "body": "Raise weight (600 to 800) before raising size; stay inside Nunito Sans.", "section": "typography" },
+      { "name": "The Clock Rule", "body": "Any time of day is weight 800 with tabular numerals.", "section": "typography" },
+      { "name": "The No-Shadow Rule", "body": "Cards never carry shadows; separation is tone plus a Sage Rule.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use Nunito Sans only, and build hierarchy with weight 400, 600 and 800.",
+      "Do keep cards flat with 24px radius and a 1px Sage Rule.",
+      "Do put the single current item in lilac and pending items in peach with peach ink.",
+      "Do write copy in Rioplatense \"vos\" (\"Hoy no tenés turnos.\").",
+      "Do keep touch targets at 44px or more and agenda rows at 64px.",
+      "Do read all colors from the CSS variables, not literals."
+    ],
+    "donts": [
+      "Don't reintroduce the old teal, emerald or orange accents, Space Grotesk or Manrope.",
+      "Don't open a screen with a grid of equal statistic tiles; lead with the next thing to do.",
+      "Don't add shadows to cards.",
+      "Don't use color alone for state; keep the text pill.",
+      "Don't use plum or gray text on peach.",
+      "Don't copy the Inicio screen's composition onto other screens; carry the tokens and forms, not the layout."
+    ]
+  }
+}

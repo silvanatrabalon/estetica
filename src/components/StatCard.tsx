@@ -43,7 +43,7 @@ export function StatCard({ label, value, loading = false, variant = 'light', ico
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow duration-200">
+    <div className="bg-white rounded-2xl border border-shell-border p-4 flex flex-col gap-3">
       {icon && (
         <div className={cn('inline-flex p-1.5 rounded-lg w-fit', accent ?? 'bg-shell-muted text-brand-primary')}>
           {icon}

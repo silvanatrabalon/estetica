@@ -1,26 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,500;6..12,600;6..12,700;6..12,800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-heading: 'Space Grotesk', 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
-  --font-body: 'Manrope', 'SF Pro Text', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: 'Nunito Sans', 'Avenir Next', Avenir, 'Segoe UI', sans-serif;
+  --font-body: 'Nunito Sans', 'SF Pro Text', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  --color-primary: #0f766e;
-  --color-primary-strong: #115e59;
-  --color-secondary: #ea580c;
+  /* Carta de spa: plum for actions, sage and lilac and peach as soft surfaces and states */
+  --color-primary: #5b3f73;
+  --color-primary-strong: #46305b;
+  --color-secondary: #dce8dc;
 
-  --color-surface-base: #f6faf9;
+  --color-surface-base: #f4f7f3;
   --color-surface-elevated: #ffffff;
-  --color-surface-muted: #e6f2ef;
+  --color-surface-muted: #ede8f5;
 
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-border-subtle: #d8e6e2;
+  --color-text-primary: #3b2a4a;
+  --color-text-secondary: #6c5b7b;
+  --color-border-subtle: #d9e3d6;
 
-  --color-focus-ring: #0d9488;
+  --color-lilac: #e6dff1;
+  --color-peach: #fbe3d6;
+  --color-peach-ink: #8a3f14;
+
+  --color-state-confirmed: #7fae8f;
+  --color-state-pending: #efb392;
+  --color-state-cancelled: #e08a8a;
+  --color-state-completed: #9c86b8;
+
+  --color-focus-ring: #5b3f73;
 
   --color-dark-surface-base: #0b1514;
   --color-dark-surface-elevated: #14211f;
@@ -40,7 +50,7 @@
   body {
     margin: 0;
     font-family: var(--font-body);
-    background: radial-gradient(circle at top right, #edf8f5 0%, var(--color-surface-base) 35%, #f9fbfb 100%);
+    background: var(--color-surface-base);
     color: var(--color-text-primary);
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -76,6 +86,11 @@
   .transition-micro {
     transition-duration: var(--motion-micro);
     transition-timing-function: var(--motion-ease-standard);
+  }
+
+  .shell-bar {
+    background-color: var(--color-secondary);
+    border-color: var(--color-border-subtle);
   }
 
   .shell-surface {

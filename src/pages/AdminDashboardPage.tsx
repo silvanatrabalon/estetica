@@ -4,6 +4,8 @@ import { getBusinessSettings } from '../services/businessSettings'
 import { StatCard } from '../components/StatCard'
 import { useAdminDashboardStats } from '../hooks/useAdminDashboardStats'
 import { getStatsByRange, type StatsByRange } from '../services/adminDashboard'
+import { TodayAgenda } from '../components/admin/TodayAgenda'
+import { useTodayAgenda } from '../hooks/useTodayAgenda'
 
 // ── Currency formatter ────────────────────────────────────────────────────────
 
@@ -25,18 +27,13 @@ const ANALYTICS_STATUSES = [
 ]
 
 const STATUS_BAR_COLORS: Record<string, string> = {
-  confirmed: 'bg-emerald-500',
-  pending: 'bg-amber-400',
-  cancelled: 'bg-red-400',
-  completed: 'bg-teal-500',
+  confirmed: 'bg-[var(--color-state-confirmed)]',
+  pending: 'bg-[var(--color-state-pending)]',
+  cancelled: 'bg-[var(--color-state-cancelled)]',
+  completed: 'bg-[var(--color-state-completed)]',
 }
 
-const STATUS_DOT_COLORS: Record<string, string> = {
-  confirmed: 'bg-emerald-500',
-  pending: 'bg-amber-400',
-  cancelled: 'bg-red-400',
-  completed: 'bg-teal-500',
-}
+const STATUS_DOT_COLORS: Record<string, string> = STATUS_BAR_COLORS
 
 type RangePreset = 'today' | 'last_month' | 'last_6_months' | 'last_year'
 
@@ -146,6 +143,7 @@ function IconCurrency() {
 
 export function AdminDashboardPage() {
   const { stats, loading: statsLoading, error: statsError } = useAdminDashboardStats()
+  const agenda = useTodayAgenda()
 
   const [rangePreset, setRangePreset] = useState<RangePreset>('last_month')
   const [rangeStats, setRangeStats] = useState<StatsByRange | null>(null)
@@ -206,7 +204,7 @@ export function AdminDashboardPage() {
     : null
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto">
       {/* Stats error */}
       {statsError && (
         <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-700 text-sm">
@@ -214,26 +212,34 @@ export function AdminDashboardPage() {
         </div>
       )}
 
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-heading font-extrabold tracking-tight text-shell-text sm:text-2xl">
+            Panel de administración
+          </h1>
+          <p className="mt-0.5 text-sm text-shell-subtleText">{formattedDate}</p>
+        </div>
+        <div className="shrink-0 flex items-center gap-2 rounded-full bg-brand-secondary px-3 py-1.5">
+          <span className="h-2 w-2 rounded-full bg-[var(--color-state-confirmed)] animate-pulse" />
+          <span className="text-xs font-bold text-shell-text">En vivo</span>
+        </div>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+      <TodayAgenda
+        items={agenda.items}
+        next={agenda.next}
+        timezone={agenda.timezone}
+        now={agenda.now}
+        loading={agenda.loading}
+        error={agenda.error}
+      />
+
+      <div className="space-y-6">
       {/* ── KPI section ──────────────────────────────────────────────────── */}
       <section aria-label="Métricas principales">
-        {/* Header row */}
-        <div className="flex items-start justify-between mb-4 gap-4">
-          <div>
-            <h1 className="text-2xl font-heading font-semibold tracking-tight text-gray-900">
-              Panel de administración
-            </h1>
-            <p className="text-sm mt-0.5 text-gray-400">
-              {formattedDate}
-            </p>
-          </div>
-          <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-medium text-emerald-700">En vivo</span>
-          </div>
-        </div>
-
         {/* KPI grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <StatCard
             label="Turnos hoy"
             value={stats?.todayCount ?? 0}
@@ -269,7 +275,7 @@ export function AdminDashboardPage() {
             value={stats ? formatARS(stats.revenueCentsMonth) : '—'}
             loading={statsLoading}
             icon={<IconCurrency />}
-            accent="bg-orange-50 text-orange-500"
+            accent="bg-[var(--color-peach)] text-[var(--color-peach-ink)]"
           />
         </div>
       </section>
@@ -277,7 +283,7 @@ export function AdminDashboardPage() {
       {/* ── Analytics section ─────────────────────────────────────────────── */}
       <section
         aria-label="Análisis de turnos"
-        className="rounded-2xl bg-white border border-gray-100 p-6 shadow-sm"
+        className="rounded-3xl bg-white border border-shell-border p-5 sm:p-6"
       >
         <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
           <div>
@@ -363,6 +369,8 @@ export function AdminDashboardPage() {
           </div>
         )}
       </section>
+      </div>
+      </div>
     </div>
   )
 }
