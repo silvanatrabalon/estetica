@@ -118,7 +118,12 @@ export function BusinessSettingsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const [confirmState, setConfirmState] = useState<{
-    isOpen: boolean; message: string; title: string; onConfirm: () => void
+    isOpen: boolean
+    message: string
+    title: string
+    onConfirm: () => void
+    destructive?: boolean
+    confirmLabel?: string
   }>({ isOpen: false, message: '', title: 'Confirmar', onConfirm: () => {} })
 
   // ── Danger zone state ──────────────────────────────────────────────────────
@@ -128,8 +133,13 @@ export function BusinessSettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
-    setConfirmState({ isOpen: true, title, message, onConfirm })
+  const showConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => void,
+    options?: { destructive?: boolean; confirmLabel?: string },
+  ) => {
+    setConfirmState({ isOpen: true, title, message, onConfirm, ...options })
   }
   const closeConfirm = () => setConfirmState((prev) => ({ ...prev, isOpen: false }))
 
@@ -259,6 +269,13 @@ export function BusinessSettingsPage() {
     policy: policyDirty,
   }
 
+  // Closures change on their own: refresh just them, so unsaved edits in other tabs survive
+  const refreshClosures = async () => {
+    const updated = await getBusinessSettings()
+    setClosures(updated.closures)
+    setMissingReadiness(updated.readiness.missing)
+  }
+
   const handleSaveClosure = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setErrorMessage(null)
@@ -275,8 +292,7 @@ export function BusinessSettingsPage() {
         reason: closureDraft.reason || null,
       })
 
-      const updated = await getBusinessSettings()
-      applyLoadedData(updated)
+      await refreshClosures()
       setClosureDraft(emptyClosureDraft())
       setSuccessMessage('Cierre excepcional guardado correctamente.')
     } catch (error) {
@@ -296,14 +312,14 @@ export function BusinessSettingsPage() {
         setSuccessMessage(null)
         try {
           await deleteBusinessClosure(closureId)
-          const updated = await getBusinessSettings()
-          applyLoadedData(updated)
+          await refreshClosures()
           setClosureDraft((current) => (current.id === closureId ? emptyClosureDraft() : current))
           setSuccessMessage('Cierre excepcional eliminado correctamente.')
         } catch {
           setErrorMessage('No pudimos eliminar el cierre excepcional.')
         }
       },
+      { destructive: true, confirmLabel: 'Eliminar cierre' },
     )
   }
 
@@ -352,7 +368,7 @@ export function BusinessSettingsPage() {
   }
 
   const fieldCls =
-    'min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition-colors'
+    'min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm focus:border-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-primary transition-colors'
   const saveBtnCls =
     'min-h-11 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong transition-colors disabled:opacity-50'
 
@@ -434,7 +450,7 @@ export function BusinessSettingsPage() {
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                'relative flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium transition-all sm:px-3',
+                'relative flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-primary sm:px-3',
                 activeTab === tab.key
                   ? 'bg-brand-primary text-white shadow-sm'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
@@ -503,7 +519,6 @@ export function BusinessSettingsPage() {
 
       {/* ── HORARIOS ── */}
       <div className={activeTab !== 'hours' ? 'hidden' : ''}>
-      {true && (
         <form onSubmit={handleSaveHours} className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5">
             <h3 className="font-semibold text-gray-900 text-sm mb-4">Horarios del negocio</h3>
@@ -526,7 +541,7 @@ export function BusinessSettingsPage() {
                         aria-checked={isOpen}
                         aria-label={`${dayLabels[hour.dayOfWeek]}: abierto`}
                         onClick={() => handleClosedSet(hour.dayOfWeek, isOpen)}
-                        className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
+                        className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-full focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary"
                       >
                         <span
                           className={cn(
@@ -553,7 +568,7 @@ export function BusinessSettingsPage() {
                             aria-label={`${dayLabels[hour.dayOfWeek]}: hora de apertura`}
                             value={hour.opensAt ?? ''}
                             onChange={(e) => handleHourChange(hour.dayOfWeek, 'opensAt', e.target.value)}
-                            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2.5 text-[15px] tabular-nums text-gray-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none sm:py-1.5 sm:text-sm"
+                            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2.5 text-[15px] tabular-nums text-gray-900 focus:border-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-primary sm:py-1.5 sm:text-sm"
                           />
                         </label>
                         <span className="hidden text-gray-300 text-xs shrink-0 sm:inline">—</span>
@@ -564,7 +579,7 @@ export function BusinessSettingsPage() {
                             aria-label={`${dayLabels[hour.dayOfWeek]}: hora de cierre`}
                             value={hour.closesAt ?? ''}
                             onChange={(e) => handleHourChange(hour.dayOfWeek, 'closesAt', e.target.value)}
-                            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2.5 text-[15px] tabular-nums text-gray-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none sm:py-1.5 sm:text-sm"
+                            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2.5 text-[15px] tabular-nums text-gray-900 focus:border-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-primary sm:py-1.5 sm:text-sm"
                           />
                         </label>
                       </div>
@@ -581,12 +596,10 @@ export function BusinessSettingsPage() {
             </div>
           </div>
         </form>
-      )}
       </div>
 
       {/* ── CIERRES ── */}
       <div className={activeTab !== 'closures' ? 'hidden' : ''}>
-      {true && (
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5">
             <h3 className="font-semibold text-gray-900 text-sm">Cierres excepcionales</h3>
@@ -721,12 +734,10 @@ export function BusinessSettingsPage() {
             <p className="text-center py-6 text-sm text-gray-500">Todavía no cargaste ningún cierre excepcional.</p>
           )}
         </div>
-      )}
       </div>
 
       {/* ── POLÍTICA ── */}
       <div className={activeTab !== 'policy' ? 'hidden' : ''}>
-      {true && (
         <form onSubmit={handleSaveBookingPolicy} className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5 space-y-5">
             <h3 className="font-semibold text-gray-900 text-sm">Configuración de reservas</h3>
@@ -778,7 +789,7 @@ export function BusinessSettingsPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-3">
+          <div className="rounded-2xl border border-shell-border bg-white p-5 shadow-sm space-y-3">
             <h3 className="font-semibold text-gray-900 text-sm">Notificaciones</h3>
             <label className="flex min-h-11 items-start gap-3 py-2 text-sm text-gray-700">
               <input
@@ -819,7 +830,6 @@ export function BusinessSettingsPage() {
             </button>
           </div>
         </form>
-      )}
       </div>
 
       <FeedbackToast
@@ -836,6 +846,8 @@ export function BusinessSettingsPage() {
         title={confirmState.title}
         message={confirmState.message}
         onConfirm={confirmState.onConfirm}
+        destructive={confirmState.destructive}
+        confirmLabel={confirmState.confirmLabel}
         onCancel={closeConfirm}
       />
 

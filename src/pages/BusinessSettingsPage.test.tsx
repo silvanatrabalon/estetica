@@ -447,6 +447,77 @@ describe('BusinessSettingsPage', () => {
     })
   })
 
+  describe('Closures do not discard other unsaved edits', () => {
+    const closure = {
+      id: 'c1',
+      closureDate: '2099-12-24',
+      closureType: 'full_day',
+      startsAt: null,
+      endsAt: null,
+      reason: 'Navidad',
+    }
+
+    it('deleting a closure keeps an unsaved name edit (edge case)', async () => {
+      mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ closures: [closure] }))
+      mockDeleteBusinessClosure.mockResolvedValue(undefined)
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+
+      fireEvent.change(screen.getByLabelText('Nombre del negocio'), { target: { value: 'Nombre a medio editar' } })
+      fireEvent.click(screen.getByRole('tab', { name: /Cierres/ }))
+      mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ closures: [] }))
+      fireEvent.click(screen.getByRole('button', { name: /Eliminar cierre del/ }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Eliminar cierre' }))
+
+      await waitFor(() => expect(mockDeleteBusinessClosure).toHaveBeenCalledWith('c1'))
+      expect(await screen.findByText('Todavía no cargaste ningún cierre excepcional.')).toBeDefined()
+      expect((screen.getByLabelText('Nombre del negocio') as HTMLInputElement).value).toBe('Nombre a medio editar')
+    })
+
+    it('saving a closure keeps unsaved hour edits (edge case)', async () => {
+      mockSaveBusinessClosure.mockResolvedValue(undefined)
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+
+      fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
+      fireEvent.change(screen.getByLabelText('Lunes: hora de apertura'), { target: { value: '08:30' } })
+      fireEvent.click(screen.getByRole('tab', { name: /Cierres/ }))
+      mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ closures: [closure] }))
+      fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2099-12-24' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar cierre' }))
+
+      await waitFor(() => expect(mockSaveBusinessClosure).toHaveBeenCalled())
+      expect(await screen.findByText('Jueves 24 de diciembre de 2099')).toBeDefined()
+      fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
+      expect((screen.getByLabelText('Lunes: hora de apertura') as HTMLInputElement).value).toBe('08:30')
+    })
+
+    it('the delete confirmation is destructive and names the action', async () => {
+      mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ closures: [closure] }))
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+      fireEvent.click(screen.getByRole('tab', { name: /Cierres/ }))
+
+      fireEvent.click(screen.getByRole('button', { name: /Eliminar cierre del/ }))
+
+      const confirm = await screen.findByRole('button', { name: 'Eliminar cierre' })
+      expect(confirm.className).toContain('bg-red-600')
+    })
+
+    it('cancelling the delete confirmation changes nothing (edge case)', async () => {
+      mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ closures: [closure] }))
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+      fireEvent.click(screen.getByRole('tab', { name: /Cierres/ }))
+
+      fireEvent.click(screen.getByRole('button', { name: /Eliminar cierre del/ }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
+
+      expect(mockDeleteBusinessClosure).not.toHaveBeenCalled()
+      expect(screen.getByText('Jueves 24 de diciembre de 2099')).toBeDefined()
+    })
+  })
+
   describe('General tab (business rules only)', () => {
     it('no longer has logo, color or booking text fields (they live in Apariencia)', async () => {
       renderBusinessSettingsPage()
