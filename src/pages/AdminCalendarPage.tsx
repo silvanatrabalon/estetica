@@ -36,6 +36,10 @@ function getUTCMonday(date: Date): Date {
   return new Date(date.getTime() + offset * 86400000)
 }
 
+function startOfUTCDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
+}
+
 function addUTCDays(date: Date, n: number): Date {
   return new Date(date.getTime() + n * 86400000)
 }
@@ -79,11 +83,11 @@ export function AdminCalendarPage() {
 
   // Derive fetch date range based on current view
   const weekEnd = addUTCDays(weekStart, 6)
-  const weekDateFrom = weekStart.toISOString()
+  const weekDateFrom = startOfUTCDay(weekStart).toISOString()
   const weekDateTo = `${toISODateString(weekEnd)}T23:59:59Z`
 
   // For day view, fetch ±1 day to safely cover timezone offsets; DayView filters to exact day
-  const dayDateFrom = addUTCDays(selectedDate, -1).toISOString()
+  const dayDateFrom = startOfUTCDay(addUTCDays(selectedDate, -1)).toISOString()
   const dayDateTo = `${toISODateString(addUTCDays(selectedDate, 1))}T23:59:59Z`
 
   const dateFrom = view === 'day' ? dayDateFrom : weekDateFrom

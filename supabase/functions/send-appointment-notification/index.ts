@@ -148,7 +148,8 @@ Deno.serve(async (req: Request) => {
         }),
       })
       if (!res.ok) {
-        throw new Error(`Brevo responded ${res.status}`)
+        const detail = (await res.text().catch(() => '')).slice(0, 300)
+        throw new Error(`Brevo responded ${res.status}: ${detail}`)
       }
     }),
   )

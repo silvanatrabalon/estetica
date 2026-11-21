@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatSlotTime, toLocalDateKey } from './formatSlotTime'
+import { formatSlotDateTime, formatSlotTime, toLocalDateKey } from './formatSlotTime'
 
 describe('toLocalDateKey', () => {
   it('returns prior local day for appointment at 01:00 UTC in America/Argentina/Buenos_Aires (UTC-3)', () => {
@@ -61,5 +61,27 @@ describe('formatSlotTime', () => {
   it('returns a non-empty string for valid inputs', () => {
     const result = formatSlotTime('2025-06-10T15:30:00Z', 'America/Argentina/Buenos_Aires')
     expect(result.length).toBeGreaterThan(0)
+  })
+})
+
+describe('formatSlotDateTime', () => {
+  it('shows date and time in the org timezone', () => {
+    const r = formatSlotDateTime('2026-11-23T10:00:00Z', 'America/Argentina/Buenos_Aires')
+    expect(r).toMatch(/23\/11\/2026/)
+    expect(r).toMatch(/7:00/)
+  })
+
+  it('uses the local date when the timezone shifts the day (edge case)', () => {
+    const r = formatSlotDateTime('2026-11-23T01:00:00Z', 'America/Argentina/Buenos_Aires')
+    expect(r).toMatch(/22\/11\/2026/)
+  })
+
+  it('falls back to UTC for empty or invalid timezone', () => {
+    expect(formatSlotDateTime('2026-11-23T10:00:00Z', '')).toMatch(/23\/11\/2026/)
+    expect(formatSlotDateTime('2026-11-23T10:00:00Z', 'Not/AZone')).toMatch(/10:00/)
+  })
+
+  it('returns the raw value for an invalid date', () => {
+    expect(formatSlotDateTime('nope', 'UTC')).toBe('nope')
   })
 })

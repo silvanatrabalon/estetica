@@ -53,3 +53,33 @@ export function formatSlotTime(isoUtc: string, orgTimezone: string): string {
     hourCycle: 'h12',
   }).format(new Date(isoUtc))
 }
+
+/**
+ * Formats a UTC ISO timestamp as "dd/mm/yyyy, h:mm a. m." in the given IANA timezone.
+ * Falls back to 'UTC' if the timezone is empty or invalid, and returns the raw
+ * value when the date is invalid instead of throwing.
+ */
+export function formatSlotDateTime(isoUtc: string, orgTimezone: string): string {
+  const date = new Date(isoUtc)
+  if (Number.isNaN(date.getTime())) return isoUtc
+
+  let timezone = 'UTC'
+  if (orgTimezone) {
+    try {
+      Intl.DateTimeFormat('es', { timeZone: orgTimezone })
+      timezone = orgTimezone
+    } catch {
+      // Invalid timezone — fall back to UTC
+    }
+  }
+
+  return new Intl.DateTimeFormat('es', {
+    timeZone: timezone,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hourCycle: 'h12',
+  }).format(date)
+}

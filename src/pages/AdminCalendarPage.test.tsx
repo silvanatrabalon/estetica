@@ -167,4 +167,18 @@ describe('AdminCalendarPage', () => {
     fireEvent.click(screen.getByTestId('view-toggle-day'))
     expect(screen.getByTestId('day-view')).toBeInTheDocument()
   })
+  it('requests the week from 00:00 UTC of Monday, even late in the day (edge case)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-21T15:35:00Z')) // Saturday afternoon
+    try {
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+      renderPage()
+      await screen.findByTestId('time-axis-weekly-calendar')
+      const filters = mockAdminListAppointments.mock.calls[0][0] as { dateFrom: string; dateTo: string }
+      expect(filters.dateFrom).toBe('2026-11-16T00:00:00.000Z')
+      expect(filters.dateTo).toBe('2026-11-22T23:59:59Z')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

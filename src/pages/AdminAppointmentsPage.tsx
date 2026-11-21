@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { cn } from '../lib/cn'
-import { formatSlotTime } from '../lib/formatSlotTime'
+import { formatSlotDateTime } from '../lib/formatSlotTime'
 import { getBusinessSettings } from '../services/businessSettings'
 import {
   adminListAppointments,
@@ -180,7 +180,7 @@ export function AdminAppointmentsPage() {
                     <td className="px-5 py-3.5 text-shell-subtleText">{row.serviceName}</td>
                     <td className="px-5 py-3.5 text-shell-subtleText hidden md:table-cell">{row.staffDisplayName}</td>
                     <td className="px-5 py-3.5 text-shell-subtleText whitespace-nowrap">
-                      {formatSlotTime(row.startsAt, orgTimezone)}
+                      {formatSlotDateTime(row.startsAt, orgTimezone)}
                     </td>
                     <td className="px-5 py-3.5">
                       <span
