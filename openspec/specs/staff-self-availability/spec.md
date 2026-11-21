@@ -1,8 +1,8 @@
 ### Requirement: Admin controls per professional whether they can edit their own availability
-The system SHALL store, for each professional, a flag `can_edit_own_availability` that the admin can change from the Profesionales screen. The flag MUST default to true, so existing and newly created professionals can edit their own availability until the admin removes the permission.
+The system SHALL store, for each professional, a flag `can_edit_own_availability` that the admin can change from the professional's Disponibilidad screen ("Horario semanal" tab). The flag MUST default to true, so existing and newly created professionals can edit their own availability until the admin removes the permission.
 
 #### Scenario: Admin removes the permission
-- **WHEN** an admin unticks "Puede editar su propia disponibilidad" for a professional
+- **WHEN** an admin unticks "Puede editar su horario" for a professional
 - **THEN** the flag is saved as false and a Spanish confirmation is shown
 
 #### Scenario: Admin restores the permission
@@ -62,3 +62,21 @@ When the permission is off, "Mi disponibilidad" MUST show the notice "Tu adminis
 #### Scenario: Permission lookup fails
 - **WHEN** the lookup fails
 - **THEN** the page is editable and any save is still checked by the server
+
+### Requirement: Separate permission for days off and special days
+The system SHALL store, for each professional, a second flag `can_edit_own_days_off` (default true), independent from `can_edit_own_availability`. The first controls the weekly schedule; this one controls adding and removing days off and special days. The admin changes it from the "Días libres y especiales" tab of the professional's Disponibilidad screen ("Puede cargar sus días libres").
+
+#### Scenario: Days off switched off
+- **WHEN** the admin unticks "Puede cargar sus días libres"
+- **THEN** the professional sees their days off in read-only mode with the notice "Tu administrador carga tus días libres", and cannot add or remove any
+
+#### Scenario: Independent switches
+- **WHEN** the schedule permission is off and the days-off permission is on
+- **THEN** the professional cannot save the weekly schedule but can still add days off
+
+#### Scenario: Enforced by the server
+- **WHEN** a professional without the days-off permission calls `staff_upsert_my_exception` or `staff_delete_my_exception`
+- **THEN** the call fails with a permission error; admins are never blocked
+
+### Requirement: The availability screens use two tabs
+The admin's and the professional's availability screens SHALL show two tabs, "Horario semanal" and "Días libres y especiales", instead of stacking both sections, so they fit a phone. The old name "Excepciones" is no longer used in the interface.

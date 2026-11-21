@@ -55,3 +55,12 @@ The system SHALL render a confirmation page at `/booking/confirmation/:appointme
 #### Scenario: "Hacer otra reserva" CTA navigation
 - **WHEN** the customer clicks "Hacer otra reserva"
 - **THEN** the app navigates to `/booking`
+
+### Requirement: The confirmation tells the client an email was sent
+For a confirmed (not cancelled, not completed) appointment the page SHALL show "Te enviamos un email con la confirmación" and suggest checking the spam folder. It SHALL NOT promise an email for cancelled or completed appointments.
+
+### Requirement: Friendly layout with visible actions
+The page SHALL show a colored header with an icon, the heading, the status and the booking reference, then the details in a compact grid, and the action buttons full width right below the details so they are visible on a phone. "Hacer otra reserva" is the primary action and comes before "Ver mis turnos"; a cancelled appointment offers "Reservar de nuevo".
+
+### Requirement: The price shown is the price charged
+The price shown SHALL be the price stored on the appointment (after any coupon), not the service's current price.

@@ -179,3 +179,5 @@ The system SHALL evaluate availability conditions in the following order: (1) se
 - **WHEN** `get_available_slots` is called, service available dates allow the date, but NO active staff member assigned to the service has a working schedule or custom hours for that day
 - **THEN** the function returns zero rows (staff layer eliminates all slots before business hours intersection)
 
+### Requirement: Slots come from the intersection of professional and business windows
+`get_available_slots` SHALL offer a slot only if it fits entirely inside one working window of the professional (morning and/or afternoon shift, or the special day's windows) and inside one open window of the business. The break between two shifts offers no slots. See `split-shifts`.

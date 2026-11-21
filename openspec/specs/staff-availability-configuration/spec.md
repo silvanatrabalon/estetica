@@ -66,3 +66,9 @@ The system MUST include automated test coverage for critical staff availability 
 #### Scenario: RLS and constraint smoke coverage
 - **WHEN** database smoke tests run for staff availability
 - **THEN** admin-only mutation paths are validated via RPC, direct non-admin writes are denied, and constraint violations on invalid hours are confirmed
+
+### Requirement: Weekly schedule and special days can have two shifts
+When the business works in two shifts (see `split-shifts`), each working day of the weekly schedule and each special day with custom hours SHALL allow a morning shift ("Turno matutino") and an afternoon shift ("Turno vespertino"), each optional but at least one required. In continuous mode a single range is shown.
+
+### Requirement: Days off and special days section
+The second tab of the availability screen SHALL be called "Días libres y especiales" and its form "Agregar día libre o especial", with the button "+ Agregar día".

@@ -32,33 +32,9 @@ The system SHALL provide `getStatsByRange(dateFrom: string, dateTo: string): Pro
 - **WHEN** the RPC returns an error
 - **THEN** `getStatsByRange()` throws
 
-### Requirement: Dashboard Date-Range Analytics UI
-The `AdminDashboardPage` SHALL include a date-range analytics section with a preset selector offering: **Hoy**, **Último mes**, **Últimos 6 meses**, **Último año**. The selected preset SHALL compute `p_date_from` / `p_date_to` and call `admin_get_stats_by_range`. The analytics section SHALL display a status-breakdown table with rows: Confirmado, Pendiente, Cancelado, Completado — each showing count and percentage of `total_count`. The **"No presentado"** row MUST NOT appear. Fixed-window KPI stat cards ("Turnos hoy", "Turnos esta semana") SHALL remain independent of the date-range selector.
+### Requirement: Range analytics are not shown on the dashboard
+The RPC `admin_get_stats_by_range` and its service `getStatsByRange` remain available, but the admin dashboard MUST NOT render a date-range analytics section or preset selector.
 
-#### Scenario: Preset "Hoy" selected
-- **WHEN** the admin selects "Hoy"
-- **THEN** `getStatsByRange` is called with `dateFrom = dateeTo = today` and the breakdown table reflects today's data
-
-#### Scenario: Preset "Último mes" selected
-- **WHEN** the admin selects "Último mes"
-- **THEN** `getStatsByRange` is called with `dateFrom = today - 30 days` and `dateTo = today`
-
-#### Scenario: Preset "Últimos 6 meses" selected
-- **WHEN** the admin selects "Últimos 6 meses"
-- **THEN** `getStatsByRange` is called with `dateFrom = today - 180 days` and `dateTo = today`
-
-#### Scenario: Preset "Último año" selected
-- **WHEN** the admin selects "Último año"
-- **THEN** `getStatsByRange` is called with `dateFrom = today - 365 days` and `dateTo = today`
-
-#### Scenario: No presentado row absent from breakdown
-- **WHEN** the analytics section renders regardless of preset
-- **THEN** no "No presentado" row appears in the status-breakdown table
-
-#### Scenario: Loading state in Spanish
-- **WHEN** `getStatsByRange` is in-flight
-- **THEN** a skeleton or Spanish loading indicator is shown in the analytics section
-
-#### Scenario: Error state in Spanish
-- **WHEN** `getStatsByRange` rejects
-- **THEN** a Spanish error message is shown in the analytics section
+#### Scenario: Dashboard does not request range analytics
+- **WHEN** the admin dashboard loads
+- **THEN** `getStatsByRange` is not called

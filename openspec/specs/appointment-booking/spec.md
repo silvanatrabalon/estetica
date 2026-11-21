@@ -152,3 +152,15 @@ The system SHALL render Step 3 of the booking wizard using `BookingSlotDayView` 
 #### Scenario: Error from useAvailableSlots is shown in Spanish
 - **WHEN** `useAvailableSlots` returns an error
 - **THEN** the Spanish error message is displayed (not the BookingSlotDayView)
+
+### Requirement: create_appointment only assigns a professional who works at that time
+`create_appointment` SHALL assign the first active professional who does the service, has no overlapping appointment, and whose working windows for that day contain the whole appointment. It SHALL also require the appointment to fit inside an open window of the business (same day). Otherwise it raises `BOOKING_NO_STAFF_AVAILABLE`.
+
+### Requirement: create_appointment accepts an optional coupon code
+`create_appointment(p_service_id, p_starts_at, p_coupon_code default null)` SHALL validate the code again on the server (see `coupons`) and store the original price, the discount and the price charged on the appointment. A coupon error is shown to the client in Spanish.
+
+### Requirement: Step 4 offers a coupon
+The review step SHALL show "¿Tenés un cupón?" with an input and an "Aplicar" button. A valid code shows the discount line and the new total and can be removed with "Quitar"; an invalid or empty code shows the reason and keeps the full price. The step also says that an email with the booking details will be sent.
+
+### Requirement: Step 2 uses the booking calendar
+The date step SHALL use the booking calendar described in `booking-calendar` instead of the browser's date input.

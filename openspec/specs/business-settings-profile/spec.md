@@ -144,3 +144,6 @@ The system MUST allow admins to configure an optional notification email address
 #### Scenario: Notification email field is absent on existing organizations
 - **WHEN** business settings are loaded for an organization that existed before this migration
 - **THEN** the result contains `notification_email: null` without error, and the form field renders empty
+
+### Requirement: The business chooses how it works
+Negocio > Horarios SHALL offer "Jornada corrida" and "Dos turnos" (`organizations.split_shifts`). With two shifts every open day has an optional "Turno matutino" and "Turno vespertino"; switching back to continuous asks for confirmation and merges every day into one window. See `split-shifts`.

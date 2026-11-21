@@ -141,3 +141,6 @@ The `max_concurrent_bookings` column MUST remain nullable with no database defau
 #### Scenario: No retroactive change to existing services
 - **WHEN** the capacity default is introduced
 - **THEN** services already stored with `max_concurrent_bookings = null` keep meaning "no limit"
+
+### Requirement: The service limit is an optional shared-resource limit
+`max_concurrent_bookings` SHALL be optional and empty by default, labeled "Límite por recurso compartido" inside "Opciones avanzadas" of the service form. Normally the capacity comes from the professionals' agendas (each one attends one client at a time); the limit is only for something shared, such as a single cabin.
