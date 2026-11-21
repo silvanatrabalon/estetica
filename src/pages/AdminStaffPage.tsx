@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   adminCreateStaffMember,
   adminSetStaffActive,
@@ -9,7 +9,8 @@ import {
   listStaffAvailabilityPermissions,
   type AdminStaffMember,
 } from '../services/adminStaff'
-import { listAdminUsers, type AdminManagedUser } from '../services/adminUsers'
+import { listAdminUsers, type AdminManagedRole, type AdminManagedUser } from '../services/adminUsers'
+import { roleLabel } from '../lib/adminUsersView'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { Select } from '../components/Select'
 
@@ -29,6 +30,8 @@ interface StaffMemberCardProps {
   onEdit: (member: AdminStaffMember) => void
   onToggleActive: (member: AdminStaffMember) => void
   onNavigate: (path: string) => void
+  /** All roles of the linked user (from the users directory) */
+  roles?: AdminManagedRole[]
   /** undefined = unknown (toggle hidden) */
   canEditAvailability?: boolean
   onToggleAvailabilityPermission: (member: AdminStaffMember, allowed: boolean) => void
@@ -39,12 +42,14 @@ function StaffMemberCard({
   onEdit,
   onToggleActive,
   onNavigate,
+  roles,
   canEditAvailability,
   onToggleAvailabilityPermission,
 }: StaffMemberCardProps) {
   const initials = getInitials(member.displayName)
-  const roleLabel =
-    member.role === 'admin' ? 'Admin' : member.role === 'staff' ? 'Staff' : 'Cliente'
+  // Highest role first; fall back to the single role from the staff list if the user is unknown
+  const roleOrder: AdminManagedRole[] = ['admin', 'staff', 'customer']
+  const shownRoles = roleOrder.filter((r) => (roles && roles.length > 0 ? roles : [member.role]).includes(r))
 
   return (
     <div
@@ -87,9 +92,14 @@ function StaffMemberCard({
               >
                 {member.isActive ? 'Activo' : 'Inactivo'}
               </span>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">
-                {roleLabel}
-              </span>
+              {shownRoles.map((r) => (
+                <span
+                  key={r}
+                  className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700"
+                >
+                  {roleLabel(r)}
+                </span>
+              ))}
             </div>
           </div>
         </div>
@@ -120,8 +130,17 @@ function StaffMemberCard({
           onClick={() => onEdit(member)}
           className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-shell-border text-shell-subtleText hover:bg-shell-muted hover:text-shell-text transition-colors"
         >
-          Editar
+          Cambiar nombre
         </button>
+        {member.profileUserId && (
+          <button
+            type="button"
+            onClick={() => onNavigate(`/admin/users/${member.profileUserId}`)}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-shell-border text-shell-subtleText hover:bg-shell-muted hover:text-shell-text transition-colors"
+          >
+            Editar roles
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onNavigate(`/admin/staff/${member.id}/availability`)}
@@ -502,6 +521,7 @@ export function AdminStaffPage() {
                 onEdit={openEditForm}
                 onToggleActive={handleToggleActive}
                 onNavigate={navigate}
+                roles={allUsers.find((u) => u.userId === member.profileUserId)?.roles}
                 canEditAvailability={availabilityPermissions[member.id]}
                 onToggleAvailabilityPermission={(m, allowed) => void handleToggleAvailabilityPermission(m, allowed)}
               />
@@ -510,8 +530,12 @@ export function AdminStaffPage() {
         )}
 
         <p className="text-xs text-shell-subtleText pb-2">
-          Nota: desactivar un profesional no revoca su acceso a la aplicación. Gestioná el acceso
-          desde el panel de usuarios.
+          Nota: desactivar un profesional no revoca su acceso a la aplicación. Gestioná el acceso y los
+          roles desde{' '}
+          <Link to="/admin/users" className="font-semibold underline">
+            Usuarios y roles
+          </Link>
+          .
         </p>
       </div>
 

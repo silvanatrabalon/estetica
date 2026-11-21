@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AdminStaffPage } from './AdminStaffPage'
 import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
 import { mockSessions } from '../hooks/__test-utils__/fixtures'
@@ -155,7 +155,7 @@ describe('AdminStaffPage', () => {
       expect(screen.getByText('Bruno')).toBeDefined()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cambiar nombre' }))
 
     await waitFor(() => {
       expect(screen.getByLabelText('Nombre para mostrar')).toBeDefined()
@@ -310,7 +310,7 @@ describe('AdminStaffPage', () => {
       mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
       renderAdminStaffPage()
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Cambiar nombre' }))
 
       expect(await screen.findByRole('heading', { name: 'Editar profesional' })).toBeDefined()
       expect((screen.getByLabelText(/Nombre para mostrar/i) as HTMLInputElement).value).toBe('Bruno')
@@ -323,7 +323,7 @@ describe('AdminStaffPage', () => {
       mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
       renderAdminStaffPage()
 
-      fireEvent.click(await screen.findByRole('button', { name: 'Editar' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Cambiar nombre' }))
 
       expect(await screen.findByRole('heading', { name: 'Editar profesional' })).toBeDefined()
     })
@@ -333,14 +333,123 @@ describe('AdminStaffPage', () => {
       mockListAdminStaffMembers.mockResolvedValue([mockStaffMember, second])
       renderAdminStaffPage()
 
-      const buttons = await screen.findAllByRole('button', { name: 'Editar' })
+      const buttons = await screen.findAllByRole('button', { name: 'Cambiar nombre' })
       fireEvent.click(buttons[0])
       await screen.findByRole('heading', { name: 'Editar profesional' })
-      fireEvent.click(screen.getAllByRole('button', { name: 'Editar' })[1])
+      fireEvent.click(screen.getAllByRole('button', { name: 'Cambiar nombre' })[1])
 
       await waitFor(() =>
         expect((screen.getByLabelText(/Nombre para mostrar/i) as HTMLInputElement).value).toBe('Carla'),
       )
+    })
+  })
+  describe('Editar roles button', () => {
+    function renderWithRoutes() {
+      return render(
+        <MemoryRouter initialEntries={['/admin/staff']}>
+          <TestUserProvider user={mockSessions.authenticatedAdmin.user} roles={['admin']} activeRole="admin" isLoading={false}>
+            <Routes>
+              <Route path="/admin/staff" element={<AdminStaffPage />} />
+              <Route path="/admin/users/:userId" element={<p>PANTALLA ROLES</p>} />
+            </Routes>
+          </TestUserProvider>
+        </MemoryRouter>,
+      )
+    }
+
+    it('the card has Cambiar nombre and Editar roles instead of an ambiguous Editar', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
+      renderAdminStaffPage()
+
+      expect(await screen.findByRole('button', { name: 'Cambiar nombre' })).toBeDefined()
+      expect(screen.getByRole('button', { name: 'Editar roles' })).toBeDefined()
+      expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
+    })
+
+    it('Editar roles opens that person\'s edit screen in Usuarios y roles', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
+      renderWithRoutes()
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Editar roles' }))
+
+      expect(await screen.findByText('PANTALLA ROLES')).toBeDefined()
+    })
+
+    it('hides Editar roles when the professional has no linked user (edge case)', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([{ ...mockStaffMember, profileUserId: null }])
+      renderAdminStaffPage()
+
+      expect(await screen.findByRole('button', { name: 'Cambiar nombre' })).toBeDefined()
+      expect(screen.queryByRole('button', { name: 'Editar roles' })).toBeNull()
+    })
+
+    it('the edit form only changes the name, with no role hint (edge case)', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
+      renderAdminStaffPage()
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Cambiar nombre' }))
+
+      expect(await screen.findByRole('heading', { name: 'Editar profesional' })).toBeDefined()
+      expect(screen.queryByText(/Para cambiar el rol de esta persona/)).toBeNull()
+    })
+
+    it('the footer note still links to Usuarios y roles', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
+      renderAdminStaffPage()
+
+      await screen.findByText('Bruno')
+      expect(screen.getByRole('link', { name: 'Usuarios y roles' })).toHaveAttribute('href', '/admin/users')
+    })
+  })
+
+  describe('Role badges', () => {
+    it('shows every role of the linked user, highest first', async () => {
+      mockListAdminUsers.mockResolvedValue([
+        { ...mockUsers[1], userId: 'u-2', roles: ['customer', 'admin', 'staff'] },
+      ])
+      mockListAdminStaffMembers.mockResolvedValue([{ ...mockStaffMember, role: 'staff' }])
+      renderAdminStaffPage()
+
+      await screen.findByText('Bruno')
+      const card = screen.getByText('Bruno').closest('div.shell-surface') as HTMLElement
+      const badges = ['Administrador', 'Staff', 'Cliente'].map((t) =>
+        Array.from(card.querySelectorAll('span')).find((el) => el.textContent === t),
+      )
+      expect(badges.every(Boolean)).toBe(true)
+      const order = Array.from(card.querySelectorAll('span.rounded-full'))
+        .map((el) => el.textContent)
+        .filter((t) => ['Administrador', 'Staff', 'Cliente'].includes(t ?? ''))
+      expect(order).toEqual(['Administrador', 'Staff', 'Cliente'])
+    })
+
+    it('shows a single role when the user has only one', async () => {
+      mockListAdminUsers.mockResolvedValue([{ ...mockUsers[1], userId: 'u-2', roles: ['staff'] }])
+      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
+      renderAdminStaffPage()
+
+      await screen.findByText('Bruno')
+      expect(screen.queryByText('Administrador')).toBeNull()
+      expect(screen.queryByText('Cliente')).toBeNull()
+    })
+
+    it('falls back to the staff list role when the user is not in the directory (edge case)', async () => {
+      mockListAdminUsers.mockResolvedValue([])
+      mockListAdminStaffMembers.mockResolvedValue([{ ...mockStaffMember, role: 'staff' }])
+      renderAdminStaffPage()
+
+      await screen.findByText('Bruno')
+      const card = screen.getByText('Bruno').closest('div.shell-surface') as HTMLElement
+      expect(Array.from(card.querySelectorAll('span')).some((el) => el.textContent === 'Staff')).toBe(true)
+    })
+
+    it('falls back when the professional has no linked user (edge case)', async () => {
+      mockListAdminUsers.mockResolvedValue(mockUsers)
+      mockListAdminStaffMembers.mockResolvedValue([{ ...mockStaffMember, profileUserId: null, role: 'customer' }])
+      renderAdminStaffPage()
+
+      await screen.findByText('Bruno')
+      const card = screen.getByText('Bruno').closest('div.shell-surface') as HTMLElement
+      expect(Array.from(card.querySelectorAll('span')).some((el) => el.textContent === 'Cliente')).toBe(true)
     })
   })
 })
