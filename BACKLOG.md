@@ -1070,6 +1070,8 @@ The current Step 3 renders available slots as identical-sized square buttons in 
 - [x] `admin-dashboard` (31c1dfa)
 
 ### 27. Notifications System
+**Status:** ✅ Done — implemented with a DB trigger + `pg_net` + Edge Function (not frontend-triggered); see `openspec/changes/archive/2026-11-21-notifications-system`.
+
 **Description:** Transactional email notifications for appointment lifecycle events — booking confirmation, cancellation, and reschedule — sent via Brevo to customers, assigned staff, and the business admin inbox. Triggered fire-and-forget from the frontend service layer after each RPC succeeds. Email delivery never blocks the booking UX.
 
 **Scope (MVP):**
