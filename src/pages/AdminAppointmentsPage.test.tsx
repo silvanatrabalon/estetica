@@ -37,9 +37,9 @@ function makeRow(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function renderPage() {
+function renderPage(url = '/admin/appointments') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[url]}>
       <TestUserProvider
         user={mockSessions.authenticatedAdmin.user}
         roles={['admin']}
@@ -99,42 +99,39 @@ describe('AdminAppointmentsPage', () => {
       renderPage()
       await waitFor(() => {
         expect(screen.getByText('Juan Pérez')).toBeDefined()
-        expect(screen.getByText('Corte de cabello')).toBeDefined()
-        expect(screen.getByText('María López')).toBeDefined()
+        expect(screen.getByText('Corte de cabello · María López')).toBeDefined()
         // Status badge — "Confirmado" also appears in the filter chip, so use getAllByText
-        expect(screen.getAllByText('Confirmado').length).toBeGreaterThanOrEqual(2)
+        expect(screen.getByText('Confirmado')).toBeDefined()
       })
     })
 
-    it('renders column headers', async () => {
+    it('each card links to the appointment detail', async () => {
       mockAdminListAppointments.mockResolvedValue({ rows: [makeRow()], totalCount: 1 })
       renderPage()
-      await waitFor(() => {
-        expect(screen.getByRole('columnheader', { name: 'Cliente' })).toBeDefined()
-        expect(screen.getByRole('columnheader', { name: 'Servicio' })).toBeDefined()
-        expect(screen.getByRole('columnheader', { name: 'Profesional' })).toBeDefined()
-        expect(screen.getByRole('columnheader', { name: 'Fecha / hora' })).toBeDefined()
-        expect(screen.getByRole('columnheader', { name: 'Estado' })).toBeDefined()
-      })
+      const link = await screen.findByRole('link', { name: /Juan Pérez/ })
+      expect(link.getAttribute('href')).toBe('/admin/appointments/' + makeRow().id)
     })
   })
 
   describe('status filter', () => {
+    async function pickStatus(label: string) {
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por estado' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: new RegExp(label) }))
+    }
+
     it('selecting a status calls service with updated statuses and resets to page 1', async () => {
       mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
       renderPage()
-
-      const select = await screen.findByLabelText('Filtrar por estado')
-
+      await screen.findByRole('button', { name: 'Filtrar por estado' })
       mockAdminListAppointments.mockClear()
       mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
 
-      fireEvent.change(select, { target: { value: 'cancelled' } })
+      await pickStatus('Cancelado')
 
       await waitFor(() => {
         expect(mockAdminListAppointments).toHaveBeenCalledWith(
           expect.objectContaining({ statuses: ['cancelled'] }),
-          1, // page reset to 1
+          1,
           PAGE_SIZE,
         )
       })
@@ -144,18 +141,16 @@ describe('AdminAppointmentsPage', () => {
       mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
       renderPage()
 
-      const select = await screen.findByLabelText('Filtrar por estado')
-      fireEvent.change(select, { target: { value: 'pending' } })
+      await pickStatus('Confirmado')
       await waitFor(() => {
         expect(mockAdminListAppointments).toHaveBeenLastCalledWith(
-          expect.objectContaining({ statuses: ['pending'] }),
+          expect.objectContaining({ statuses: ['confirmed'] }),
           1,
           PAGE_SIZE,
         )
       })
 
-      fireEvent.change(select, { target: { value: '' } })
-
+      await pickStatus('Todos los estados')
       await waitFor(() => {
         expect(mockAdminListAppointments).toHaveBeenLastCalledWith(
           expect.objectContaining({ statuses: undefined }),
@@ -165,59 +160,92 @@ describe('AdminAppointmentsPage', () => {
       })
     })
 
+    it('does not offer "Pendiente" (edge case)', async () => {
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+      renderPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por estado' }))
+      expect(screen.queryByRole('menuitemradio', { name: 'Pendiente' })).toBeNull()
+    })
+
+    it('still renders an existing pending appointment (edge case)', async () => {
+      mockAdminListAppointments.mockResolvedValue({ rows: [makeRow({ status: 'pending' })], totalCount: 1 })
+      renderPage()
+      expect(await screen.findByText('Pendiente')).toBeDefined()
+    })
+
     it('does not offer the removed "No asistió" option (edge case)', async () => {
       mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
       renderPage()
-
-      await screen.findByLabelText('Filtrar por estado')
-      expect(screen.queryByRole('option', { name: 'No asistió' })).toBeNull()
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por estado' }))
+      expect(screen.queryByRole('menuitemradio', { name: 'No asistió' })).toBeNull()
     })
   })
 
-  describe('date range inputs', () => {
-    it('changing Desde input calls service with updated dateFrom and resets to page 1', async () => {
+  describe('period filter', () => {
+    it('starts on "Hoy" with all statuses by default', async () => {
       mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
       renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByLabelText('Desde')).toBeDefined()
-      })
-
-      mockAdminListAppointments.mockClear()
-      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
-
-      const desdeInput = screen.getByLabelText('Desde')
-      fireEvent.change(desdeInput, { target: { value: '2026-06-01' } })
-
-      await waitFor(() => {
-        expect(mockAdminListAppointments).toHaveBeenCalledWith(
-          expect.objectContaining({ dateFrom: '2026-06-01' }),
-          1,
-          PAGE_SIZE,
-        )
-      })
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalled())
+      const filters = mockAdminListAppointments.mock.calls[0][0]
+      expect(new Date(filters.dateTo).getTime() - new Date(filters.dateFrom).getTime()).toBe(86399999)
+      expect(filters.statuses).toBeUndefined()
+      expect(screen.getByRole('button', { name: 'Filtrar por período' }).textContent).toContain('Hoy')
     })
 
-    it('changing Hasta input calls service with updated dateTo and resets to page 1', async () => {
+    it('reads period and status from the URL (coming from Inicio)', async () => {
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+      renderPage('/admin/appointments?periodo=month&estado=cancelled')
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalled())
+      const filters = mockAdminListAppointments.mock.calls[0][0]
+      expect(filters.statuses).toEqual(['cancelled'])
+      expect(new Date(filters.dateTo).getTime() - new Date(filters.dateFrom).getTime()).toBeGreaterThan(27 * 86400000)
+      expect(screen.getByRole('button', { name: 'Filtrar por período' }).textContent).toContain('Este mes')
+    })
+
+    it('"periodo=all" shows everything without bounds', async () => {
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+      renderPage('/admin/appointments?periodo=all')
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalled())
+      expect(mockAdminListAppointments.mock.calls[0][0].dateFrom).toBeUndefined()
+    })
+
+    it('ignores invalid URL values and falls back to defaults (edge case)', async () => {
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+      renderPage('/admin/appointments?periodo=zzz&estado=hacked')
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalled())
+      const filters = mockAdminListAppointments.mock.calls[0][0]
+      expect(filters.statuses).toBeUndefined()
+      expect(filters.dateFrom).toBeDefined()
+      expect(screen.getByRole('button', { name: 'Filtrar por período' }).textContent).toContain('Hoy')
+    })
+
+    it('choosing "Esta semana" sends a 7-day range and resets to page 1', async () => {
       mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
       renderPage()
-
-      await waitFor(() => {
-        expect(screen.getByLabelText('Hasta')).toBeDefined()
-      })
-
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por período' }))
       mockAdminListAppointments.mockClear()
       mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Esta semana' }))
 
-      const hastaInput = screen.getByLabelText('Hasta')
-      fireEvent.change(hastaInput, { target: { value: '2026-06-30' } })
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalled())
+      const [filters, page] = mockAdminListAppointments.mock.calls[0]
+      expect(page).toBe(1)
+      const from = new Date(filters.dateFrom).getTime()
+      const to = new Date(filters.dateTo).getTime()
+      expect(to - from).toBeGreaterThan(6 * 86400000)
+      expect(to - from).toBeLessThan(8 * 86400000)
+    })
 
+    it('choosing "Todos" again removes the bounds (edge case)', async () => {
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+      renderPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por período' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Este mes' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por período' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Todos' }))
       await waitFor(() => {
-        expect(mockAdminListAppointments).toHaveBeenCalledWith(
-          expect.objectContaining({ dateTo: '2026-06-30' }),
-          1,
-          PAGE_SIZE,
-        )
+        const filters = mockAdminListAppointments.mock.calls.at(-1)![0]
+        expect(filters.dateFrom).toBeUndefined()
       })
     })
   })

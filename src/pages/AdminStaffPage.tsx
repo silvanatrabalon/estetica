@@ -3,10 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   adminCreateStaffMember,
   adminSetStaffActive,
-  adminSetStaffAvailabilityPermission,
   adminUpdateStaffMember,
   listAdminStaffMembers,
-  listStaffAvailabilityPermissions,
   type AdminStaffMember,
 } from '../services/adminStaff'
 import { listAdminUsers, type AdminManagedRole, type AdminManagedUser } from '../services/adminUsers'
@@ -32,9 +30,6 @@ interface StaffMemberCardProps {
   onNavigate: (path: string) => void
   /** All roles of the linked user (from the users directory) */
   roles?: AdminManagedRole[]
-  /** undefined = unknown (toggle hidden) */
-  canEditAvailability?: boolean
-  onToggleAvailabilityPermission: (member: AdminStaffMember, allowed: boolean) => void
 }
 
 function StaffMemberCard({
@@ -43,8 +38,6 @@ function StaffMemberCard({
   onToggleActive,
   onNavigate,
   roles,
-  canEditAvailability,
-  onToggleAvailabilityPermission,
 }: StaffMemberCardProps) {
   const initials = getInitials(member.displayName)
   // Highest role first; fall back to the single role from the staff list if the user is unknown
@@ -53,116 +46,77 @@ function StaffMemberCard({
 
   return (
     <div
-      className={`shell-surface rounded-2xl border shadow-sm overflow-hidden transition-opacity ${
+      className={`shell-surface rounded-2xl border p-4 shadow-sm transition-opacity ${
         !member.isActive ? 'opacity-60' : ''
       }`}
     >
-      <div className="p-4 flex items-start gap-3.5">
-        {/* Avatar */}
+      <div className="flex items-center gap-3">
         <div
-          className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-heading font-bold text-sm select-none ${
-            member.isActive
-              ? 'bg-teal-100 text-teal-700'
-              : 'bg-gray-100 text-gray-500'
+          className={`flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-full font-heading text-sm font-bold ${
+            member.isActive ? 'bg-teal-100 text-teal-700' : 'bg-gray-100 text-gray-500'
           }`}
         >
           {initials}
         </div>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 flex-wrap">
-            <div className="min-w-0">
-              <p className="font-heading font-semibold text-shell-text leading-tight">
-                {member.displayName}
-              </p>
-              {member.fullName && (
-                <p className="text-xs text-shell-subtleText mt-0.5 truncate">
-                  {member.fullName}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-heading font-semibold leading-tight text-shell-text">{member.displayName}</p>
+          {member.fullName && member.fullName !== member.displayName && (
+            <p className="truncate text-xs text-shell-subtleText">{member.fullName}</p>
+          )}
+          <div className="mt-1 flex flex-wrap gap-1">
+            {shownRoles.map((r) => (
               <span
-                className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                  member.isActive
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-gray-100 text-gray-500'
-                }`}
+                key={r}
+                className="rounded-full bg-shell-muted px-1.5 py-0.5 text-[11px] font-medium text-shell-subtleText"
               >
-                {member.isActive ? 'Activo' : 'Inactivo'}
+                {roleLabel(r)}
               </span>
-              {shownRoles.map((r) => (
-                <span
-                  key={r}
-                  className="text-xs font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700"
-                >
-                  {roleLabel(r)}
-                </span>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
+            member.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+          }`}
+        >
+          {member.isActive ? 'Activo' : 'Inactivo'}
+        </span>
       </div>
 
-      {canEditAvailability !== undefined && (
-        <label className="px-4 pb-3 flex items-start gap-2 text-xs text-shell-subtleText cursor-pointer">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={canEditAvailability}
-            onChange={(e) => onToggleAvailabilityPermission(member, e.target.checked)}
-            aria-label={`Puede editar su propia disponibilidad: ${member.displayName}`}
-          />
-          <span>
-            Puede editar su propia disponibilidad
-            <span className="block text-[11px] text-gray-400">
-              Si lo desmarcás, ve su horario pero solo vos podés cambiarlo.
-            </span>
-          </span>
-        </label>
-      )}
-
-      {/* Actions */}
-      <div className="px-4 pb-4 flex flex-wrap gap-2 border-t border-shell-border pt-3">
-        <button
-          type="button"
-          onClick={() => onEdit(member)}
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-shell-border text-shell-subtleText hover:bg-shell-muted hover:text-shell-text transition-colors"
-        >
-          Cambiar nombre
-        </button>
-        {member.profileUserId && (
-          <button
-            type="button"
-            onClick={() => onNavigate(`/admin/users/${member.profileUserId}`)}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-shell-border text-shell-subtleText hover:bg-shell-muted hover:text-shell-text transition-colors"
-          >
-            Editar roles
-          </button>
-        )}
+      <div className="mt-3 grid grid-cols-2 gap-2">
         <button
           type="button"
           onClick={() => onNavigate(`/admin/staff/${member.id}/availability`)}
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-shell-border text-shell-subtleText hover:bg-shell-muted hover:text-shell-text transition-colors"
+          className="rounded-lg bg-brand-primary px-3 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
         >
           Disponibilidad
         </button>
         <button
           type="button"
           onClick={() => onNavigate(`/admin/staff/${member.id}/services`)}
-          className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-shell-border text-shell-subtleText hover:bg-shell-muted hover:text-shell-text transition-colors"
+          className="rounded-lg border border-shell-border bg-white px-3 py-2 text-sm font-medium text-shell-text transition-colors hover:bg-shell-muted"
         >
           Servicios
         </button>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium">
+        <button type="button" onClick={() => onEdit(member)} className="text-shell-subtleText hover:text-shell-text hover:underline">
+          Cambiar nombre
+        </button>
+        {member.profileUserId && (
+          <button
+            type="button"
+            onClick={() => onNavigate(`/admin/users/${member.profileUserId}`)}
+            className="text-shell-subtleText hover:text-shell-text hover:underline"
+          >
+            Editar roles
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onToggleActive(member)}
-          className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-            member.isActive
-              ? 'border border-red-200 text-red-500 hover:bg-red-50 hover:text-red-700'
-              : 'border border-teal-200 text-teal-600 hover:bg-teal-50 hover:text-teal-800'
-          }`}
+          className={member.isActive ? 'text-red-500 hover:text-red-700 hover:underline' : 'text-teal-700 hover:underline'}
         >
           {member.isActive ? 'Desactivar' : 'Reactivar'}
         </button>
@@ -183,7 +137,6 @@ export function AdminStaffPage() {
   const navigate = useNavigate()
   const [staffMembers, setStaffMembers] = useState<AdminStaffMember[]>([])
   const [allUsers, setAllUsers] = useState<AdminManagedUser[]>([])
-  const [availabilityPermissions, setAvailabilityPermissions] = useState<Record<string, boolean>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -193,6 +146,8 @@ export function AdminStaffPage() {
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [displayName, setDisplayName] = useState('')
+  // Once the admin types a name we stop overwriting it with the selected account's name
+  const [displayNameTouched, setDisplayNameTouched] = useState(false)
   const [displayNameError, setDisplayNameError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -214,7 +169,6 @@ export function AdminStaffPage() {
       setStaffMembers(staffData)
       setAllUsers(usersData)
       // Non-critical: if this fails the toggle is simply hidden
-      setAvailabilityPermissions(await listStaffAvailabilityPermissions().catch(() => ({})))
     } catch {
       setErrorMessage('No pudimos cargar la lista de profesionales en este momento.')
     } finally {
@@ -238,6 +192,7 @@ export function AdminStaffPage() {
     setEditingStaffId(null)
     setSelectedUserId('')
     setDisplayName('')
+    setDisplayNameTouched(false)
     setDisplayNameError(null)
     setSuccessMessage(null)
     setErrorMessage(null)
@@ -247,6 +202,7 @@ export function AdminStaffPage() {
     setFormMode('edit')
     setEditingStaffId(member.id)
     setDisplayName(member.displayName)
+    setDisplayNameTouched(true)
     setDisplayNameError(null)
     setSuccessMessage(null)
     setErrorMessage(null)
@@ -302,25 +258,6 @@ export function AdminStaffPage() {
       }
     } finally {
       setIsSaving(false)
-    }
-  }
-
-  const handleToggleAvailabilityPermission = async (member: AdminStaffMember, allowed: boolean) => {
-    setSuccessMessage(null)
-    setErrorMessage(null)
-    const previous = availabilityPermissions[member.id]
-    setAvailabilityPermissions((current) => ({ ...current, [member.id]: allowed }))
-
-    try {
-      await adminSetStaffAvailabilityPermission(member.id, allowed)
-      setSuccessMessage(
-        allowed
-          ? `${member.displayName} ahora puede editar su disponibilidad.`
-          : `${member.displayName} ya no puede editar su disponibilidad.`,
-      )
-    } catch {
-      setAvailabilityPermissions((current) => ({ ...current, [member.id]: previous }))
-      setErrorMessage('No pudimos cambiar el permiso. Intentá de nuevo.')
     }
   }
 
@@ -388,7 +325,7 @@ export function AdminStaffPage() {
             <button
               type="button"
               onClick={openCreateForm}
-              className="hidden sm:flex items-center gap-1.5 px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 active:bg-teal-800 text-sm font-semibold shadow-sm transition-colors shrink-0"
+              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
             >
               + Agregar profesional
             </button>
@@ -412,12 +349,10 @@ export function AdminStaffPage() {
         {/* Create / Edit form */}
         {formMode !== null && (
           <section ref={formRef} className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-shell-border bg-shell-muted/20">
-              <h2 className="font-heading text-base font-semibold text-shell-text">
+            <div className="p-4">
+              <h2 className="mb-3 font-heading text-base font-semibold text-shell-text">
                 {formMode === 'create' ? 'Nuevo profesional' : 'Editar profesional'}
               </h2>
-            </div>
-            <div className="p-5">
               <form onSubmit={(e) => void handleFormSubmit(e)} noValidate className="space-y-4">
                 {formMode === 'create' && (
                   <div>
@@ -436,7 +371,15 @@ export function AdminStaffPage() {
                       <Select
                         id="staff-user-select"
                         value={selectedUserId}
-                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        onChange={(e) => {
+                          const userId = e.target.value
+                          setSelectedUserId(userId)
+                          // Default the display name to the account's name (e.g. from Google)
+                          if (!displayNameTouched) {
+                            const user = availableUsers.find((u) => u.userId === userId)
+                            setDisplayName(user?.name ?? '')
+                          }
+                        }}
                         className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                         required
                       >
@@ -462,7 +405,10 @@ export function AdminStaffPage() {
                     id="staff-display-name"
                     type="text"
                     value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    onChange={(e) => {
+                      setDisplayName(e.target.value)
+                      setDisplayNameTouched(true)
+                    }}
                     className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                     placeholder="Ej: María González"
                   />
@@ -522,8 +468,6 @@ export function AdminStaffPage() {
                 onToggleActive={handleToggleActive}
                 onNavigate={navigate}
                 roles={allUsers.find((u) => u.userId === member.profileUserId)?.roles}
-                canEditAvailability={availabilityPermissions[member.id]}
-                onToggleAvailabilityPermission={(m, allowed) => void handleToggleAvailabilityPermission(m, allowed)}
               />
             ))}
           </div>
@@ -538,18 +482,6 @@ export function AdminStaffPage() {
           .
         </p>
       </div>
-
-      {/* Mobile FAB */}
-      {formMode === null && (
-        <button
-          type="button"
-          onClick={openCreateForm}
-          className="fixed bottom-6 right-6 z-50 sm:hidden flex items-center gap-1.5 px-5 py-3 bg-teal-600 text-white rounded-full shadow-lg hover:bg-teal-700 text-sm font-semibold transition-colors"
-          aria-label="Agregar profesional"
-        >
-          + Agregar
-        </button>
-      )}
 
       <ConfirmModal
         isOpen={confirmState.isOpen}

@@ -15,7 +15,6 @@ export const profileCopy = {
 
 export const navigationCopy = {
   dashboard: 'Inicio',
-  profile: 'Perfil',
   booking: 'Reservar turno',
   appointments: 'Mis turnos',
   schedule: 'Disponibilidad',
@@ -27,6 +26,7 @@ export const navigationCopy = {
   services: 'Servicios',
   reports: 'Reportes',
   adminAppointments: 'Turnos',
-  adminCalendar: 'Calendario',
   adminDashboard: 'Inicio',
+  coupons: 'Cupones',
+  stats: 'Estadísticas',
 } as const

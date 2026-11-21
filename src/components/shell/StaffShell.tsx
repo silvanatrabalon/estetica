@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { NavBar, Sidebar } from './Navigation'
+import { STAFF_TABS, MobileTabBar, NavBar, Sidebar } from './Navigation'
 import { useNavigation } from '../../features/shell/hooks/useNavigation'
 
 interface ShellProps {
@@ -15,9 +15,11 @@ export function StaffShell({ children }: ShellProps) {
       <div className="flex flex-col">
         <NavBar />
         <main className="shell-padding flex-1 overflow-auto bg-shell-base">
-          {children}
+          {/* Room for the phone-only tab bar so the last row is never hidden */}
+          <div className="pb-20 md:pb-0">{children}</div>
         </main>
       </div>
+      <MobileTabBar tabs={STAFF_TABS} />
     </div>
   )
 }

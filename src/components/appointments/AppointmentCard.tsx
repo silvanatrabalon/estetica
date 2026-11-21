@@ -44,6 +44,8 @@ interface AppointmentCardProps {
   showCustomerName: boolean
   showRescheduleAction?: boolean
   showCancelAction?: boolean
+  /** Where the card links to. Defaults to the customer's booking confirmation. */
+  detailHref?: (appointmentId: string) => string
   onCancelSuccess?: (appointmentId: string) => void
 }
 
@@ -52,6 +54,7 @@ export function AppointmentCard({
   showCustomerName,
   showRescheduleAction = false,
   showCancelAction = false,
+  detailHref,
   onCancelSuccess,
 }: AppointmentCardProps) {
   const [showDialog, setShowDialog] = useState(false)
@@ -103,7 +106,7 @@ export function AppointmentCard({
   return (
     <div className="bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all">
       <Link
-        to={`/booking/confirmation/${appointment.id}`}
+        to={detailHref ? detailHref(appointment.id) : `/booking/confirmation/${appointment.id}`}
         className="block p-4"
       >
         <div className="flex items-start justify-between gap-3">

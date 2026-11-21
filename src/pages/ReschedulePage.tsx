@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useAvailableSlots } from '../hooks/useAvailableSlots'
 import { formatSlotTime } from '../lib/formatSlotTime'
 import { getBusinessSettings } from '../services/businessSettings'
@@ -17,6 +17,8 @@ function addDays(date: Date, days: number): string {
 export function ReschedulePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo
 
   const [appointment, setAppointment] = useState<AppointmentDetail | null>(null)
   const [loadingAppointment, setLoadingAppointment] = useState(true)
@@ -102,7 +104,7 @@ export function ReschedulePage() {
     setRescheduleError(null)
     try {
       await rescheduleAppointment({ appointmentId: id, newStartsAt: selectedSlot })
-      navigate(`/booking/confirmation/${id}`)
+      navigate(returnTo ?? `/booking/confirmation/${id}`)
     } catch (err: unknown) {
       setRescheduleError((err as Error).message ?? 'Error al reprogramar el turno.')
     } finally {

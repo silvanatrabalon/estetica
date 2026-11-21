@@ -130,6 +130,23 @@ describe('routing policy', () => {
     expect(canAccessRoute({ path: '/admin/users/abc-123', isAuthenticated: true, role: 'customer' })).toBe(false)
   })
 
+  it('Calendario no longer exists: no route and no menu entry (edge case)', () => {
+    expect(isKnownRoute('/admin/calendar')).toBe(false)
+    expect(getRoutePolicy('/admin/calendar')).toBeUndefined()
+    expect(getNavigationForRole('admin').some((i) => i.href === '/admin/calendar')).toBe(false)
+    expect(getNavigationForRole('admin').some((i) => i.label === 'Calendario')).toBe(false)
+  })
+
+  it('Perfil is not in the side menu of any role: it opens from the user menu (edge case)', () => {
+    for (const role of ['customer', 'staff', 'admin'] as const) {
+      const items = getNavigationForRole(role)
+      expect(items.some((i) => i.href === '/profile'), role).toBe(false)
+      expect(items.some((i) => i.label === 'Perfil'), role).toBe(false)
+    }
+    // ...but the page itself is still reachable
+    expect(isKnownRoute('/profile')).toBe(true)
+  })
+
   it('Apariencia is admin-only (edge case)', () => {
     expect(isKnownRoute('/admin/appearance')).toBe(true)
     expect(canAccessRoute({ path: '/admin/appearance', isAuthenticated: true, role: 'admin' })).toBe(true)

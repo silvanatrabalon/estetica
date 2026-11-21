@@ -20,7 +20,7 @@ describe('AppearancePage', () => {
   it('shows the title, a link to the public page and the two tabs', () => {
     render(<AppearancePage />)
     expect(screen.getByRole('heading', { name: 'Apariencia' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Ver página pública/ })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: /Ir al sitio web/ })).toHaveAttribute('href', '/')
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(['Marca y reservas', 'Página pública'])
   })
 

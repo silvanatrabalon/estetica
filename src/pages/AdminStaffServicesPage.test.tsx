@@ -156,4 +156,19 @@ describe('AdminStaffServicesPage', () => {
       expect(screen.getByText('No pudimos cargar los servicios en este momento.')).toBeDefined()
     })
   })
+
+  it('lists several assigned services, each with its own Quitar (edge case)', async () => {
+    mockListStaffServices.mockResolvedValue([mockAssignedService, { ...mockAssignedService, serviceId: 'svc-9', name: 'Facial' }])
+    mockListAssignableServices.mockResolvedValue([])
+    renderPage()
+    expect(await screen.findByText('Facial')).toBeDefined()
+    expect(screen.getAllByText('Quitar')).toHaveLength(2)
+  })
+
+  it('has a back arrow to the professionals list', async () => {
+    mockListStaffServices.mockResolvedValue([])
+    mockListAssignableServices.mockResolvedValue([])
+    renderPage()
+    expect(await screen.findByRole('button', { name: 'Volver a profesionales' })).toBeDefined()
+  })
 })

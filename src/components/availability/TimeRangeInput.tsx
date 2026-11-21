@@ -7,6 +7,8 @@ interface TimeRangeInputProps {
   onStartsAtChange: (value: string) => void
   onEndsAtChange: (value: string) => void
   error?: string | null
+  /** Optional prefix for the accessible names, e.g. "Lunes: Turno matutino". */
+  ariaPrefix?: string
 }
 
 export function TimeRangeInput({
@@ -16,6 +18,7 @@ export function TimeRangeInput({
   onStartsAtChange,
   onEndsAtChange,
   error,
+  ariaPrefix,
 }: TimeRangeInputProps) {
   const handleStartsAtChange = (e: ChangeEvent<HTMLInputElement>) => {
     onStartsAtChange(e.target.value)
@@ -35,7 +38,7 @@ export function TimeRangeInput({
             value={startsAt}
             onChange={handleStartsAtChange}
             disabled={disabled}
-            aria-label="Hora de inicio"
+            aria-label={ariaPrefix ? `${ariaPrefix}: hora de inicio` : 'Hora de inicio'}
             className="border border-shell-border rounded-lg px-2.5 py-1.5 text-sm font-medium text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
           />
         </div>
@@ -47,7 +50,7 @@ export function TimeRangeInput({
             value={endsAt}
             onChange={handleEndsAtChange}
             disabled={disabled}
-            aria-label="Hora de fin"
+            aria-label={ariaPrefix ? `${ariaPrefix}: hora de fin` : 'Hora de fin'}
             className="border border-shell-border rounded-lg px-2.5 py-1.5 text-sm font-medium text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
           />
         </div>

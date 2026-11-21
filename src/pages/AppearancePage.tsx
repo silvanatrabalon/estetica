@@ -24,7 +24,7 @@ export function AppearancePage() {
           rel="noopener noreferrer"
           className="text-sm text-pink-600 hover:underline font-medium"
         >
-          Ver página pública →
+          Ir al sitio web →
         </a>
       </div>
 

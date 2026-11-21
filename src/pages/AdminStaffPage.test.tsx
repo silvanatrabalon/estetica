@@ -9,16 +9,12 @@ const mockListAdminStaffMembers = vi.fn()
 const mockAdminCreateStaffMember = vi.fn()
 const mockAdminUpdateStaffMember = vi.fn()
 const mockAdminSetStaffActive = vi.fn()
-const mockListPermissions = vi.fn()
-const mockSetPermission = vi.fn()
 
 vi.mock('../services/adminStaff', () => ({
   listAdminStaffMembers: (...args: unknown[]) => mockListAdminStaffMembers(...args),
   adminCreateStaffMember: (...args: unknown[]) => mockAdminCreateStaffMember(...args),
   adminUpdateStaffMember: (...args: unknown[]) => mockAdminUpdateStaffMember(...args),
   adminSetStaffActive: (...args: unknown[]) => mockAdminSetStaffActive(...args),
-  listStaffAvailabilityPermissions: (...args: unknown[]) => mockListPermissions(...args),
-  adminSetStaffAvailabilityPermission: (...args: unknown[]) => mockSetPermission(...args),
 }))
 
 const mockListAdminUsers = vi.fn()
@@ -75,7 +71,6 @@ describe('AdminStaffPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockListAdminUsers.mockResolvedValue(mockUsers)
-    mockListPermissions.mockResolvedValue({})
   })
 
   it('shows loading state initially', () => {
@@ -240,69 +235,6 @@ describe('AdminStaffPage', () => {
       expect(mockAdminSetStaffActive).toHaveBeenCalledWith('sm-1', true)
     })
   })
-  describe('Availability permission toggle', () => {
-    const label = 'Puede editar su propia disponibilidad: Bruno'
-
-    it('shows the toggle reflecting the stored permission', async () => {
-      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
-      mockListPermissions.mockResolvedValue({ 'sm-1': false })
-      renderAdminStaffPage()
-
-      const checkbox = (await screen.findByLabelText(label)) as HTMLInputElement
-      expect(checkbox.checked).toBe(false)
-    })
-
-    it('is checked when the professional is allowed', async () => {
-      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
-      mockListPermissions.mockResolvedValue({ 'sm-1': true })
-      renderAdminStaffPage()
-
-      expect(((await screen.findByLabelText(label)) as HTMLInputElement).checked).toBe(true)
-    })
-
-    it('saves the change and confirms it', async () => {
-      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
-      mockListPermissions.mockResolvedValue({ 'sm-1': true })
-      mockSetPermission.mockResolvedValue(undefined)
-      renderAdminStaffPage()
-
-      fireEvent.click(await screen.findByLabelText(label))
-
-      await waitFor(() => expect(mockSetPermission).toHaveBeenCalledWith('sm-1', false))
-      expect(await screen.findByText('Bruno ya no puede editar su disponibilidad.')).toBeDefined()
-      expect((screen.getByLabelText(label) as HTMLInputElement).checked).toBe(false)
-    })
-
-    it('reverts and shows an error when saving fails (edge case)', async () => {
-      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
-      mockListPermissions.mockResolvedValue({ 'sm-1': true })
-      mockSetPermission.mockRejectedValue(new Error('boom'))
-      renderAdminStaffPage()
-
-      fireEvent.click(await screen.findByLabelText(label))
-
-      expect(await screen.findByText('No pudimos cambiar el permiso. Intentá de nuevo.')).toBeDefined()
-      expect((screen.getByLabelText(label) as HTMLInputElement).checked).toBe(true)
-    })
-
-    it('hides the toggle when permissions cannot be loaded, without breaking the page (edge case)', async () => {
-      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
-      mockListPermissions.mockRejectedValue(new Error('down'))
-      renderAdminStaffPage()
-
-      expect(await screen.findByText('Bruno')).toBeDefined()
-      expect(screen.queryByLabelText(label)).toBeNull()
-    })
-
-    it('hides the toggle for a professional without a known permission (edge case)', async () => {
-      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
-      mockListPermissions.mockResolvedValue({ 'other-id': true })
-      renderAdminStaffPage()
-
-      expect(await screen.findByText('Bruno')).toBeDefined()
-      expect(screen.queryByLabelText(label)).toBeNull()
-    })
-  })
   describe('Edit button', () => {
     it('opens the edit form with the professional name and scrolls it into view', async () => {
       const scrollIntoView = vi.fn()
@@ -450,6 +382,51 @@ describe('AdminStaffPage', () => {
       await screen.findByText('Bruno')
       const card = screen.getByText('Bruno').closest('div.shell-surface') as HTMLElement
       expect(Array.from(card.querySelectorAll('span')).some((el) => el.textContent === 'Cliente')).toBe(true)
+    })
+  })
+
+  describe('Layout and defaults', () => {
+    it('has a single add button in the header and no floating one (edge case)', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
+      renderAdminStaffPage()
+      await screen.findByText('Bruno')
+      expect(screen.getAllByRole('button', { name: /Agregar profesional/ })).toHaveLength(1)
+      expect(screen.queryByRole('button', { name: '+ Agregar' })).toBeNull()
+    })
+
+    it('shows the primary actions as buttons and the secondary ones as links on each card', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
+      renderAdminStaffPage()
+      await screen.findByText('Bruno')
+      for (const name of ['Disponibilidad', 'Servicios', 'Cambiar nombre', 'Editar roles', 'Desactivar']) {
+        expect(screen.getByRole('button', { name })).toBeInTheDocument()
+      }
+    })
+
+    it('fills the display name with the selected account name', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([])
+      renderAdminStaffPage()
+      fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
+      fireEvent.change(await screen.findByLabelText(/Usuario vinculado/), { target: { value: 'u-1' } })
+      expect((screen.getByLabelText('Nombre para mostrar') as HTMLInputElement).value).toBe('Ana García')
+    })
+
+    it('does not overwrite a name the admin already typed (edge case)', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([])
+      renderAdminStaffPage()
+      fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
+      fireEvent.change(screen.getByLabelText('Nombre para mostrar'), { target: { value: 'Anita' } })
+      fireEvent.change(await screen.findByLabelText(/Usuario vinculado/), { target: { value: 'u-1' } })
+      expect((screen.getByLabelText('Nombre para mostrar') as HTMLInputElement).value).toBe('Anita')
+    })
+
+    it('an account without a name leaves the field empty (edge case)', async () => {
+      mockListAdminUsers.mockResolvedValue([{ ...mockUsers[0], name: '' }])
+      mockListAdminStaffMembers.mockResolvedValue([])
+      renderAdminStaffPage()
+      fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
+      fireEvent.change(await screen.findByLabelText(/Usuario vinculado/), { target: { value: 'u-1' } })
+      expect((screen.getByLabelText('Nombre para mostrar') as HTMLInputElement).value).toBe('')
     })
   })
 })

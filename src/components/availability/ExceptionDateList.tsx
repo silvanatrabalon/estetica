@@ -1,4 +1,5 @@
 import type { StaffScheduleException } from '../../services/staffAvailability'
+import { describeShifts, toDayShifts } from '../../lib/shifts'
 
 const TYPE_LABELS: Record<string, string> = {
   day_off: 'Día libre',
@@ -28,7 +29,7 @@ export function ExceptionDateList({ exceptions, isSaving, onRemove, readOnly = f
   if (exceptions.length === 0) {
     return (
       <p className="text-sm text-shell-subtleText py-3 text-center italic">
-        Sin excepciones registradas.
+        Sin días libres ni especiales registrados.
       </p>
     )
   }
@@ -50,9 +51,9 @@ export function ExceptionDateList({ exceptions, isSaving, onRemove, readOnly = f
               >
                 {TYPE_LABELS[exc.exceptionType] ?? exc.exceptionType}
               </span>
-              {exc.exceptionType === 'custom_hours' && exc.startsAt && exc.endsAt && (
+              {exc.exceptionType === 'custom_hours' && (
                 <span className="text-xs text-shell-subtleText font-mono">
-                  {exc.startsAt.slice(0, 5)} – {exc.endsAt.slice(0, 5)}
+                  {describeShifts(toDayShifts(exc.startsAt, exc.endsAt, exc.pmStartsAt, exc.pmEndsAt))}
                 </span>
               )}
               {exc.reason && (

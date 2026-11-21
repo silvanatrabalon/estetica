@@ -9,7 +9,10 @@ import {
 import { RoleSelector } from './components/auth/RoleSelector'
 import {
   AdminAppointmentsPage,
-  AdminCalendarPage,
+  AdminAppointmentDetailPage,
+  AdminCouponsPage,
+  AdminStatsPage,
+  StaffAppointmentDetailPage,
   AdminDashboardPage,
   AdminReportsPage,
   AdminServiceAvailabilityPage,
@@ -71,6 +74,7 @@ function AppContent() {
 
           <Route element={<RoleGuard allowedRoles={['staff', 'admin']} />}>
             <Route path="/staff/appointments" element={<StaffAppointmentsPage />} />
+            <Route path="/staff/appointments/:id" element={<StaffAppointmentDetailPage />} />
             <Route path="/staff/schedule" element={<StaffSchedulePage />} />
           </Route>
 
@@ -85,7 +89,9 @@ function AppContent() {
             <Route path="/admin/services" element={<AdminServicesPage />} />
             <Route path="/admin/services/:serviceId/availability" element={<AdminServiceAvailabilityPage />} />
             <Route path="/admin/appointments" element={<AdminAppointmentsPage />} />
-            <Route path="/admin/calendar" element={<AdminCalendarPage />} />
+            <Route path="/admin/appointments/:id" element={<AdminAppointmentDetailPage />} />
+            <Route path="/admin/coupons" element={<AdminCouponsPage />} />
+            <Route path="/admin/stats" element={<AdminStatsPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
             <Route path="/admin/appearance" element={<AppearancePage />} />
             <Route path="/admin/settings/landing" element={<Navigate to="/admin/appearance" replace />} />

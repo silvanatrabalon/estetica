@@ -11,6 +11,8 @@ export interface StaffScheduleDay {
   isWorking: boolean
   startsAt: string | null
   endsAt: string | null
+  pmStartsAt: string | null
+  pmEndsAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -24,6 +26,8 @@ export interface StaffScheduleException {
   exceptionType: StaffExceptionType
   startsAt: string | null
   endsAt: string | null
+  pmStartsAt: string | null
+  pmEndsAt: string | null
   reason: string | null
   createdAt: string
   updatedAt: string
@@ -34,6 +38,8 @@ export interface StaffScheduleDayInput {
   is_working: boolean
   starts_at: string | null
   ends_at: string | null
+  pm_starts_at?: string | null
+  pm_ends_at?: string | null
 }
 
 export interface StaffExceptionInput {
@@ -41,6 +47,8 @@ export interface StaffExceptionInput {
   exceptionType: StaffExceptionType
   startsAt: string | null
   endsAt: string | null
+  pmStartsAt?: string | null
+  pmEndsAt?: string | null
   reason: string | null
 }
 
@@ -55,6 +63,8 @@ interface StaffScheduleDayRow {
   is_working: boolean
   starts_at: string | null
   ends_at: string | null
+  pm_starts_at?: string | null
+  pm_ends_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -66,6 +76,8 @@ interface StaffScheduleExceptionRow {
   exception_type: StaffExceptionType
   starts_at: string | null
   ends_at: string | null
+  pm_starts_at?: string | null
+  pm_ends_at?: string | null
   reason: string | null
   created_at: string
   updated_at: string
@@ -79,6 +91,8 @@ function toStaffScheduleDay(row: StaffScheduleDayRow): StaffScheduleDay {
     isWorking: row.is_working,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
+    pmStartsAt: row.pm_starts_at ?? null,
+    pmEndsAt: row.pm_ends_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -92,6 +106,8 @@ function toStaffScheduleException(row: StaffScheduleExceptionRow): StaffSchedule
     exceptionType: row.exception_type,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
+    pmStartsAt: row.pm_starts_at ?? null,
+    pmEndsAt: row.pm_ends_at ?? null,
     reason: row.reason,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -161,6 +177,8 @@ export async function addStaffException(
     p_starts_at: exception.startsAt,
     p_ends_at: exception.endsAt,
     p_reason: exception.reason,
+    p_pm_starts_at: exception.pmStartsAt ?? null,
+    p_pm_ends_at: exception.pmEndsAt ?? null,
   })
 
   if (error) {
@@ -169,7 +187,7 @@ export async function addStaffException(
 
   const rows = (data ?? []) as StaffScheduleExceptionRow[]
   if (rows.length === 0) {
-    throw new Error('No se pudo guardar la excepción.')
+    throw new Error('No se pudo guardar el día.')
   }
 
   return toStaffScheduleException(rows[0])
@@ -221,6 +239,18 @@ export async function getMyAvailabilityPermission(): Promise<boolean> {
   return data !== false
 }
 
+/** Whether the current user may add/remove their own days off. Fails open like the schedule one. */
+export async function getMyDaysOffPermission(): Promise<boolean> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('get_my_days_off_permission')
+
+  if (error) {
+    return true
+  }
+
+  return data !== false
+}
+
 export async function setMyWeeklySchedule(
   schedule: StaffScheduleDayInput[],
 ): Promise<StaffScheduleDay[]> {
@@ -246,6 +276,8 @@ export async function addMyException(
     p_starts_at: exception.startsAt,
     p_ends_at: exception.endsAt,
     p_reason: exception.reason,
+    p_pm_starts_at: exception.pmStartsAt ?? null,
+    p_pm_ends_at: exception.pmEndsAt ?? null,
   })
 
   if (error) {
@@ -254,7 +286,7 @@ export async function addMyException(
 
   const rows = (data ?? []) as StaffScheduleExceptionRow[]
   if (rows.length === 0) {
-    throw new Error('No se pudo guardar la excepción.')
+    throw new Error('No se pudo guardar el día.')
   }
 
   return toStaffScheduleException(rows[0])

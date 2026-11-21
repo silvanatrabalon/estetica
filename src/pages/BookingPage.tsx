@@ -4,12 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { useActiveServices } from '../hooks/useActiveServices'
 import { useAvailableSlots } from '../hooks/useAvailableSlots'
 import { formatPriceARS } from '../lib/formatPrice'
-import { formatSlotTime } from '../lib/formatSlotTime'
+import { formatSlotTime, toLocalDateKey } from '../lib/formatSlotTime'
 import { deriveGridTimes } from '../lib/businessHours'
-import { BookingSlotDayView } from '../components/booking'
+import { BookingCalendar, BookingSlotDayView } from '../components/booking'
 import { getBusinessSettings } from '../services/businessSettings'
 import { getLandingConfig } from '../services/landing'
 import { createAppointment, isConflictError } from '../services/appointments'
+import { validateCoupon } from '../services/coupons'
+import { normalizeCouponCode } from '../lib/coupons'
 import type { AvailableSlot } from '../services/availability'
 import type { Service } from '../services/adminServices'
 import { listCategories } from '../services/adminCategories'
@@ -39,6 +41,14 @@ export function BookingPage() {
   const [bookingLoading, setBookingLoading] = useState(false)
   const [bookingError, setBookingError] = useState<string | null>(null)
   const [categories, setCategories] = useState<ServiceCategory[]>([])
+  const [couponInput, setCouponInput] = useState('')
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponError, setCouponError] = useState<string | null>(null)
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string
+    discountCents: number
+    finalPriceCents: number
+  } | null>(null)
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
 
   const { services, loading: servicesLoading, error: servicesError } = useActiveServices()
@@ -72,15 +82,42 @@ export function BookingPage() {
     })
   }, [])
 
-  const today = new Date().toISOString().slice(0, 10)
-  const maxDate = addDays(new Date(), maxHorizonDays)
+  const today = toLocalDateKey(new Date().toISOString(), orgTimezone)
+  const maxDate = addDays(new Date(today + 'T12:00:00Z'), maxHorizonDays)
 
   function handleServiceSelect(service: Service) {
     setSelectedService(service)
     setSelectedDate(null)
     setSelectedSlot(null)
     setPanelService(null)
+    clearCoupon()
     setStep(2)
+  }
+
+  function clearCoupon() {
+    setAppliedCoupon(null)
+    setCouponInput('')
+    setCouponError(null)
+  }
+
+  async function handleApplyCoupon() {
+    if (!selectedService) return
+    const code = normalizeCouponCode(couponInput)
+    if (!code) {
+      setCouponError('Escribí el código del cupón.')
+      return
+    }
+    setCouponLoading(true)
+    setCouponError(null)
+    try {
+      const check = await validateCoupon(selectedService.id, code)
+      setAppliedCoupon({ code, ...check })
+    } catch (err) {
+      setAppliedCoupon(null)
+      setCouponError(err instanceof Error ? err.message : 'No pudimos validar el cupón.')
+    } finally {
+      setCouponLoading(false)
+    }
   }
 
   function handleCardClick(service: Service) {
@@ -118,6 +155,7 @@ export function BookingPage() {
       const appointment = await createAppointment({
         serviceId: selectedService.id,
         startsAt: selectedSlot.starts_at,
+        couponCode: appliedCoupon?.code,
       })
       navigate(`/booking/confirmation/${appointment.id}`)
     } catch (err: unknown) {
@@ -288,14 +326,12 @@ export function BookingPage() {
           <p className="text-shell-subtleText mb-4">
             Seleccioná una fecha para <strong>{selectedService.name}</strong>.
           </p>
-          <input
-            type="date"
-            min={today}
-            max={maxDate}
-            className="block w-full rounded-lg border border-shell-border px-3 py-2 text-shell-text focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            onChange={(e) => {
-              if (e.target.value) handleDateChange(e.target.value)
-            }}
+          <BookingCalendar
+            serviceId={selectedService.id}
+            minDate={today}
+            maxDate={maxDate}
+            selectedDate={selectedDate}
+            onSelect={handleDateChange}
           />
         </div>
       )}
@@ -337,7 +373,7 @@ export function BookingPage() {
         <div>
           <h3 className="text-lg font-semibold text-shell-text mb-4">Revisá tu reserva</h3>
 
-          <div className="rounded-lg border border-shell-border bg-white divide-y divide-shell-border mb-6">
+          <div className="rounded-3xl border border-shell-border bg-white divide-y divide-shell-border mb-4 overflow-hidden">
             <div className="px-4 py-3 flex justify-between">
               <span className="text-sm text-shell-subtleText">Servicio</span>
               <span className="text-sm font-medium text-shell-text">{selectedService.name}</span>
@@ -360,7 +396,76 @@ export function BookingPage() {
                 ${(selectedService.priceCents / 100).toFixed(2)}
               </span>
             </div>
+            {appliedCoupon && (
+              <>
+                <div className="px-4 py-3 flex justify-between">
+                  <span className="text-sm text-emerald-700">Cupón {appliedCoupon.code}</span>
+                  <span className="text-sm font-medium text-emerald-700">
+                    -${(appliedCoupon.discountCents / 100).toFixed(2)}
+                  </span>
+                </div>
+                <div className="px-4 py-3 flex justify-between">
+                  <span className="text-sm font-semibold text-shell-text">Total</span>
+                  <span className="text-sm font-bold text-shell-text">
+                    ${(appliedCoupon.finalPriceCents / 100).toFixed(2)}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
+
+          {/* Coupon */}
+          <div className="mb-4 rounded-3xl border border-shell-border bg-white p-4">
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-emerald-700">
+                  ✓ Cupón <strong>{appliedCoupon.code}</strong> aplicado
+                </p>
+                <button type="button" onClick={clearCoupon} className="text-sm font-medium text-shell-subtleText underline">
+                  Quitar
+                </button>
+              </div>
+            ) : (
+              <>
+                <label htmlFor="coupon-input" className="mb-1.5 block text-sm font-medium text-shell-text">
+                  ¿Tenés un cupón?
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="coupon-input"
+                    value={couponInput}
+                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void handleApplyCoupon()
+                      }
+                    }}
+                    placeholder="Ej: VERANO10"
+                    autoComplete="off"
+                    className="min-w-0 flex-1 rounded-lg border border-shell-border px-3 py-2 font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void handleApplyCoupon()}
+                    disabled={couponLoading}
+                    className="rounded-lg border border-shell-border bg-white px-4 py-2 text-sm font-semibold text-shell-text hover:bg-shell-muted disabled:opacity-50"
+                  >
+                    {couponLoading ? 'Validando…' : 'Aplicar'}
+                  </button>
+                </div>
+                {couponError && (
+                  <p role="alert" className="mt-2 text-sm text-red-600">
+                    {couponError}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          <p className="mb-6 rounded-2xl bg-[var(--color-lilac)] px-4 py-3 text-sm text-shell-text">
+            Al confirmar, te enviamos un email con los datos de tu reserva.
+          </p>
 
           {bookingError && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3">

@@ -118,7 +118,7 @@ describe('useStaffAvailability', () => {
       await result.current.addException(newException)
     })
 
-    expect(result.current.successMessage).toBe('Excepción guardada correctamente.')
+    expect(result.current.successMessage).toBe('Día guardado correctamente.')
   })
 
   it('removeException removes from exceptions list and sets success message', async () => {
@@ -129,7 +129,7 @@ describe('useStaffAvailability', () => {
       await result.current.removeException('2025-12-25')
     })
 
-    expect(result.current.successMessage).toBe('Excepción eliminada correctamente.')
+    expect(result.current.successMessage).toBe('Día eliminado correctamente.')
     expect(staffAvailabilityService.removeStaffException).toHaveBeenCalledWith(
       'staff-1',
       '2025-12-25',

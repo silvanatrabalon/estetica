@@ -114,9 +114,23 @@ describe('AdminDashboardPage — routing', () => {
     vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockResolvedValue(mockStats)
     renderDashboard('admin')
 
-    await waitFor(() => {
-      expect(screen.getByText('Panel de administración')).toBeDefined()
-    })
+    // The date is the page heading
+    expect(await screen.findByRole('heading', { level: 1 })).toBeDefined()
+    expect(screen.getByText('Turnos hoy')).toBeDefined()
+  })
+})
+
+describe('AdminDashboardPage — card links', () => {
+  it('each card links to Turnos with its filter', async () => {
+    vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockResolvedValue(mockStats)
+    renderDashboard('admin')
+
+    const href = async (name: string) =>
+      (await screen.findByRole('link', { name: new RegExp(name) })).getAttribute('href')
+    expect(await href('Turnos hoy')).toBe('/admin/appointments?periodo=today')
+    expect(await href('Turnos esta semana')).toBe('/admin/appointments?periodo=week')
+    expect(await href('Turnos este mes')).toBe('/admin/appointments?periodo=month')
+    expect(await href('Cancelados este mes')).toBe('/admin/appointments?periodo=month&estado=cancelled')
   })
 })
 
@@ -132,68 +146,49 @@ describe('AdminDashboardPage — content', () => {
       expect(screen.getByText('Turnos hoy')).toBeDefined()
       expect(screen.getByText('Turnos esta semana')).toBeDefined()
       expect(screen.getByText('Turnos este mes')).toBeDefined()
-      expect(screen.getByText('Confirmados + pendientes hoy')).toBeDefined()
-      expect(screen.getByText('Ingresos estimados este mes')).toBeDefined()
+      expect(screen.getByText('Cancelados este mes')).toBeDefined()
     })
   })
 
-  it('renders the Cancelados KPI card and no longer renders "No presentado"', async () => {
+  it('no longer shows the removed pieces: title, live chip, two cards and the summary block', async () => {
     renderDashboard('admin')
 
-    await waitFor(() => {
-      expect(screen.getByText('Cancelados')).toBeDefined()
-    })
-    expect(screen.queryByText('No presentado')).toBeNull()
+    await screen.findByText('Turnos hoy')
+    expect(screen.queryByText('Panel de administración')).toBeNull()
+    expect(screen.queryByText('En vivo')).toBeNull()
+    expect(screen.queryByText('Confirmados + pendientes hoy')).toBeNull()
+    expect(screen.queryByText('Ingresos estimados este mes')).toBeNull()
+    expect(screen.queryByText('Resumen de turnos')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Último mes' })).toBeNull()
   })
 
-  it('renders analytics table with status rows and total', async () => {
-    renderDashboard('admin')
-
-    await waitFor(() => {
-      expect(screen.getByText('Confirmado')).toBeDefined()
-      expect(screen.getByText('Pendiente')).toBeDefined()
-      expect(screen.getByText('Cancelado')).toBeDefined()
-      expect(screen.getByText('Completado')).toBeDefined()
-      expect(screen.getByText('Total de turnos')).toBeDefined()
-    })
-    expect(screen.queryByText('No presentado')).toBeNull()
-  })
-
-  it('shows 0 total and 0% for every status when the range has no appointments (edge case)', async () => {
-    vi.spyOn(adminDashboardService, 'getStatsByRange').mockResolvedValue({
-      pendingCount: 0,
-      confirmedCount: 0,
-      cancelledCount: 0,
-      completedCount: 0,
-      totalCount: 0,
-      revenueCents: 0,
-    })
-    renderDashboard('admin')
-
-    await waitFor(() => {
-      expect(screen.getAllByText('0%')).toHaveLength(4)
-    })
-  })
-
-  it('requests analytics again when another range preset is selected', async () => {
+  it('does not request the range analytics anymore (edge case)', async () => {
     const spy = vi.spyOn(adminDashboardService, 'getStatsByRange').mockResolvedValue(mockRangeStats)
     renderDashboard('admin')
 
-    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1))
-    fireEvent.click(screen.getByRole('button', { name: 'Hoy' }))
-
-    await waitFor(() => expect(spy).toHaveBeenCalledTimes(2))
-    const [from, to] = spy.mock.calls[1]
-    expect(from).toBe(to)
+    await screen.findByText('Turnos hoy')
+    expect(spy).not.toHaveBeenCalled()
   })
 
-  it('shows the analytics error message when the range request fails (edge case)', async () => {
-    vi.spyOn(adminDashboardService, 'getStatsByRange').mockRejectedValue(new Error('boom'))
+  it('shows today\'s date as the heading in Spanish (edge case)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-11-21T15:00:00Z'))
+    renderDashboard('admin')
+
+    const heading = await screen.findByRole('heading', { level: 1 })
+    expect(heading.textContent).toMatch(/^Sábado, 21 de noviembre de 2026$/)
+    vi.useRealTimers()
+  })
+
+  it('renders the Cancelados KPI card as a monthly figure and no longer renders "No presentado"', async () => {
     renderDashboard('admin')
 
     await waitFor(() => {
-      expect(screen.getByText('Error al cargar las analíticas. Intentá nuevamente.')).toBeDefined()
+      expect(screen.getByText('Cancelados este mes')).toBeDefined()
     })
+    // The old, ambiguous label (it used to count all time) is gone
+    expect(screen.queryByText('Cancelados')).toBeNull()
+    expect(screen.queryByText('No presentado')).toBeNull()
   })
 })
 
@@ -218,7 +213,7 @@ describe('AdminDashboardPage — loading state', () => {
     renderDashboard('admin')
 
     const skeletons = screen.getAllByTestId('stat-card-skeleton')
-    expect(skeletons.length).toBeGreaterThanOrEqual(5)
+    expect(skeletons).toHaveLength(4)
   })
 })
 

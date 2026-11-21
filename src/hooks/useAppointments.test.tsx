@@ -6,9 +6,11 @@ import type { AppointmentSummary } from '../services/appointments'
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockListAppointments = vi.fn()
+const mockListMyStaffAppointments = vi.fn()
 
 vi.mock('../services/appointments', () => ({
   listAppointments: (...args: unknown[]) => mockListAppointments(...args),
+  listMyStaffAppointments: (...args: unknown[]) => mockListMyStaffAppointments(...args),
 }))
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -82,5 +84,24 @@ describe('useAppointments', () => {
 
     expect(result.current.appointments).toEqual([])
     expect(result.current.error).toBe('Ocurrió un error al cargar tus turnos.')
+  })
+
+  describe("scope 'staff'", () => {
+    it('loads only the appointments where the user is the professional (even for admins)', async () => {
+      mockListMyStaffAppointments.mockResolvedValue([mockAppointment])
+      const { result } = renderHook(() => useAppointments({ scope: 'staff' }))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      expect(mockListMyStaffAppointments).toHaveBeenCalledTimes(1)
+      expect(mockListAppointments).not.toHaveBeenCalled()
+      expect(result.current.appointments).toEqual([mockAppointment])
+    })
+
+    it('reports an error when the staff list fails (edge case)', async () => {
+      mockListMyStaffAppointments.mockRejectedValue(new Error('down'))
+      const { result } = renderHook(() => useAppointments({ scope: 'staff' }))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.error).toBeTruthy()
+    })
   })
 })

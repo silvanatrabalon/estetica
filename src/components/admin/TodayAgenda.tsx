@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 import {
   AGENDA_STATUS_LABEL,
@@ -13,6 +14,10 @@ interface TodayAgendaProps {
   now: Date
   loading: boolean
   error: string | null
+  /** When set, each appointment links to its detail. */
+  detailHref?: (appointmentId: string) => string
+  /** Hide "con {professional}" (the professional looking at their own agenda). */
+  hideStaffName?: boolean
 }
 
 function StatusPill({ status, className }: { status: string; className?: string }) {
@@ -33,7 +38,25 @@ function StatusPill({ status, className }: { status: string; className?: string 
 }
 
 /** "Próximo turno" card plus the day's list, in time order. */
-export function TodayAgenda({ items, next, timezone, now, loading, error }: TodayAgendaProps) {
+export function TodayAgenda({
+  items,
+  next,
+  timezone,
+  now,
+  loading,
+  error,
+  detailHref,
+  hideStaffName = false,
+}: TodayAgendaProps) {
+  const nameOf = (id: string, name: string) =>
+    detailHref ? (
+      <Link to={detailHref(id)} className="hover:underline focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]">
+        {name}
+      </Link>
+    ) : (
+      name
+    )
+
   if (loading) {
     return (
       <section aria-label="Turnos de hoy" aria-busy="true" className="space-y-4">
@@ -70,9 +93,10 @@ export function TodayAgenda({ items, next, timezone, now, loading, error }: Toda
                 {untilLabel(next.startsAt, now)}
               </span>
             </div>
-            <p className="mt-3 text-xl font-extrabold text-shell-text">{next.customerName}</p>
+            <p className="mt-3 text-xl font-extrabold text-shell-text">{nameOf(next.id, next.customerName)}</p>
             <p className="mt-0.5 text-base text-shell-subtleText">
-              {next.serviceName} · con {next.staffDisplayName}
+              {next.serviceName}
+              {hideStaffName ? '' : ` · con ${next.staffDisplayName}`}
             </p>
           </div>
         ) : (
@@ -115,7 +139,7 @@ export function TodayAgenda({ items, next, timezone, now, loading, error }: Toda
                     {clockTime(item.startsAt, timezone)}
                   </time>
                   <div className="min-w-0">
-                    <p className="text-base font-semibold leading-snug text-shell-text">{item.customerName}</p>
+                    <p className="text-base font-semibold leading-snug text-shell-text">{nameOf(item.id, item.customerName)}</p>
                     <p className="text-sm leading-snug text-shell-subtleText">{item.serviceName}</p>
                   </div>
                   <StatusPill status={item.status} className="col-start-2 justify-self-start sm:col-start-3 sm:row-start-1 sm:justify-self-end" />

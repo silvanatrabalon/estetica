@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { cn } from '../lib/cn'
 
 interface StatCardProps {
@@ -8,9 +9,11 @@ interface StatCardProps {
   variant?: 'light' | 'dark'
   icon?: ReactNode
   accent?: string
+  /** When set, the whole card is a link to this path. */
+  to?: string
 }
 
-export function StatCard({ label, value, loading = false, variant = 'light', icon, accent }: StatCardProps) {
+export function StatCard({ label, value, loading = false, variant = 'light', icon, accent, to }: StatCardProps) {
   if (variant === 'dark') {
     return (
       <div
@@ -42,8 +45,12 @@ export function StatCard({ label, value, loading = false, variant = 'light', ico
     )
   }
 
-  return (
-    <div className="bg-white rounded-2xl border border-shell-border p-4 flex flex-col gap-3">
+  const cardClass = cn(
+    'bg-white rounded-2xl border border-shell-border p-4 flex flex-col gap-3',
+    to && 'transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]',
+  )
+  const body = (
+    <>
       {icon && (
         <div className={cn('inline-flex p-1.5 rounded-lg w-fit', accent ?? 'bg-shell-muted text-brand-primary')}>
           {icon}
@@ -53,11 +60,19 @@ export function StatCard({ label, value, loading = false, variant = 'light', ico
       {loading ? (
         <div
           data-testid="stat-card-skeleton"
-          className="h-8 w-24 rounded bg-gray-200 animate-pulse"
+          className="mt-auto h-8 w-24 self-end rounded bg-gray-200 animate-pulse"
         />
       ) : (
-        <span className="text-2xl font-bold text-gray-900">{value}</span>
+        <span className="mt-auto self-end text-2xl font-bold tabular-nums text-gray-900">{value}</span>
       )}
-    </div>
+    </>
+  )
+
+  return to ? (
+    <Link to={to} className={cardClass}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cardClass}>{body}</div>
   )
 }

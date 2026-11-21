@@ -11,13 +11,13 @@ export function deriveGridTimes(
   fallbackClose = '20:00',
 ): { openTime: string; closeTime: string } {
   const openTimes = weeklyHours
-    .filter((h) => !h.isClosed && h.opensAt)
-    .map((h) => h.opensAt as string)
+    .filter((h) => !h.isClosed)
+    .flatMap((h) => [h.opensAt, h.pmOpensAt].filter((t): t is string => Boolean(t)))
     .sort()
 
   const closeTimes = weeklyHours
-    .filter((h) => !h.isClosed && h.closesAt)
-    .map((h) => h.closesAt as string)
+    .filter((h) => !h.isClosed)
+    .flatMap((h) => [h.closesAt, h.pmClosesAt].filter((t): t is string => Boolean(t)))
     .sort()
 
   return {

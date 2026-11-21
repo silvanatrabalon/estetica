@@ -15,13 +15,6 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
       icon: undefined, // TODO: Add dashboard icon from lucide-react or custom
       roles: ['customer', 'staff'],
     },
-    {
-      id: 'profile',
-      label: navigationCopy.profile,
-      href: '/profile',
-      icon: undefined, // TODO: Add user icon
-      roles: ['customer', 'staff', 'admin'],
-    },
   ],
 
   // Customer-specific navigation
@@ -105,9 +98,16 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
       roles: ['admin'],
     },
     {
-      id: 'admin-calendar',
-      label: navigationCopy.adminCalendar,
-      href: '/admin/calendar',
+      id: 'stats',
+      label: navigationCopy.stats,
+      href: '/admin/stats',
+      icon: undefined,
+      roles: ['admin'],
+    },
+    {
+      id: 'coupons',
+      label: navigationCopy.coupons,
+      href: '/admin/coupons',
       icon: undefined,
       roles: ['admin'],
     },

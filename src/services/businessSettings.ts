@@ -20,6 +20,8 @@ export interface BusinessHoursRecord {
   isClosed: boolean
   opensAt: string | null
   closesAt: string | null
+  pmOpensAt: string | null
+  pmClosesAt: string | null
 }
 
 export interface BusinessClosureRecord {
@@ -45,6 +47,8 @@ export interface BusinessSettingsRecord {
   bookingMaxHorizonDays: number
   notificationEmail: string | null
   notificationsEnabled: boolean
+  /** true = morning + afternoon shifts with a break; false = one continuous day. */
+  splitShifts: boolean
   weeklyHours: BusinessHoursRecord[]
   closures: BusinessClosureRecord[]
   readiness: {
@@ -66,6 +70,7 @@ interface OrganizationRow {
   booking_max_horizon_days: number | null
   notification_email: string | null
   notifications_enabled: boolean | null
+  split_shifts: boolean | null
   created_at: string
 }
 
@@ -76,6 +81,8 @@ interface BusinessHoursRow {
   is_closed: boolean
   opens_at: string | null
   closes_at: string | null
+  pm_opens_at: string | null
+  pm_closes_at: string | null
 }
 
 interface BusinessClosureRow {
@@ -101,6 +108,7 @@ const ORGANIZATION_SELECT = [
   'booking_max_horizon_days',
   'notification_email',
   'notifications_enabled',
+  'split_shifts',
   'created_at',
 ].join(', ')
 
@@ -116,6 +124,8 @@ function defaultWeekHours(organizationId: string): BusinessHoursInput[] {
     isClosed: true,
     opensAt: null,
     closesAt: null,
+    pmOpensAt: null,
+    pmClosesAt: null,
     organizationId,
   } as BusinessHoursInput & { organizationId: string }))
 }
@@ -128,6 +138,8 @@ function toBusinessHoursRecord(row: BusinessHoursRow): BusinessHoursRecord {
     isClosed: row.is_closed,
     opensAt: row.opens_at,
     closesAt: row.closes_at,
+    pmOpensAt: row.pm_opens_at ?? null,
+    pmClosesAt: row.pm_closes_at ?? null,
   }
 }
 
@@ -161,6 +173,7 @@ function toBusinessSettingsRecord(
     bookingMaxHorizonDays: organization.booking_max_horizon_days ?? 60,
     notificationEmail: organization.notification_email ?? null,
     notificationsEnabled: organization.notifications_enabled ?? true,
+    splitShifts: organization.split_shifts ?? false,
     weeklyHours,
     closures,
     readiness: computeBusinessReadiness({
@@ -224,7 +237,7 @@ async function ensureWeeklyHours(organizationId: string): Promise<BusinessHoursR
   const supabase = initSupabase()
   const { data, error } = await supabase
     .from('business_hours')
-    .select('id, organization_id, day_of_week, is_closed, opens_at, closes_at')
+    .select('id, organization_id, day_of_week, is_closed, opens_at, closes_at, pm_opens_at, pm_closes_at')
     .eq('organization_id', organizationId)
     .order('day_of_week', { ascending: true })
 
@@ -241,6 +254,8 @@ async function ensureWeeklyHours(organizationId: string): Promise<BusinessHoursR
       is_closed: true,
       opens_at: null,
       closes_at: null,
+      pm_opens_at: null,
+      pm_closes_at: null,
       updated_at: new Date().toISOString(),
     }))
 
@@ -253,7 +268,7 @@ async function ensureWeeklyHours(organizationId: string): Promise<BusinessHoursR
 
     const { data: refreshed, error: refreshedError } = await supabase
       .from('business_hours')
-      .select('id, organization_id, day_of_week, is_closed, opens_at, closes_at')
+      .select('id, organization_id, day_of_week, is_closed, opens_at, closes_at, pm_opens_at, pm_closes_at')
       .eq('organization_id', organizationId)
       .order('day_of_week', { ascending: true })
 
@@ -353,8 +368,10 @@ export async function saveBusinessSettings(input: {
       organization_id: organization.id,
       day_of_week: hour.dayOfWeek,
       is_closed: hour.isClosed,
-      opens_at: hour.isClosed ? null : hour.opensAt,
-      closes_at: hour.isClosed ? null : hour.closesAt,
+      opens_at: hour.isClosed ? null : hour.opensAt || null,
+      closes_at: hour.isClosed ? null : hour.closesAt || null,
+      pm_opens_at: hour.isClosed ? null : hour.pmOpensAt || null,
+      pm_closes_at: hour.isClosed ? null : hour.pmClosesAt || null,
       updated_at: now,
     })),
     { onConflict: 'organization_id,day_of_week' },
@@ -465,4 +482,34 @@ export async function updateBookingPolicy(
   if (error) {
     throw error
   }
+}
+/**
+ * Switches the business between one continuous working day and two shifts.
+ * Turning split shifts off merges every day (business hours, schedules and special
+ * days) into a single window, first start to last end.
+ */
+export async function setSplitShifts(enabled: boolean): Promise<void> {
+  const supabase = initSupabase()
+  const { error } = await supabase.rpc('admin_set_split_shifts', { p_enabled: enabled })
+
+  if (error) {
+    throw error
+  }
+}
+
+/** Whether the business works in two shifts. Defaults to false if the lookup fails. */
+export async function getSplitShifts(): Promise<boolean> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase
+    .from('organizations')
+    .select('split_shifts')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle<{ split_shifts: boolean | null }>()
+
+  if (error) {
+    return false
+  }
+
+  return data?.split_shifts ?? false
 }

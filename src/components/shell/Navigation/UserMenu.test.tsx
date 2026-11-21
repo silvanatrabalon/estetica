@@ -63,4 +63,21 @@ describe('UserMenu avatar', () => {
     renderMenu(['admin'])
     expect(screen.getByRole('img', { name: 'Ana Pérez' })).toHaveAttribute('referrerpolicy', 'no-referrer')
   })
+
+  it('opens Perfil from the user menu now that it is not in the side menu', () => {
+    renderMenu(['admin'])
+    fireEvent.click(document.querySelector('button[aria-haspopup="menu"]')!)
+
+    const link = screen.getByRole('menuitem', { name: 'Perfil' })
+    expect(link).toHaveAttribute('href', '/profile')
+  })
+
+  it('offers Perfil to customers and staff too (edge case)', () => {
+    for (const role of ['customer', 'staff'] as const) {
+      const { unmount } = renderMenu([role])
+      fireEvent.click(document.querySelector('button[aria-haspopup="menu"]')!)
+      expect(screen.getByRole('menuitem', { name: 'Perfil' })).toHaveAttribute('href', '/profile')
+      unmount()
+    }
+  })
 })

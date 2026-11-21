@@ -18,6 +18,7 @@ import {
 import { uploadMediaFile, deleteMediaFile } from '../services/adminLanding'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { Listbox } from '../components/Listbox'
+import { Tabs } from '../components/Tabs'
 
 type FormMode = 'create' | 'edit' | null
 
@@ -41,7 +42,7 @@ const EMPTY_FORM: FormData = {
   priceCents: '0',
   imageUrl: null,
   // New services default to one booking at a time; clearing the field means unlimited
-  maxConcurrentBookings: '1',
+  maxConcurrentBookings: '',
   description: '',
   categoryId: '',
 }
@@ -100,6 +101,15 @@ export function AdminServicesPage() {
   const [editCategoryName, setEditCategoryName] = useState('')
   const [categoryError, setCategoryError] = useState<string | null>(null)
   const [categorySuccess, setCategorySuccess] = useState<string | null>(null)
+
+  const [tab, setTab] = useState<'services' | 'categories'>('services')
+  // 'all' shows every service (also the ones without category), 'none' only those without one
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  // Creating a category without leaving the service form
+  const [isInlineCategoryOpen, setIsInlineCategoryOpen] = useState(false)
+  const [inlineCategoryName, setInlineCategoryName] = useState('')
+  const [inlineCategoryError, setInlineCategoryError] = useState<string | null>(null)
+  const [isSavingInlineCategory, setIsSavingInlineCategory] = useState(false)
 
   const [formMode, setFormMode] = useState<FormMode>(null)
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
@@ -196,6 +206,9 @@ export function AdminServicesPage() {
   }
 
   const closeForm = () => {
+    setIsInlineCategoryOpen(false)
+    setInlineCategoryName('')
+    setInlineCategoryError(null)
     setFormMode(null)
     setEditingServiceId(null)
     setFormData(EMPTY_FORM)
@@ -366,6 +379,48 @@ export function AdminServicesPage() {
     }
   }
 
+  const NEW_CATEGORY_VALUE = '__new__'
+
+  const handleCategorySelect = (value: string) => {
+    if (value === NEW_CATEGORY_VALUE) {
+      setIsInlineCategoryOpen(true)
+      setInlineCategoryError(null)
+      return
+    }
+    setIsInlineCategoryOpen(false)
+    setFormData((prev) => ({ ...prev, categoryId: value }))
+  }
+
+  const handleCreateInlineCategory = async () => {
+    const trimmed = inlineCategoryName.trim()
+    if (!trimmed) {
+      setInlineCategoryError('Escribí el nombre de la categoría.')
+      return
+    }
+    setIsSavingInlineCategory(true)
+    setInlineCategoryError(null)
+    try {
+      const created = await adminCreateCategory(trimmed, categories.length)
+      setCategories((prev) => [...prev, created])
+      setFormData((prev) => ({ ...prev, categoryId: created.id }))
+      setIsInlineCategoryOpen(false)
+      setInlineCategoryName('')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ''
+      setInlineCategoryError(
+        msg.includes('unique') || msg.includes('duplicate') || msg.toLowerCase().includes('ya existe')
+          ? 'Ya existe una categoría con ese nombre.'
+          : 'No se pudo crear la categoría.',
+      )
+    } finally {
+      setIsSavingInlineCategory(false)
+    }
+  }
+
+  const visibleServices = services.filter((svc) =>
+    categoryFilter === 'all' ? true : categoryFilter === 'none' ? !svc.categoryId : svc.categoryId === categoryFilter,
+  )
+
   const handleUpdateCategory = async (e: FormEvent) => {
     e.preventDefault()
     if (!editingCategory) return
@@ -423,50 +478,69 @@ export function AdminServicesPage() {
     )
   }
 
+  const categoryFilterOptions = [
+    { value: 'all', label: 'Todos' },
+    ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+    { value: 'none', label: 'Sin categoría' },
+  ]
+
   return (
     <>
-      <div className="space-y-6">
-      <h1 className="font-heading text-2xl font-semibold text-shell-text">Servicios</h1>
+      <div className="space-y-4">
+        <h1 className="font-heading text-2xl font-semibold text-shell-text">Servicios</h1>
 
-      {errorMessage && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          {errorMessage}
-        </div>
-      )}
+        <Tabs
+          ariaLabel="Servicios y categorías"
+          active={tab}
+          onChange={setTab}
+          tabs={[
+            { key: 'services', label: 'Servicios' },
+            { key: 'categories', label: 'Categorías' },
+          ]}
+        />
 
-      {successMessage && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700">
-          {successMessage}
-        </div>
-      )}
+        {errorMessage && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
 
-      {/* ── Servicios ────────────────────────────────────────────── */}
-      <section className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-shell-border">
-          <h2 className="font-heading text-base font-semibold text-shell-text">Servicios</h2>
-          {formMode === null && (
-            <button
-              type="button"
-              onClick={openCreateForm}
-              className="rounded-lg bg-brand-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-strong transition-colors"
-            >
-              + Agregar servicio
-            </button>
-          )}
-        </div>
-        <div className="p-5">
+        {successMessage && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {successMessage}
+          </div>
+        )}
+
+        {tab === 'services' && (
+          <div className="space-y-4">
+            {formMode === null && (
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <Listbox
+                    id="service-category-filter"
+                    value={categoryFilter}
+                    onChange={setCategoryFilter}
+                    options={categoryFilterOptions}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={openCreateForm}
+                  className="shrink-0 rounded-lg bg-brand-primary px-3 py-2 text-sm font-medium text-white hover:bg-brand-strong transition-colors"
+                >
+                  + Agregar servicio
+                </button>
+              </div>
+            )}
 
       {formMode !== null && (
-        <div ref={formRef} className="mb-6 p-4 border border-gray-200 rounded-md bg-gray-50">
-          <h2 className="text-lg font-medium text-gray-800 mb-4">
+        <div ref={formRef} className="rounded-2xl border border-shell-border bg-white p-4 shadow-sm">
+          <h2 className="mb-3 text-base font-semibold text-shell-text">
             {formMode === 'create' ? 'Nuevo servicio' : 'Editar servicio'}
           </h2>
-          <form onSubmit={(e) => void handleFormSubmit(e)} noValidate>
-            <div className="mb-4">
-              <label
-                htmlFor="service-name"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+          <form onSubmit={(e) => void handleFormSubmit(e)} noValidate className="space-y-3">
+            <div>
+              <label htmlFor="service-name" className="mb-1 block text-sm font-medium text-gray-700">
                 Nombre
               </label>
               <input
@@ -477,114 +551,124 @@ export function AdminServicesPage() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Ej: Corte de cabello"
               />
-              {formErrors.name && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
-              )}
+              {formErrors.name && <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>}
             </div>
 
-            <div className="mb-4">
-              <span className="block text-sm font-medium text-gray-700 mb-1">Duración</span>
-              <div className="flex gap-3">
-                <label className="flex-1">
-                  <span className="text-xs text-gray-500">Horas</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="7"
-                    value={formData.durationHours}
-                    onChange={handleField('durationHours')}
-                    className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="0"
-                  />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <label>
+                <span className="text-xs font-medium text-gray-600">Horas</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="7"
+                  value={formData.durationHours}
+                  onChange={handleField('durationHours')}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0"
+                />
+              </label>
+              <label>
+                <span className="text-xs font-medium text-gray-600">Minutos</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="59"
+                  value={formData.durationMins}
+                  onChange={handleField('durationMins')}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="30"
+                />
+              </label>
+              <div className="col-span-2 sm:col-span-1">
+                <label htmlFor="service-price" className="text-xs font-medium text-gray-600">
+                  Precio ($)
                 </label>
-                <label className="flex-1">
-                  <span className="text-xs text-gray-500">Minutos</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="59"
-                    value={formData.durationMins}
-                    onChange={handleField('durationMins')}
-                    className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="30"
-                  />
-                </label>
+                <input
+                  id="service-price"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={formData.priceCents}
+                  onChange={handleField('priceCents')}
+                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: 20000"
+                />
               </div>
               {formErrors.durationMinutes && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.durationMinutes}</p>
+                <p className="col-span-2 text-sm text-red-600 sm:col-span-3">{formErrors.durationMinutes}</p>
               )}
-            </div>
-
-            <div className="mb-4">
-              <label
-                htmlFor="service-price"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Precio ($)
-              </label>
-              <input
-                id="service-price"
-                type="number"
-                min="0"
-                step="any"
-                value={formData.priceCents}
-                onChange={handleField('priceCents')}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ej: 20000"
-              />
               {formData.priceCents !== '' && !formErrors.priceCents && (
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="col-span-2 text-xs text-gray-500 sm:col-span-3">
                   Vista previa: {formatPriceARS(Math.round(Number(formData.priceCents) * 100))}
                 </p>
               )}
               {formErrors.priceCents && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.priceCents}</p>
+                <p className="col-span-2 text-sm text-red-600 sm:col-span-3">{formErrors.priceCents}</p>
               )}
             </div>
 
-            {/* Description */}
-            <div className="mb-4">
-              <label
-                htmlFor="service-description"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Descripción{' '}
-                <span className="text-gray-400 font-normal">(opcional)</span>
+            <div>
+              <label htmlFor="service-description" className="mb-1 block text-sm font-medium text-gray-700">
+                Descripción <span className="font-normal text-gray-400">(opcional)</span>
               </label>
               <textarea
                 id="service-description"
                 value={formData.description}
                 onChange={handleField('description')}
-                rows={3}
+                rows={2}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 placeholder="Describí el servicio para tus clientes..."
               />
             </div>
 
-            {/* Category */}
-            {categories.length > 0 && (
-              <div className="mb-4 w-full">
-                <label
-                  htmlFor="service-category"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Categoría{' '}
-                  <span className="text-gray-400 font-normal">(opcional)</span>
-                </label>
-                <Listbox
-                  id="service-category"
-                  value={formData.categoryId}
-                  onChange={(val) => setFormData((prev) => ({ ...prev, categoryId: val }))}
-                  options={[
-                    { value: '', label: 'Sin categoría' },
-                    ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
-                  ]}
-                />
-              </div>
-            )}
+            <div className="w-full">
+              <label htmlFor="service-category" className="mb-1 block text-sm font-medium text-gray-700">
+                Categoría <span className="font-normal text-gray-400">(opcional)</span>
+              </label>
+              <Listbox
+                id="service-category"
+                value={isInlineCategoryOpen ? NEW_CATEGORY_VALUE : formData.categoryId}
+                onChange={handleCategorySelect}
+                options={[
+                  { value: '', label: 'Sin categoría' },
+                  ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+                  { value: NEW_CATEGORY_VALUE, label: '+ Crear categoría nueva' },
+                ]}
+              />
+              {isInlineCategoryOpen && (
+                <div className="mt-2 flex flex-wrap items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <input
+                      autoFocus
+                      aria-label="Nombre de la nueva categoría"
+                      value={inlineCategoryName}
+                      onChange={(e) => setInlineCategoryName(e.target.value)}
+                      placeholder="Nombre de la categoría"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {inlineCategoryError && <p className="mt-1 text-sm text-red-600">{inlineCategoryError}</p>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleCreateInlineCategory()}
+                    disabled={isSavingInlineCategory}
+                    className="rounded-md bg-brand-primary px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
+                  >
+                    {isSavingInlineCategory ? 'Creando...' : 'Crear categoría'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsInlineCategoryOpen(false)}
+                    className="rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Image upload — only available in edit mode */}
-            <div className="mb-4">
+            <div>
               <p className="block text-sm font-medium text-gray-700 mb-1">
                 Imagen{' '}
                 <span className="text-gray-400 font-normal">(opcional)</span>
@@ -640,32 +724,35 @@ export function AdminServicesPage() {
               )}
             </div>
 
-            <div className="mb-4">
-              <label
-                htmlFor="service-capacity"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Capacidad simult&aacute;nea{' '}
-                <span className="text-gray-400 font-normal">(opcional)</span>
-              </label>
-              <input
-                id="service-capacity"
-                type="number"
-                min="1"
-                value={formData.maxConcurrentBookings}
-                onChange={handleField('maxConcurrentBookings')}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Dejar vacío = sin límite"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Máximo de turnos que se pueden agendar al mismo tiempo para este servicio. Útil si tenés varias plazas o equipos disponibles. Dejá en blanco para ilimitado.
-              </p>
-              {formErrors.maxConcurrentBookings && (
-                <p className="mt-1 text-sm text-red-600">{formErrors.maxConcurrentBookings}</p>
-              )}
-            </div>
 
-            <div className="flex gap-3">
+            <details
+              open={formData.maxConcurrentBookings !== '' || !!formErrors.maxConcurrentBookings ? true : undefined}
+              className="rounded-md border border-gray-200 px-3 py-2"
+            >
+              <summary className="cursor-pointer text-sm font-medium text-gray-700">Opciones avanzadas</summary>
+              <div className="mt-3">
+                <label htmlFor="service-capacity" className="mb-1 block text-sm font-medium text-gray-700">
+                  Límite por recurso compartido <span className="font-normal text-gray-400">(opcional)</span>
+                </label>
+                <input
+                  id="service-capacity"
+                  type="number"
+                  min="1"
+                  value={formData.maxConcurrentBookings}
+                  onChange={handleField('maxConcurrentBookings')}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Vacío = lo limitan las agendas"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Normalmente se deja vacío: cada profesional atiende un cliente a la vez y la capacidad sale de sus agendas. Completalo solo si hay algo compartido que limita, como una única cabina o un solo aparato.
+                </p>
+                {formErrors.maxConcurrentBookings && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.maxConcurrentBookings}</p>
+                )}
+              </div>
+            </details>
+
+            <div className="flex gap-3 pt-1">
               <button
                 type="submit"
                 disabled={isSaving || isUploading}
@@ -685,18 +772,18 @@ export function AdminServicesPage() {
         </div>
       )}
 
-      {services.length === 0 && formMode === null ? (
-        <div className="text-center py-12 text-gray-500">
-          <p className="text-lg mb-2">No hay servicios registrados todavía.</p>
-          <p className="text-sm">
-            Usá el botón &quot;Agregar servicio&quot; para crear el primero.
-          </p>
-        </div>
-      ) : (
-        <>
+            {services.length === 0 && formMode === null ? (
+              <div className="py-12 text-center text-gray-500">
+                <p className="mb-2 text-lg">No hay servicios registrados todavía.</p>
+                <p className="text-sm">Usá el botón &quot;Agregar servicio&quot; para crear el primero.</p>
+              </div>
+            ) : visibleServices.length === 0 && formMode === null ? (
+              <div className="py-10 text-center text-sm text-gray-500">No hay servicios en esta categoría.</div>
+            ) : (
+              <>
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
-            {services.map((service) => (
+            {visibleServices.map((service) => (
               <div key={service.id} className="border border-gray-200 rounded-lg p-4 bg-white">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
@@ -763,7 +850,7 @@ export function AdminServicesPage() {
               </tr>
             </thead>
             <tbody>
-              {services.map((service) => (
+              {visibleServices.map((service) => (
                 <tr key={service.id} className="border-b border-gray-100 hover:bg-gray-50">
                   <td className="py-3 pr-4">
                     <ServiceImage imageUrl={service.imageUrl} name={service.name} />
@@ -829,26 +916,25 @@ export function AdminServicesPage() {
             </tbody>
           </table>
           </div>
-        </>
-      )}
-        </div>
-      </section>
+              </>
+            )}
+          </div>
+        )}
 
-      {/* ── Categorías ────────────────────────────────────────────── */}
-      <section className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-shell-border">
-          <h2 className="font-heading text-base font-semibold text-shell-text">Categorías</h2>
-          {!isCategoryFormOpen && !editingCategory && (
-            <button
-              type="button"
-              onClick={() => { setIsCategoryFormOpen(true); setCategoryError(null); setCategorySuccess(null) }}
-              className="rounded-lg border border-shell-border px-3 py-1.5 text-xs font-medium text-shell-text hover:bg-shell-muted transition-colors"
-            >
-              + Nueva categoría
-            </button>
-          )}
-        </div>
-        <div className="p-5">
+        {tab === 'categories' && (
+          <section className="shell-surface rounded-2xl border p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-sm text-shell-subtleText">Agrupan los servicios en la página de reservas.</p>
+              {!isCategoryFormOpen && !editingCategory && (
+                <button
+                  type="button"
+                  onClick={() => { setIsCategoryFormOpen(true); setCategoryError(null); setCategorySuccess(null) }}
+                  className="shrink-0 rounded-lg border border-shell-border px-3 py-1.5 text-xs font-medium text-shell-text hover:bg-shell-muted transition-colors"
+                >
+                  + Nueva categoría
+                </button>
+              )}
+            </div>
           {categoryError && (
             <p className="mb-2 text-sm text-red-600">{categoryError}</p>
           )}
@@ -937,9 +1023,9 @@ export function AdminServicesPage() {
               </div>
             </form>
           )}
-        </div>
-      </section>
-    </div>
+          </section>
+        )}
+      </div>
 
       <ConfirmModal
         isOpen={confirmState.isOpen}

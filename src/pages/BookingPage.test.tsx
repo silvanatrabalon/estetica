@@ -16,9 +16,11 @@ vi.mock('../services/businessSettings', () => ({
 }))
 
 const mockGetAvailableSlots = vi.fn()
+const mockGetAvailableDays = vi.fn()
 
 vi.mock('../services/availability', () => ({
   getAvailableSlots: (...args: unknown[]) => mockGetAvailableSlots(...args),
+  getAvailableDays: (...args: unknown[]) => mockGetAvailableDays(...args),
 }))
 
 const mockSupabaseFrom = vi.fn()
@@ -45,6 +47,12 @@ vi.mock('../services/appointments', () => ({
     const e = err as { code?: string }
     return e.code === '23P01' || e.code === '23505' || e.code === 'CONFLICT'
   },
+}))
+
+const mockValidateCoupon = vi.fn()
+
+vi.mock('../services/coupons', () => ({
+  validateCoupon: (...args: unknown[]) => mockValidateCoupon(...args),
 }))
 
 const mockGetLandingConfig = vi.fn()
@@ -120,6 +128,14 @@ function renderPage() {
   )
 }
 
+const todayKey = () => new Date().toISOString().slice(0, 10)
+
+/** Clicks the first bookable day in the calendar. */
+async function pickDay() {
+  const day = await screen.findByRole('button', { name: /horarios? libres?/ })
+  fireEvent.click(day)
+}
+
 async function selectService(name = 'Corte de cabello') {
   // Card click opens the detail panel; the panel's CTA actually selects the service
   fireEvent.click(screen.getByRole('button', { name: new RegExp(name) }))
@@ -137,6 +153,7 @@ describe('BookingPage', () => {
       weeklyHours: [],
     })
     mockListCategories.mockResolvedValue([])
+    mockGetAvailableDays.mockResolvedValue([{ day: todayKey(), slotCount: 3 }])
     mockGetLandingConfig.mockResolvedValue({
       primaryColor: '#f3e8ff',
       businessName: 'Test',
@@ -209,7 +226,7 @@ describe('BookingPage', () => {
     it('shows date picker and back button', async () => {
       await goToStep2()
       expect(screen.getByRole('button', { name: 'Volver al paso anterior' })).toBeDefined()
-      expect(document.querySelector('input[type="date"]')).not.toBeNull()
+      expect(screen.getByRole('grid')).toBeDefined()
     })
 
     it('shows selected service name', async () => {
@@ -227,8 +244,7 @@ describe('BookingPage', () => {
       mockGetAvailableSlots.mockResolvedValueOnce([])
       await goToStep2()
 
-      const input = document.querySelector('input[type="date"]') as HTMLInputElement
-      fireEvent.change(input, { target: { value: '2025-06-10' } })
+      await pickDay()
 
       await waitFor(() =>
         expect(screen.getByText(/Turnos disponibles para/)).toBeDefined(),
@@ -244,8 +260,7 @@ describe('BookingPage', () => {
       renderPage()
       await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
       await selectService()
-      const input = document.querySelector('input[type="date"]') as HTMLInputElement
-      fireEvent.change(input, { target: { value: '2025-06-10' } })
+      await pickDay()
     }
 
     it('renders BookingSlotDayView loading skeleton while slots are fetching', async () => {
@@ -384,8 +399,7 @@ describe('BookingPage', () => {
       await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
       await selectService()
 
-      const input = document.querySelector('input[type="date"]') as HTMLInputElement
-      fireEvent.change(input, { target: { value: '2025-06-10' } })
+      await pickDay()
 
       await waitFor(() =>
         expect(screen.getByTestId('slot-block')).toBeInTheDocument(),
@@ -410,6 +424,7 @@ describe('BookingPage', () => {
 
     it('renders price formatted in pesos', async () => {
       await goToStep4()
+      expect(screen.getByText(/te enviamos un email con los datos/)).toBeDefined()
       // 5000 cents = $50.00
       expect(screen.getByText('$50.00')).toBeDefined()
     })
@@ -600,13 +615,12 @@ describe('BookingPage', () => {
       renderPage()
       await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
       await selectService()
-      fireEvent.change(document.querySelector('input[type="date"]') as HTMLInputElement, {
-        target: { value: '2025-06-10' },
-      })
+      await pickDay()
       await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
     }
 
-    it('date input ignores an empty value (stays on step 2)', async () => {
+    it('days without free slots cannot be picked and the page says so (edge case)', async () => {
+      mockGetAvailableDays.mockResolvedValue([])
       mockSupabaseFrom.mockReturnValueOnce(
         buildQueryChain({ data: [mockServiceRow], error: null }),
       )
@@ -614,13 +628,12 @@ describe('BookingPage', () => {
       await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
       await selectService()
 
-      const input = document.querySelector('input[type="date"]') as HTMLInputElement
-      fireEvent.change(input, { target: { value: '' } })
+      expect(await screen.findByText(/No hay días disponibles este mes/)).toBeDefined()
+      expect(screen.queryByRole('button', { name: /horarios? libres?/ })).toBeNull()
       expect(mockGetAvailableSlots).not.toHaveBeenCalled()
-      expect(screen.getByText(/Seleccioná una fecha para/)).toBeDefined()
     })
 
-    it('date input has min=today and max within the booking horizon', async () => {
+    it('only asks for days inside the booking window', async () => {
       mockGetBusinessSettings.mockResolvedValue({
         timezone: 'UTC',
         bookingMaxHorizonDays: 7,
@@ -633,13 +646,13 @@ describe('BookingPage', () => {
       await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
       await selectService()
 
-      const input = document.querySelector('input[type="date"]') as HTMLInputElement
-      const today = new Date().toISOString().slice(0, 10)
-      expect(input.min).toBe(today)
+      await waitFor(() => expect(mockGetAvailableDays).toHaveBeenCalled())
       await waitFor(() => {
+        const [, from, to] = mockGetAvailableDays.mock.calls.at(-1)!
+        expect(from).toBe(todayKey())
         const max = new Date()
-        max.setDate(max.getDate() + 7)
-        expect(input.max).toBe(max.toISOString().slice(0, 10))
+        max.setUTCDate(max.getUTCDate() + 7)
+        expect(to <= max.toISOString().slice(0, 10)).toBe(true)
       })
     })
 
@@ -709,5 +722,93 @@ describe('BookingPage', () => {
       fireEvent.click(busy)
       expect(mockCreateAppointment).toHaveBeenCalledTimes(1)
     })
+  })
+})
+
+describe('BookingPage — coupon', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetBusinessSettings.mockResolvedValue({ timezone: 'UTC', bookingMaxHorizonDays: 60, weeklyHours: [] })
+    mockListCategories.mockResolvedValue([])
+    mockGetLandingConfig.mockResolvedValue({
+      primaryColor: '#f3e8ff', businessName: 'Test', tagline: null, logoUrl: null, heroImageUrl: null, carouselImages: [],
+    })
+    mockGetAvailableDays.mockResolvedValue([{ day: todayKey(), slotCount: 3 }])
+    mockGetAvailableSlots.mockResolvedValue([mockSlot])
+  })
+
+  async function goToReview() {
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [mockServiceRow], error: null }))
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
+    await selectService()
+    await pickDay()
+    await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId('slot-block'))
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await waitFor(() => expect(screen.getByText(/Revisá tu reserva/)).toBeDefined())
+  }
+
+  async function applyCode(code: string) {
+    fireEvent.change(screen.getByLabelText('¿Tenés un cupón?'), { target: { value: code } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+  }
+
+  it('applies a valid coupon and shows the discount and the new total', async () => {
+    mockValidateCoupon.mockResolvedValue({ discountCents: 500, finalPriceCents: 4500 })
+    await goToReview()
+    await applyCode('verano10')
+
+    expect(await screen.findByText(/aplicado/)).toBeDefined()
+    expect(mockValidateCoupon).toHaveBeenCalledWith('svc-1', 'VERANO10')
+    expect(screen.getByText('-$5.00')).toBeDefined()
+    expect(screen.getByText('$45.00')).toBeDefined()
+  })
+
+  it('books with the coupon code', async () => {
+    mockValidateCoupon.mockResolvedValue({ discountCents: 500, finalPriceCents: 4500 })
+    mockCreateAppointment.mockResolvedValue({ id: 'apt-1' })
+    await goToReview()
+    await applyCode('VERANO10')
+    await screen.findByText(/aplicado/)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
+    await waitFor(() =>
+      expect(mockCreateAppointment).toHaveBeenCalledWith(expect.objectContaining({ couponCode: 'VERANO10' })),
+    )
+  })
+
+  it('books without a coupon when none was applied', async () => {
+    mockCreateAppointment.mockResolvedValue({ id: 'apt-1' })
+    await goToReview()
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
+    await waitFor(() =>
+      expect(mockCreateAppointment).toHaveBeenCalledWith(expect.objectContaining({ couponCode: undefined })),
+    )
+  })
+
+  it('shows the reason when the coupon cannot be used and keeps the full price (edge case)', async () => {
+    mockValidateCoupon.mockRejectedValue(new Error('Ya usaste este cupón.'))
+    await goToReview()
+    await applyCode('USADO')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ya usaste este cupón.')
+    expect(screen.queryByText(/aplicado/)).toBeNull()
+    expect(screen.getByText('$50.00')).toBeDefined()
+  })
+
+  it('asks for a code when the field is empty without calling the server (edge case)', async () => {
+    await goToReview()
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    expect(await screen.findByText('Escribí el código del cupón.')).toBeDefined()
+    expect(mockValidateCoupon).not.toHaveBeenCalled()
+  })
+
+  it('a coupon can be removed (edge case)', async () => {
+    mockValidateCoupon.mockResolvedValue({ discountCents: 500, finalPriceCents: 4500 })
+    await goToReview()
+    await applyCode('VERANO10')
+    await screen.findByText(/aplicado/)
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar' }))
+    expect(screen.queryByText(/aplicado/)).toBeNull()
+    expect(screen.getByLabelText('¿Tenés un cupón?')).toBeDefined()
   })
 })

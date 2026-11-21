@@ -15,6 +15,8 @@ const mockSchedule: StaffScheduleDay[] = [
     isWorking: true,
     startsAt: '09:00',
     endsAt: '17:00',
+    pmStartsAt: null,
+    pmEndsAt: null,
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
   },
@@ -27,6 +29,8 @@ const mockException: StaffScheduleException = {
   exceptionType: 'day_off',
   startsAt: null,
   endsAt: null,
+  pmStartsAt: null,
+  pmEndsAt: null,
   reason: 'Navidad',
   createdAt: '2024-01-01T00:00:00Z',
   updatedAt: '2024-01-01T00:00:00Z',
@@ -68,7 +72,7 @@ describe('StaffAvailabilityPage', () => {
       expect(screen.getByText('Horario semanal')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('Excepciones')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Días libres y especiales' })).toBeInTheDocument()
     expect(screen.getByText('Guardar horario')).toBeInTheDocument()
   })
 
@@ -93,6 +97,7 @@ describe('StaffAvailabilityPage', () => {
 
   it('shows exception in list after load', async () => {
     renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: 'Días libres y especiales' }))
 
     await waitFor(() => {
       expect(screen.getByText(/25 de diciembre/i)).toBeInTheDocument()
@@ -115,6 +120,7 @@ describe('StaffAvailabilityPage', () => {
 
   it('shows success message after removing exception', async () => {
     renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: 'Días libres y especiales' }))
 
     await waitFor(() => {
       expect(screen.getByText('Eliminar')).toBeInTheDocument()
@@ -123,7 +129,7 @@ describe('StaffAvailabilityPage', () => {
     fireEvent.click(screen.getByText('Eliminar'))
 
     await waitFor(() => {
-      expect(screen.getByText('Excepción eliminada correctamente.')).toBeInTheDocument()
+      expect(screen.getByText('Día eliminado correctamente.')).toBeInTheDocument()
     })
   })
 

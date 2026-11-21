@@ -11,6 +11,7 @@ const mockSaveNotificationSettings = vi.fn()
 const mockSaveBusinessClosure = vi.fn()
 const mockDeleteBusinessClosure = vi.fn()
 const mockUpdateBookingPolicy = vi.fn()
+const mockSetSplitShifts = vi.fn()
 
 vi.mock('../services/businessSettings', () => ({
   getBusinessSettings: (...args: unknown[]) => mockGetBusinessSettings(...args),
@@ -19,6 +20,7 @@ vi.mock('../services/businessSettings', () => ({
   saveBusinessClosure: (...args: unknown[]) => mockSaveBusinessClosure(...args),
   deleteBusinessClosure: (...args: unknown[]) => mockDeleteBusinessClosure(...args),
   updateBookingPolicy: (...args: unknown[]) => mockUpdateBookingPolicy(...args),
+  setSplitShifts: (...args: unknown[]) => mockSetSplitShifts(...args),
 }))
 
 function createSettingsResponse(overrides?: Partial<Awaited<ReturnType<typeof mockGetBusinessSettings>>>) {
@@ -46,6 +48,7 @@ function createSettingsResponse(overrides?: Partial<Awaited<ReturnType<typeof mo
     bookingMaxHorizonDays: 60,
     notificationEmail: null,
     notificationsEnabled: true,
+    splitShifts: false,
     ...overrides,
   }
 }
@@ -178,25 +181,25 @@ describe('BusinessSettingsPage', () => {
     it('every open day has labelled opening and closing time fields', async () => {
       await openHours()
 
-      const open = screen.getByLabelText('Lunes: hora de apertura') as HTMLInputElement
-      const close = screen.getByLabelText('Lunes: hora de cierre') as HTMLInputElement
+      const open = screen.getByLabelText('Lunes: hora de inicio') as HTMLInputElement
+      const close = screen.getByLabelText('Lunes: hora de fin') as HTMLInputElement
       expect(open.value).toBe('09:00')
       expect(close.value).toBe('18:00')
-      expect(screen.getAllByLabelText(/hora de apertura/)).toHaveLength(5)
+      expect(screen.getAllByLabelText(/hora de inicio/)).toHaveLength(5)
     })
 
-    it('shows the visible "Abre" and "Cierra" captions for phones', async () => {
+    it('shows the visible "Desde" and "Hasta" captions for phones', async () => {
       await openHours()
-      expect(screen.getAllByText('Abre').length).toBe(5)
-      expect(screen.getAllByText('Cierra').length).toBe(5)
+      expect(screen.getAllByText('Desde').length).toBe(5)
+      expect(screen.getAllByText('Hasta').length).toBe(5)
     })
 
     it('a closed day shows "Cerrado" and no time fields (edge case)', async () => {
       await openHours()
 
       expect(screen.getAllByText('Cerrado').length).toBeGreaterThanOrEqual(2)
-      expect(screen.queryByLabelText('Sábado: hora de apertura')).toBeNull()
-      expect(screen.queryByLabelText('Domingo: hora de apertura')).toBeNull()
+      expect(screen.queryByLabelText('Sábado: hora de inicio')).toBeNull()
+      expect(screen.queryByLabelText('Domingo: hora de inicio')).toBeNull()
     })
 
     it('each day switch has an accessible name and reflects its state', async () => {
@@ -213,15 +216,15 @@ describe('BusinessSettingsPage', () => {
 
       fireEvent.click(screen.getByRole('switch', { name: 'Sábado: abierto' }))
 
-      expect(await screen.findByLabelText('Sábado: hora de apertura')).toBeDefined()
-      expect(screen.getByLabelText('Sábado: hora de cierre')).toBeDefined()
+      expect(await screen.findByLabelText('Sábado: hora de inicio')).toBeDefined()
+      expect(screen.getByLabelText('Sábado: hora de fin')).toBeDefined()
     })
 
     it('editing a time updates the value that will be saved', async () => {
       mockSaveBusinessSettings.mockResolvedValue(createSettingsResponse())
       await openHours()
 
-      fireEvent.change(screen.getByLabelText('Lunes: hora de apertura'), { target: { value: '08:30' } })
+      fireEvent.change(screen.getByLabelText('Lunes: hora de inicio'), { target: { value: '08:30' } })
       fireEvent.click(screen.getByRole('button', { name: 'Guardar horarios' }))
 
       await waitFor(() => expect(mockSaveBusinessSettings).toHaveBeenCalled())
@@ -240,7 +243,7 @@ describe('BusinessSettingsPage', () => {
 
       fireEvent.change(screen.getByLabelText('Nombre del negocio'), { target: { value: 'Nombre a medio editar' } })
       fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
-      fireEvent.change(screen.getByLabelText('Lunes: hora de apertura'), { target: { value: '08:30' } })
+      fireEvent.change(screen.getByLabelText('Lunes: hora de inicio'), { target: { value: '08:30' } })
       fireEvent.click(screen.getByRole('button', { name: 'Guardar horarios' }))
 
       await waitFor(() => expect(mockSaveBusinessSettings).toHaveBeenCalled())
@@ -255,7 +258,7 @@ describe('BusinessSettingsPage', () => {
       await screen.findByDisplayValue('Salon Centro')
 
       fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
-      fireEvent.change(screen.getByLabelText('Lunes: hora de apertura'), { target: { value: '08:30' } })
+      fireEvent.change(screen.getByLabelText('Lunes: hora de inicio'), { target: { value: '08:30' } })
       fireEvent.click(screen.getByRole('tab', { name: /General/ }))
       fireEvent.change(screen.getByLabelText('Nombre del negocio'), { target: { value: 'Salon Norte' } })
       fireEvent.click(screen.getByRole('button', { name: 'Guardar datos del negocio' }))
@@ -264,7 +267,7 @@ describe('BusinessSettingsPage', () => {
       const payload = mockSaveBusinessSettings.mock.calls[0][0]
       expect(payload.name).toBe('Salon Norte')
       expect(payload.weeklyHours.find((h: { dayOfWeek: number }) => h.dayOfWeek === 1).opensAt).toBe('09:00')
-      expect((screen.getByLabelText('Lunes: hora de apertura') as HTMLInputElement).value).toBe('08:30')
+      expect((screen.getByLabelText('Lunes: hora de inicio') as HTMLInputElement).value).toBe('08:30')
     })
 
     it('shows "Hay cambios sin guardar" and marks the tab, then clears both after saving', async () => {
@@ -480,7 +483,7 @@ describe('BusinessSettingsPage', () => {
       await screen.findByDisplayValue('Salon Centro')
 
       fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
-      fireEvent.change(screen.getByLabelText('Lunes: hora de apertura'), { target: { value: '08:30' } })
+      fireEvent.change(screen.getByLabelText('Lunes: hora de inicio'), { target: { value: '08:30' } })
       fireEvent.click(screen.getByRole('tab', { name: /Cierres/ }))
       mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ closures: [closure] }))
       fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2099-12-24' } })
@@ -489,7 +492,7 @@ describe('BusinessSettingsPage', () => {
       await waitFor(() => expect(mockSaveBusinessClosure).toHaveBeenCalled())
       expect(await screen.findByText('Jueves 24 de diciembre de 2099')).toBeDefined()
       fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
-      expect((screen.getByLabelText('Lunes: hora de apertura') as HTMLInputElement).value).toBe('08:30')
+      expect((screen.getByLabelText('Lunes: hora de inicio') as HTMLInputElement).value).toBe('08:30')
     })
 
     it('the delete confirmation is destructive and names the action', async () => {
@@ -735,5 +738,112 @@ describe('BusinessSettingsPage', () => {
         expect(screen.getByText('Política de reservas actualizada.')).toBeDefined()
       })
     })
+  })
+})
+
+describe('BusinessSettingsPage — jornada corrida o dos turnos', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse())
+    mockSetSplitShifts.mockResolvedValue(undefined)
+  })
+
+  async function openHours() {
+    renderBusinessSettingsPage()
+    fireEvent.click(await screen.findByRole('tab', { name: /Horarios/ }))
+  }
+
+  it('starts on "Jornada corrida" with a single range per day', async () => {
+    await openHours()
+    expect(screen.getByRole('radio', { name: 'Jornada corrida' }).getAttribute('aria-checked')).toBe('true')
+    expect(screen.queryByLabelText('Lunes: Turno matutino')).toBeNull()
+    expect(screen.getByLabelText('Lunes: hora de inicio')).toBeDefined()
+  })
+
+  it('switching to "Dos turnos" saves the mode and shows matutino/vespertino', async () => {
+    await openHours()
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ splitShifts: true }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Dos turnos' }))
+
+    await waitFor(() => expect(mockSetSplitShifts).toHaveBeenCalledWith(true))
+    expect(await screen.findAllByLabelText('Lunes: Turno matutino')).toHaveLength(1)
+    expect(screen.getByLabelText('Lunes: Turno vespertino')).toBeDefined()
+  })
+
+  it('switching back to corrida asks for confirmation first and does nothing if cancelled (edge case)', async () => {
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ splitShifts: true }))
+    await openHours()
+    fireEvent.click(screen.getByRole('radio', { name: 'Jornada corrida' }))
+
+    expect(mockSetSplitShifts).not.toHaveBeenCalled()
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
+    expect(mockSetSplitShifts).not.toHaveBeenCalled()
+  })
+
+  it('confirming the switch to corrida calls the service with false', async () => {
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ splitShifts: true }))
+    await openHours()
+    fireEvent.click(screen.getByRole('radio', { name: 'Jornada corrida' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Sí, pasar a corrida' }))
+    await waitFor(() => expect(mockSetSplitShifts).toHaveBeenCalledWith(false))
+  })
+
+  it('a day with only the vespertino shift is valid and is saved without morning times', async () => {
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ splitShifts: true }))
+    mockSaveBusinessSettings.mockResolvedValue(createSettingsResponse({ splitShifts: true }))
+    await openHours()
+    fireEvent.click(screen.getByLabelText('Lunes: Turno matutino')) // off
+    fireEvent.click(screen.getByLabelText('Lunes: Turno vespertino')) // on
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar horarios' }))
+
+    await waitFor(() => expect(mockSaveBusinessSettings).toHaveBeenCalled())
+    const monday = mockSaveBusinessSettings.mock.calls[0][0].weeklyHours.find(
+      (h: { dayOfWeek: number }) => h.dayOfWeek === 1,
+    )
+    expect(monday.opensAt).toBeNull()
+    expect(monday.pmOpensAt).toBe('15:00')
+  })
+
+  it('a day with both shifts turned off cannot be saved (edge case)', async () => {
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ splitShifts: true }))
+    await openHours()
+    fireEvent.click(screen.getByLabelText('Lunes: Turno matutino'))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar horarios' }))
+
+    expect(await screen.findByText('Elegí al menos un turno.')).toBeDefined()
+    expect(mockSaveBusinessSettings).not.toHaveBeenCalled()
+  })
+})
+
+describe('BusinessSettingsPage — look', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse())
+  })
+
+  it('does not repeat a "Datos del negocio" title inside the General tab', async () => {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    expect(screen.queryByText('Datos del negocio')).toBeNull()
+  })
+
+  it('save buttons say just "Guardar" (and keep their full accessible name)', async () => {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    const save = screen.getByRole('button', { name: 'Guardar datos del negocio' })
+    expect(save.textContent).toBe('Guardar')
+    expect(screen.getByRole('button', { name: 'Guardar horarios' }).textContent).toBe('Guardar')
+    expect(screen.getByRole('button', { name: 'Guardar política' }).textContent).toBe('Guardar')
+  })
+
+  it('the danger zone starts closed and opens on click (edge case)', async () => {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    expect(screen.queryByText('Eliminar historial de reservas')).toBeNull()
+    const toggle = screen.getByRole('button', { name: 'Zona de peligro' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggle)
+    expect(screen.getByText('Eliminar historial de reservas')).toBeDefined()
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
   })
 })

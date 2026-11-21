@@ -123,72 +123,87 @@ export function BookingConfirmationPage() {
       ? 'Este turno ya se realizó'
       : '¡Tu turno está reservado!'
 
+  const isActive = !isCancelled && !isCompleted
+
   return (
-    <div className="max-w-lg mx-auto py-8 px-4">
-      <div className="mb-6">
-        <span className={`inline-block px-3 py-1 text-sm font-medium rounded-full ${statusBadge.className}`}>
-          {statusBadge.label}
-        </span>
-      </div>
-
-      <h1 className="text-3xl font-heading font-bold text-shell-text mb-2">
-        {heading}
-      </h1>
-      <p className="text-shell-subtleText mb-8">
-        Referencia de reserva:{' '}
-        <span className="font-mono font-semibold text-shell-text">
-          {bookingReference}
-        </span>
-      </p>
-
-      <div className="bg-shell-surface border border-shell-border rounded-xl p-6 space-y-4 mb-8">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-shell-subtleText mb-1">
-            Servicio
-          </p>
-          <p className="font-semibold text-shell-text">{apt.serviceName}</p>
-          <p className="text-sm text-shell-subtleText">
-            {apt.serviceDurationMinutes} min · {formatPriceARS(apt.servicePriceCents)}
-          </p>
+    <div className="mx-auto max-w-lg space-y-4 pb-4">
+      {/* Celebration header */}
+      <section
+        className={`rounded-3xl p-6 text-center ${
+          isCancelled ? 'bg-red-50' : isCompleted ? 'bg-shell-muted' : 'bg-[var(--color-lilac)]'
+        }`}
+      >
+        <div
+          aria-hidden="true"
+          className={`mx-auto flex h-16 w-16 items-center justify-center rounded-full text-3xl ${
+            isCancelled ? 'bg-red-100 text-red-600' : isCompleted ? 'bg-white text-shell-subtleText' : 'bg-white text-emerald-600'
+          }`}
+        >
+          {isCancelled ? '✕' : isCompleted ? '✓' : '🎉'}
         </div>
-
-        <div>
-          <p className="text-xs uppercase tracking-wide text-shell-subtleText mb-1">
-            Fecha y hora
-          </p>
-          <p className="font-semibold text-shell-text capitalize">
-            {formattedDate}
-          </p>
-          <p className="text-sm text-shell-subtleText">{formattedTime}</p>
+        <h1 className="mt-4 font-heading text-2xl font-extrabold text-shell-text sm:text-3xl">{heading}</h1>
+        <div className="mt-2 flex items-center justify-center gap-2 text-sm text-shell-subtleText">
+          <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadge.className}`}>
+            {statusBadge.label}
+          </span>
+          <span>
+            Referencia <span className="font-mono font-semibold text-shell-text">{bookingReference}</span>
+          </span>
         </div>
+      </section>
 
-        <div>
-          <p className="text-xs uppercase tracking-wide text-shell-subtleText mb-1">
-            Profesional
-          </p>
-          <p className="font-semibold text-shell-text">{apt.staffDisplayName}</p>
-        </div>
+      {isActive && (
+        <p
+          role="note"
+          className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+        >
+          <span aria-hidden="true" className="text-lg leading-none">✉️</span>
+          <span>
+            <strong>Te enviamos un email con la confirmación</strong> de tu reserva. Si no lo ves, revisá la carpeta de
+            correo no deseado.
+          </span>
+        </p>
+      )}
 
-        <div>
-          <p className="text-xs uppercase tracking-wide text-shell-subtleText mb-1">
-            Negocio
-          </p>
-          <p className="font-semibold text-shell-text">{apt.orgName}</p>
-        </div>
-      </div>
+      {/* Details */}
+      <section className="rounded-3xl border border-shell-border bg-white p-5">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <div className="col-span-2">
+            <dt className="text-xs uppercase tracking-wide text-shell-subtleText">Servicio</dt>
+            <dd className="font-semibold text-shell-text">{apt.serviceName}</dd>
+            <dd className="text-sm text-shell-subtleText">
+              {apt.serviceDurationMinutes} min · {formatPriceARS(apt.servicePriceCents)}
+            </dd>
+          </div>
+          <div className="col-span-2">
+            <dt className="text-xs uppercase tracking-wide text-shell-subtleText">Fecha y hora</dt>
+            <dd className="font-semibold capitalize text-shell-text">{formattedDate}</dd>
+            <dd className="text-sm text-shell-subtleText">{formattedTime}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-shell-subtleText">Profesional</dt>
+            <dd className="font-semibold text-shell-text">{apt.staffDisplayName}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-shell-subtleText">Negocio</dt>
+            <dd className="font-semibold text-shell-text">{apt.orgName}</dd>
+          </div>
+        </dl>
+      </section>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* Actions: stacked, full width and right below the details so they are never hidden on phones */}
+      <div className="flex flex-col gap-3">
         {isCancelled ? (
           <>
             <Link
               to="/booking"
-              className="flex-1 text-center px-4 py-3 rounded-lg bg-shell-accent text-white font-medium hover:opacity-90 transition-opacity"
+              className="rounded-xl bg-brand-primary px-4 py-3.5 text-center font-semibold text-white transition-opacity hover:opacity-90"
             >
               Reservar de nuevo
             </Link>
             <Link
               to="/appointments"
-              className="flex-1 text-center px-4 py-3 rounded-lg border border-shell-border text-shell-text font-medium hover:bg-shell-surface transition-colors"
+              className="rounded-xl border border-shell-border bg-white px-4 py-3.5 text-center font-semibold text-shell-text transition-colors hover:bg-shell-muted"
             >
               Ver mis turnos
             </Link>
@@ -196,16 +211,16 @@ export function BookingConfirmationPage() {
         ) : (
           <>
             <Link
-              to="/appointments"
-              className="flex-1 text-center px-4 py-3 rounded-lg bg-shell-accent text-white font-medium hover:opacity-90 transition-opacity"
-            >
-              Ver mis turnos
-            </Link>
-            <Link
               to="/booking"
-              className="flex-1 text-center px-4 py-3 rounded-lg border border-shell-border text-shell-text font-medium hover:bg-shell-surface transition-colors"
+              className="rounded-xl bg-brand-primary px-4 py-3.5 text-center font-semibold text-white transition-opacity hover:opacity-90"
             >
               Hacer otra reserva
+            </Link>
+            <Link
+              to="/appointments"
+              className="rounded-xl border border-shell-border bg-white px-4 py-3.5 text-center font-semibold text-shell-text transition-colors hover:bg-shell-muted"
+            >
+              Ver mis turnos
             </Link>
           </>
         )}

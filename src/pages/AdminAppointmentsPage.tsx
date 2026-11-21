@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { cn } from '../lib/cn'
+import { PERIOD_OPTIONS, getPeriodRange, type AppointmentPeriod } from '../lib/appointmentPeriods'
 import { formatSlotDateTime } from '../lib/formatSlotTime'
 import { getBusinessSettings } from '../services/businessSettings'
 import {
@@ -18,22 +20,102 @@ const STATUS_LABELS: Record<string, string> = {
   completed: 'Completado',
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-amber-50 text-amber-700 border border-amber-200',
-  confirmed: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  cancelled: 'bg-red-50 text-red-600 border border-red-200',
-  completed: 'bg-slate-100 text-slate-600 border border-slate-200',
+const STATUS_CARD: Record<string, string> = {
+  pending: 'border-amber-200 border-l-amber-400 bg-amber-50',
+  confirmed: 'border-emerald-200 border-l-emerald-500 bg-emerald-50',
+  cancelled: 'border-red-200 border-l-red-400 bg-red-50',
+  completed: 'border-slate-200 border-l-slate-400 bg-slate-100',
 }
 
-const EMPTY_FILTERS: AdminAppointmentFilters = {
-  statuses: [],
-  dateFrom: '',
-  dateTo: '',
+const STATUS_OPTIONS = [
+  { value: '', label: 'Todos los estados' },
+  { value: 'confirmed', label: 'Confirmado' },
+  { value: 'cancelled', label: 'Cancelado' },
+  { value: 'completed', label: 'Completado' },
+]
+
+interface MenuOption {
+  value: string
+  label: string
+}
+
+function FilterMenu({
+  label,
+  options,
+  value,
+  onSelect,
+  children,
+  active,
+}: {
+  label: string
+  options: MenuOption[]
+  value: string
+  onSelect: (value: string) => void
+  children: React.ReactNode
+  active?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          'flex h-10 items-center gap-1.5 rounded-xl border bg-white px-3 text-sm font-medium text-shell-text shadow-sm hover:bg-shell-muted focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]',
+          active ? 'border-brand-primary' : 'border-shell-border',
+        )}
+      >
+        {children}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" aria-hidden="true" onClick={() => setOpen(false)} />
+          <ul
+            role="menu"
+            aria-label={label}
+            className="absolute left-0 z-20 mt-1 min-w-[11rem] overflow-hidden rounded-xl border border-shell-border bg-white py-1 shadow-lg"
+          >
+            {options.map((opt) => (
+              <li key={opt.value} role="none">
+                <button
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={opt.value === value}
+                  onClick={() => {
+                    onSelect(opt.value)
+                    setOpen(false)
+                  }}
+                  className={cn(
+                    'flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-shell-muted',
+                    opt.value === value ? 'font-semibold text-brand-primary' : 'text-shell-text',
+                  )}
+                >
+                  {opt.label}
+                  {opt.value === value && <span aria-hidden="true">✓</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  )
 }
 
 export function AdminAppointmentsPage() {
-  const [filters, setFilters] = useState<AdminAppointmentFilters>(EMPTY_FILTERS)
-  const [selectedStatus, setSelectedStatus] = useState<string>('')
+  const [searchParams] = useSearchParams()
+  const [period, setPeriod] = useState<AppointmentPeriod>(() => {
+    const fromUrl = searchParams.get('periodo')
+    return PERIOD_OPTIONS.some((o) => o.value === fromUrl) ? (fromUrl as AppointmentPeriod) : 'today'
+  })
+  const [selectedStatus, setSelectedStatus] = useState<string>(() => {
+    const fromUrl = searchParams.get('estado')
+    return STATUS_OPTIONS.some((o) => o.value !== '' && o.value === fromUrl) ? (fromUrl as string) : ''
+  })
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -55,8 +137,7 @@ export function AdminAppointmentsPage() {
 
     const activeFilters: AdminAppointmentFilters = {
       statuses: selectedStatus ? [selectedStatus] : undefined,
-      dateFrom: filters.dateFrom || undefined,
-      dateTo: filters.dateTo || undefined,
+      ...getPeriodRange(period),
     }
 
     adminListAppointments(activeFilters, page, PAGE_SIZE)
@@ -74,20 +155,15 @@ export function AdminAppointmentsPage() {
     return () => {
       cancelled = true
     }
-  }, [filters, selectedStatus, page])
+  }, [period, selectedStatus, page])
 
   function handleStatusChange(value: string) {
     setSelectedStatus(value)
     setPage(1)
   }
 
-  function handleDateFrom(value: string) {
-    setFilters((prev) => ({ ...prev, dateFrom: value }))
-    setPage(1)
-  }
-
-  function handleDateTo(value: string) {
-    setFilters((prev) => ({ ...prev, dateTo: value }))
+  function handlePeriodChange(value: string) {
+    setPeriod(value as AppointmentPeriod)
     setPage(1)
   }
 
@@ -99,46 +175,33 @@ export function AdminAppointmentsPage() {
       <h1 className="font-heading text-2xl font-semibold text-shell-text">Turnos</h1>
 
       {/* Filters */}
-      <section className="shell-surface rounded-2xl border p-5 shadow-sm">
-        <h2 className="mb-4 text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Filtros</h2>
-        <div className="flex flex-wrap gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-shell-subtleText">Estado</span>
-            <select
-              aria-label="Filtrar por estado"
-              value={selectedStatus}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              className="rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text min-w-[160px] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
-            >
-              <option value="">Todos los estados</option>
-              <option value="confirmed">Confirmado</option>
-              <option value="pending">Pendiente</option>
-              <option value="cancelled">Cancelado</option>
-              <option value="completed">Completado</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-shell-subtleText">Desde</span>
-            <input
-              type="date"
-              aria-label="Desde"
-              value={filters.dateFrom ?? ''}
-              onChange={(e) => handleDateFrom(e.target.value)}
-              className="rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-shell-subtleText">Hasta</span>
-            <input
-              type="date"
-              aria-label="Hasta"
-              value={filters.dateTo ?? ''}
-              onChange={(e) => handleDateTo(e.target.value)}
-              className="rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
-            />
-          </label>
-        </div>
-      </section>
+      <div className="flex items-center gap-2">
+        <FilterMenu
+          label="Filtrar por período"
+          options={PERIOD_OPTIONS}
+          value={period}
+          onSelect={handlePeriodChange}
+        >
+          {PERIOD_OPTIONS.find((o) => o.value === period)?.label}
+          <span aria-hidden="true" className="text-xs text-shell-subtleText">▾</span>
+        </FilterMenu>
+        <FilterMenu
+          label="Filtrar por estado"
+          options={STATUS_OPTIONS}
+          value={selectedStatus}
+          onSelect={handleStatusChange}
+          active={selectedStatus !== ''}
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M3 5h18l-7 8v6l-4 2v-8L3 5z" />
+          </svg>
+          {selectedStatus !== '' && (
+            <span className="text-xs text-brand-primary">
+              {STATUS_OPTIONS.find((o) => o.value === selectedStatus)?.label}
+            </span>
+          )}
+        </FilterMenu>
+      </div>
 
       {/* Loading */}
       {loading && (
@@ -159,44 +222,35 @@ export function AdminAppointmentsPage() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Cards */}
       {!loading && !error && result.rows.length > 0 && (
         <div className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-shell-border text-sm">
-              <thead>
-                <tr className="bg-shell-muted">
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Cliente</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Servicio</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-shell-subtleText hidden md:table-cell">Profesional</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Fecha / hora</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-shell-subtleText">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-shell-border bg-white">
-                {result.rows.map((row: AdminAppointmentRow) => (
-                  <tr key={row.id} className="transition-colors hover:bg-shell-muted">
-                    <td className="px-5 py-3.5 font-medium text-shell-text">{row.customerName}</td>
-                    <td className="px-5 py-3.5 text-shell-subtleText">{row.serviceName}</td>
-                    <td className="px-5 py-3.5 text-shell-subtleText hidden md:table-cell">{row.staffDisplayName}</td>
-                    <td className="px-5 py-3.5 text-shell-subtleText whitespace-nowrap">
-                      {formatSlotDateTime(row.startsAt, orgTimezone)}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span
-                        className={cn(
-                          'inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium',
-                          STATUS_COLORS[row.status] ?? 'bg-slate-100 text-slate-600 border border-slate-200',
-                        )}
-                      >
-                        {STATUS_LABELS[row.status] ?? row.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ul className="space-y-2 p-3">
+            {result.rows.map((row: AdminAppointmentRow) => (
+              <li key={row.id}>
+                <Link
+                  to={`/admin/appointments/${row.id}`}
+                  className={cn(
+                    'block rounded-xl border border-l-4 px-3 py-2.5 transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]',
+                    STATUS_CARD[row.status] ?? 'border-slate-200 bg-slate-50',
+                  )}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="truncate text-sm font-semibold text-shell-text">{row.customerName}</span>
+                    <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-shell-subtleText">
+                      {STATUS_LABELS[row.status] ?? row.status}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 truncate text-xs text-shell-subtleText">
+                    {row.serviceName} · {row.staffDisplayName}
+                  </p>
+                  <p className="mt-0.5 text-xs font-medium text-shell-text">
+                    {formatSlotDateTime(row.startsAt, orgTimezone)}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
 
           {/* Pagination */}
           <div className="flex items-center justify-between border-t border-shell-border px-5 py-3">

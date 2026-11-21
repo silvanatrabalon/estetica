@@ -67,6 +67,24 @@ describe('AppointmentCard', () => {
     })
   })
 
+  describe('custom detail link', () => {
+    it('uses detailHref when provided (staff agenda)', () => {
+      render(
+        <MemoryRouter>
+          <AppointmentCard
+            appointment={baseApt}
+            showCustomerName
+            detailHref={(id) => `/staff/appointments/${id}`}
+          />
+        </MemoryRouter>,
+      )
+      expect(screen.getByRole('link', { name: /Corte de cabello/i })).toHaveAttribute(
+        'href',
+        `/staff/appointments/${APT_ID}`,
+      )
+    })
+  })
+
   describe('"Reprogramar" CTA', () => {
     it('is visible for confirmed appointment when showRescheduleAction=true', () => {
       renderCard({ status: 'confirmed' }, true)

@@ -26,12 +26,15 @@ interface MonthlyCalendarProps {
   appointments: AppointmentSummary[]
   orgTimezone: string
   currentDate?: Date
+  /** Where an appointment links to. Defaults to the customer's booking confirmation. */
+  detailHref?: (appointmentId: string) => string
 }
 
 export function MonthlyCalendar({
   appointments,
   orgTimezone,
   currentDate: initialDate,
+  detailHref,
 }: MonthlyCalendarProps) {
   const [viewYear, setViewYear] = useState(() => (initialDate ?? new Date()).getUTCFullYear())
   const [viewMonth, setViewMonth] = useState(() => (initialDate ?? new Date()).getUTCMonth())
@@ -148,7 +151,7 @@ export function MonthlyCalendar({
                   return (
                     <Link
                       key={apt.id}
-                      to={`/booking/confirmation/${apt.id}`}
+                      to={detailHref ? detailHref(apt.id) : `/booking/confirmation/${apt.id}`}
                       className={cn('block text-xs px-1 py-0.5 rounded truncate', colorClass)}
                       title={apt.serviceName}
                     >

@@ -1,20 +1,59 @@
 import { useState } from 'react'
 import type { StaffScheduleDay } from '../../services/staffAvailability'
 import type { StaffScheduleDayInput } from '../../services/staffAvailability'
+import {
+  DEFAULT_AFTERNOON,
+  DEFAULT_CONTINUOUS,
+  DEFAULT_MORNING,
+  collapseShifts,
+  toDayShifts,
+  validateShifts,
+  type DayShifts,
+} from '../../lib/shifts'
 import { DayScheduleRow } from './DayScheduleRow'
+
+interface DayDraft {
+  dayOfWeek: number
+  isWorking: boolean
+  shifts: DayShifts
+}
+
+function defaultShifts(split: boolean): DayShifts {
+  return split
+    ? { am: DEFAULT_MORNING, pm: DEFAULT_AFTERNOON }
+    : { am: DEFAULT_CONTINUOUS, pm: null }
+}
 
 // Build an editable draft from the loaded schedule rows.
 // For any day not in the loaded data, default to not working.
-function buildDraft(loaded: StaffScheduleDay[]): StaffScheduleDayInput[] {
+function buildDraft(loaded: StaffScheduleDay[], split: boolean): DayDraft[] {
   return Array.from({ length: 7 }, (_, i) => {
     const existing = loaded.find((d) => d.dayOfWeek === i)
+    const loadedShifts = toDayShifts(
+      existing?.startsAt,
+      existing?.endsAt,
+      existing?.pmStartsAt,
+      existing?.pmEndsAt,
+    )
+    const hasLoaded = loadedShifts.am !== null || loadedShifts.pm !== null
+    const shifts = hasLoaded ? loadedShifts : defaultShifts(split)
     return {
-      day_of_week: i,
-      is_working: existing?.isWorking ?? false,
-      starts_at: existing?.startsAt ?? '09:00',
-      ends_at: existing?.endsAt ?? '18:00',
+      dayOfWeek: i,
+      isWorking: existing?.isWorking ?? false,
+      shifts: split ? shifts : collapseShifts(shifts),
     }
   })
+}
+
+function toInput(day: DayDraft): StaffScheduleDayInput {
+  return {
+    day_of_week: day.dayOfWeek,
+    is_working: day.isWorking,
+    starts_at: day.isWorking ? (day.shifts.am?.start ?? null) : null,
+    ends_at: day.isWorking ? (day.shifts.am?.end ?? null) : null,
+    pm_starts_at: day.isWorking ? (day.shifts.pm?.start ?? null) : null,
+    pm_ends_at: day.isWorking ? (day.shifts.pm?.end ?? null) : null,
+  }
 }
 
 interface WeeklyScheduleEditorProps {
@@ -22,6 +61,8 @@ interface WeeklyScheduleEditorProps {
   isSaving: boolean
   onSave: (days: StaffScheduleDayInput[]) => void
   onDirtyChange: (dirty: boolean) => void
+  /** true when the business works in two shifts (matutino / vespertino). */
+  split?: boolean
   /** View only: inputs are disabled and the save button is hidden. */
   readOnly?: boolean
 }
@@ -31,22 +72,18 @@ export function WeeklyScheduleEditor({
   isSaving,
   onSave,
   onDirtyChange,
+  split = false,
   readOnly = false,
 }: WeeklyScheduleEditorProps) {
-  const [draft, setDraft] = useState<StaffScheduleDayInput[]>(() => buildDraft(schedule))
+  const [draft, setDraft] = useState<DayDraft[]>(() => buildDraft(schedule, split))
   const [timeErrors, setTimeErrors] = useState<Record<number, string | null>>({})
 
-  const updateDay = (dayOfWeek: number, patch: Partial<StaffScheduleDayInput>) => {
-    setDraft((current) => {
-      const updated = current.map((d) =>
-        d.day_of_week === dayOfWeek ? { ...d, ...patch } : d,
-      )
-      return updated
-    })
+  const updateDay = (dayOfWeek: number, patch: Partial<DayDraft>) => {
+    setDraft((current) => current.map((d) => (d.dayOfWeek === dayOfWeek ? { ...d, ...patch } : d)))
     onDirtyChange(true)
 
     // Clear time error for the day when user edits
-    if (patch.starts_at !== undefined || patch.ends_at !== undefined) {
+    if (patch.shifts !== undefined) {
       setTimeErrors((current) => ({ ...current, [dayOfWeek]: null }))
     }
   }
@@ -56,17 +93,10 @@ export function WeeklyScheduleEditor({
     let valid = true
 
     for (const day of draft) {
-      if (day.is_working) {
-        if (!day.starts_at || !day.ends_at) {
-          errors[day.day_of_week] = 'Ingresá la hora de inicio y fin.'
-          valid = false
-        } else if (day.starts_at >= day.ends_at) {
-          errors[day.day_of_week] = 'La hora de inicio debe ser anterior a la hora de fin.'
-          valid = false
-        } else {
-          errors[day.day_of_week] = null
-        }
-      }
+      if (!day.isWorking) continue
+      const error = validateShifts(day.shifts)
+      errors[day.dayOfWeek] = error
+      if (error) valid = false
     }
 
     setTimeErrors(errors)
@@ -75,7 +105,7 @@ export function WeeklyScheduleEditor({
 
   const handleSave = () => {
     if (!validate()) return
-    onSave(draft)
+    onSave(draft.map(toInput))
   }
 
   return (
@@ -83,22 +113,21 @@ export function WeeklyScheduleEditor({
       <div className="rounded-2xl border border-shell-border overflow-hidden divide-y divide-shell-border">
         {draft.map((day) => (
           <DayScheduleRow
-            key={day.day_of_week}
-            dayOfWeek={day.day_of_week}
-            isWorking={day.is_working}
-            startsAt={day.starts_at ?? '09:00'}
-            endsAt={day.ends_at ?? '18:00'}
+            key={day.dayOfWeek}
+            dayOfWeek={day.dayOfWeek}
+            isWorking={day.isWorking}
+            shifts={day.shifts}
+            split={split}
             disabled={isSaving || readOnly}
             onIsWorkingChange={(value) => {
-              updateDay(day.day_of_week, {
-                is_working: value,
-                starts_at: value ? (day.starts_at ?? '09:00') : null,
-                ends_at: value ? (day.ends_at ?? '18:00') : null,
+              const hasShifts = day.shifts.am !== null || day.shifts.pm !== null
+              updateDay(day.dayOfWeek, {
+                isWorking: value,
+                shifts: value && !hasShifts ? defaultShifts(split) : day.shifts,
               })
             }}
-            onStartsAtChange={(value) => updateDay(day.day_of_week, { starts_at: value })}
-            onEndsAtChange={(value) => updateDay(day.day_of_week, { ends_at: value })}
-            timeError={timeErrors[day.day_of_week]}
+            onShiftsChange={(shifts) => updateDay(day.dayOfWeek, { shifts })}
+            timeError={timeErrors[day.dayOfWeek]}
           />
         ))}
       </div>

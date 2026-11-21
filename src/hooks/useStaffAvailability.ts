@@ -95,13 +95,13 @@ export function useStaffAvailability(staffId: string): UseStaffAvailabilityResul
             a.exceptionDate.localeCompare(b.exceptionDate),
           )
         })
-        setSuccessMessage('Excepción guardada correctamente.')
+        setSuccessMessage('Día guardado correctamente.')
       } catch (err) {
         const msg = err instanceof Error ? err.message : ''
         if (msg.includes('duplicate') || msg.includes('unique')) {
-          setErrorMessage('La fecha seleccionada ya tiene una excepción registrada.')
+          setErrorMessage('La fecha seleccionada ya tiene un día registrado.')
         } else {
-          setErrorMessage('No pudimos guardar la excepción. Intentá de nuevo.')
+          setErrorMessage('No pudimos guardar el día. Intentá de nuevo.')
         }
       } finally {
         setIsSaving(false)
@@ -119,9 +119,9 @@ export function useStaffAvailability(staffId: string): UseStaffAvailabilityResul
       try {
         await removeStaffException(staffId, exceptionDate)
         setExceptions((current) => current.filter((e) => e.exceptionDate !== exceptionDate))
-        setSuccessMessage('Excepción eliminada correctamente.')
+        setSuccessMessage('Día eliminado correctamente.')
       } catch {
-        setErrorMessage('No pudimos eliminar la excepción. Intentá de nuevo.')
+        setErrorMessage('No pudimos eliminar el día. Intentá de nuevo.')
       } finally {
         setIsSaving(false)
       }

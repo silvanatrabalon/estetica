@@ -2,21 +2,41 @@ import { Link, useLocation } from 'react-router-dom'
 import { useShellContext } from '../../../features/shell/hooks/useShellContext'
 import { cn } from '../../../lib/cn'
 
-interface Tab {
+export interface MobileTab {
   href: string
   label: string
+  /** Single 24px SVG path */
   icon: string
 }
 
-// Icons are single 24px paths; labels carry the meaning.
-const TABS: Tab[] = [
-  { href: '/admin/dashboard', label: 'Inicio', icon: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z' },
-  { href: '/admin/appointments', label: 'Turnos', icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' },
-  { href: '/admin/calendar', label: 'Calendario', icon: 'M3 5h18v16H3zM16 3v4M8 3v4M3 10h18' },
+const ICON = {
+  home: 'M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+  list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  calendar: 'M3 5h18v16H3zM16 3v4M8 3v4M3 10h18',
+  calendarPlus: 'M3 5h18v16H3zM16 3v4M8 3v4M3 10h18M12 13v6M9 16h6',
+  clock: 'M12 7v5l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+}
+
+// Labels match the side menu so the same thing is never called two names.
+export const ADMIN_TABS: MobileTab[] = [
+  { href: '/admin/dashboard', label: 'Inicio', icon: ICON.home },
+  { href: '/admin/appointments', label: 'Turnos', icon: ICON.list },
 ]
 
-/** Phone-only quick links for the admin. "Más" opens the full menu drawer. */
-export function MobileTabBar() {
+export const CUSTOMER_TABS: MobileTab[] = [
+  { href: '/dashboard', label: 'Inicio', icon: ICON.home },
+  { href: '/booking', label: 'Reservar', icon: ICON.calendarPlus },
+  { href: '/appointments', label: 'Mis turnos', icon: ICON.list },
+]
+
+export const STAFF_TABS: MobileTab[] = [
+  { href: '/dashboard', label: 'Inicio', icon: ICON.home },
+  { href: '/staff/appointments', label: 'Agenda', icon: ICON.calendar },
+  { href: '/staff/schedule', label: 'Disponibilidad', icon: ICON.clock },
+]
+
+/** Phone-only quick links for a role. "Más" opens the full menu drawer. */
+export function MobileTabBar({ tabs }: { tabs: MobileTab[] }) {
   const { pathname } = useLocation()
   const { isMobileMenuOpen, toggleMobileMenu } = useShellContext()
 
@@ -27,7 +47,7 @@ export function MobileTabBar() {
       aria-label="Accesos rápidos"
       className="fixed inset-x-0 bottom-0 z-30 flex border-t border-shell-border bg-white pb-[env(safe-area-inset-bottom)] md:hidden"
     >
-      {TABS.map((tab) => {
+      {tabs.map((tab) => {
         const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`)
         return (
           <Link

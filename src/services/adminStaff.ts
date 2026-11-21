@@ -103,10 +103,17 @@ export async function adminSetStaffActive(staffId: string, isActive: boolean): P
   }
 }
 
-// ── Permission: may the professional edit their own availability? ─────────────
+// ── Permissions: what may the professional edit on their own? ────────────────
 
-/** Map of staffMemberId -> permission. Empty if the lookup fails (the toggle is then hidden). */
-export async function listStaffAvailabilityPermissions(): Promise<Record<string, boolean>> {
+export interface StaffAvailabilityPermissions {
+  /** May edit their weekly schedule. */
+  canEditSchedule: boolean
+  /** May add/remove their own days off and special days. */
+  canEditDaysOff: boolean
+}
+
+/** Map of staffMemberId -> permissions. */
+export async function listStaffAvailabilityPermissions(): Promise<Record<string, StaffAvailabilityPermissions>> {
   const supabase = initSupabase()
   const { data, error } = await supabase.rpc('admin_list_staff_availability_permissions')
 
@@ -114,9 +121,16 @@ export async function listStaffAvailabilityPermissions(): Promise<Record<string,
     throw error
   }
 
-  const result: Record<string, boolean> = {}
-  for (const row of (data ?? []) as Array<{ staff_member_id: string; can_edit_own_availability: boolean }>) {
-    result[row.staff_member_id] = row.can_edit_own_availability
+  const result: Record<string, StaffAvailabilityPermissions> = {}
+  for (const row of (data ?? []) as Array<{
+    staff_member_id: string
+    can_edit_own_availability: boolean
+    can_edit_own_days_off?: boolean
+  }>) {
+    result[row.staff_member_id] = {
+      canEditSchedule: row.can_edit_own_availability,
+      canEditDaysOff: row.can_edit_own_days_off ?? true,
+    }
   }
   return result
 }
@@ -124,6 +138,18 @@ export async function listStaffAvailabilityPermissions(): Promise<Record<string,
 export async function adminSetStaffAvailabilityPermission(staffId: string, allowed: boolean): Promise<void> {
   const supabase = initSupabase()
   const { error } = await supabase.rpc('admin_set_staff_availability_permission', {
+    p_staff_id: staffId,
+    p_allowed: allowed,
+  })
+
+  if (error) {
+    throw error
+  }
+}
+
+export async function adminSetStaffDaysOffPermission(staffId: string, allowed: boolean): Promise<void> {
+  const supabase = initSupabase()
+  const { error } = await supabase.rpc('admin_set_staff_days_off_permission', {
     p_staff_id: staffId,
     p_allowed: allowed,
   })

@@ -1,6 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { cn } from '../lib/cn'
+import { ShiftsFields } from '../components/availability'
+import { toDayShifts, validateShifts, type DayShifts } from '../lib/shifts'
 import {
+  setSplitShifts,
   deleteBusinessClosure,
   getBusinessSettings,
   saveBusinessClosure,
@@ -51,6 +54,8 @@ function toHoursInput(hours: BusinessHoursRecord[]): BusinessHoursInput[] {
     isClosed: hour.isClosed,
     opensAt: hour.opensAt,
     closesAt: hour.closesAt,
+    pmOpensAt: hour.pmOpensAt,
+    pmClosesAt: hour.pmClosesAt,
   }))
 }
 
@@ -79,7 +84,9 @@ function sameHours(a: BusinessHoursRecord[], b: BusinessHoursRecord[]): boolean 
       hour.dayOfWeek === other.dayOfWeek &&
       hour.isClosed === other.isClosed &&
       (hour.opensAt ?? null) === (other.opensAt ?? null) &&
-      (hour.closesAt ?? null) === (other.closesAt ?? null)
+      (hour.closesAt ?? null) === (other.closesAt ?? null) &&
+      (hour.pmOpensAt ?? null) === (other.pmOpensAt ?? null) &&
+      (hour.pmClosesAt ?? null) === (other.pmClosesAt ?? null)
     )
   })
 }
@@ -101,6 +108,9 @@ export function BusinessSettingsPage() {
   const [bookingMinNoticeMinutes, setBookingMinNoticeMinutes] = useState(60)
   const [bookingMaxHorizonDays, setBookingMaxHorizonDays] = useState(60)
   const [bookingPolicyError, setBookingPolicyError] = useState<string | null>(null)
+  const [splitShifts, setSplitShiftsState] = useState(false)
+  const [isSwitchingMode, setIsSwitchingMode] = useState(false)
+  const [hourErrors, setHourErrors] = useState<Record<number, string | null>>({})
   const [weeklyHours, setWeeklyHours] = useState<BusinessHoursRecord[]>([])
   const [closures, setClosures] = useState<BusinessClosureRecord[]>([])
   // What is stored in the database: used to tell which tab has unsaved edits
@@ -170,6 +180,7 @@ export function BusinessSettingsPage() {
     setBookingMinNoticeMinutes(data.bookingMinNoticeMinutes)
     setBookingMaxHorizonDays(data.bookingMaxHorizonDays)
     setWeeklyHours(data.weeklyHours)
+    setSplitShiftsState(data.splitShifts)
     setClosures(data.closures)
     setMissingReadiness(data.readiness.missing)
     setSavedGeneral({ name: data.name, timezone: data.timezone })
@@ -189,16 +200,52 @@ export function BusinessSettingsPage() {
     }
   }, [isUserLoading])
 
-  const handleHourChange = (dayOfWeek: number, field: 'opensAt' | 'closesAt', value: string) => {
+  const handleShiftsChange = (dayOfWeek: number, shifts: DayShifts) => {
+    setHourErrors((current) => ({ ...current, [dayOfWeek]: null }))
     setWeeklyHours((current) =>
       current.map((hour) =>
         hour.dayOfWeek === dayOfWeek
           ? {
               ...hour,
-              [field]: value || null,
+              opensAt: shifts.am?.start ?? null,
+              closesAt: shifts.am?.end ?? null,
+              pmOpensAt: shifts.pm?.start ?? null,
+              pmClosesAt: shifts.pm?.end ?? null,
             }
           : hour,
       ),
+    )
+  }
+
+  const applyShiftMode = async (enabled: boolean) => {
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setIsSwitchingMode(true)
+    try {
+      await setSplitShifts(enabled)
+      await loadBusinessSettings()
+      setSuccessMessage(enabled ? 'Ahora el negocio trabaja en dos turnos.' : 'Ahora el negocio trabaja de corrido.')
+    } catch {
+      setErrorMessage('No pudimos cambiar la forma de trabajo. Intentá de nuevo.')
+    } finally {
+      setIsSwitchingMode(false)
+    }
+  }
+
+  const handleModeChange = (enabled: boolean) => {
+    if (enabled === splitShifts || isSwitchingMode) return
+    if (enabled) {
+      void applyShiftMode(true)
+      return
+    }
+    showConfirm(
+      'Pasar a jornada corrida',
+      'Cada día va a quedar como un solo horario, desde el primer turno hasta el último. Esto también cambia los horarios de los profesionales y sus días especiales. ¿Continuar?',
+      () => {
+        closeConfirm()
+        void applyShiftMode(false)
+      },
+      { confirmLabel: 'Sí, pasar a corrida' },
     )
   }
 
@@ -206,7 +253,14 @@ export function BusinessSettingsPage() {
     setWeeklyHours((current) =>
       current.map((hour) =>
         hour.dayOfWeek === dayOfWeek
-          ? { ...hour, isClosed: closed, opensAt: closed ? null : hour.opensAt, closesAt: closed ? null : hour.closesAt }
+          ? {
+              ...hour,
+              isClosed: closed,
+              opensAt: closed ? null : hour.opensAt ?? '09:00',
+              closesAt: closed ? null : hour.closesAt ?? (splitShifts ? '13:00' : '18:00'),
+              pmOpensAt: closed ? null : hour.pmOpensAt,
+              pmClosesAt: closed ? null : hour.pmClosesAt,
+            }
           : hour,
       ),
     )
@@ -217,6 +271,18 @@ export function BusinessSettingsPage() {
   const saveSection = async (section: 'general' | 'hours') => {
     setErrorMessage(null)
     setSuccessMessage(null)
+
+    if (section === 'hours') {
+      const errors: Record<number, string | null> = {}
+      for (const hour of weeklyHours) {
+        if (hour.isClosed) continue
+        errors[hour.dayOfWeek] = validateShifts(
+          toDayShifts(hour.opensAt, hour.closesAt, hour.pmOpensAt, hour.pmClosesAt),
+        )
+      }
+      setHourErrors(errors)
+      if (Object.values(errors).some(Boolean)) return
+    }
     setIsSavingSettings(true)
 
     try {
@@ -474,8 +540,6 @@ export function BusinessSettingsPage() {
       <div className={activeTab !== 'identity' ? 'hidden' : ''}>
         <form onSubmit={handleSaveGeneral} className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5 space-y-4">
-            <h3 className="font-semibold text-gray-900 text-sm">Datos del negocio</h3>
-
             <div className="space-y-3">
               <div>
                 <label htmlFor="business-name" className="mb-1.5 block text-sm font-medium text-gray-700">Nombre del negocio</label>
@@ -510,8 +574,8 @@ export function BusinessSettingsPage() {
 
           <div className="flex flex-wrap items-center justify-end gap-3">
             {generalDirty && <span className="text-sm text-amber-700">Hay cambios sin guardar</span>}
-            <button type="submit" disabled={isSavingSettings} className={saveBtnCls}>
-              {isSavingSettings ? 'Guardando…' : 'Guardar datos del negocio'}
+            <button type="submit" disabled={isSavingSettings} aria-label="Guardar datos del negocio" className={saveBtnCls}>
+              {isSavingSettings ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
         </form>
@@ -521,7 +585,33 @@ export function BusinessSettingsPage() {
       <div className={activeTab !== 'hours' ? 'hidden' : ''}>
         <form onSubmit={handleSaveHours} className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5">
-            <h3 className="font-semibold text-gray-900 text-sm mb-4">Horarios del negocio</h3>
+            <h3 className="font-semibold text-gray-900 text-sm">Horarios del negocio</h3>
+            <p className="mt-1 mb-3 text-sm text-gray-500">
+              Elegí cómo trabaja el negocio. Los profesionales siguen la misma forma de trabajo.
+            </p>
+            <div role="radiogroup" aria-label="Forma de trabajo" className="mb-5 grid grid-cols-2 gap-2 sm:max-w-sm">
+              {[
+                { value: false, label: 'Jornada corrida' },
+                { value: true, label: 'Dos turnos' },
+              ].map((opt) => (
+                <button
+                  key={opt.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={splitShifts === opt.value}
+                  disabled={isSwitchingMode}
+                  onClick={() => handleModeChange(opt.value)}
+                  className={cn(
+                    'rounded-xl border px-3 py-2 text-sm font-medium transition-colors disabled:opacity-60',
+                    splitShifts === opt.value
+                      ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
+                      : 'border-shell-border bg-white text-shell-text hover:bg-shell-muted',
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <div className="space-y-3">
               {weeklyHours.map((hour) => {
                 const isOpen = !hour.isClosed
@@ -560,28 +650,14 @@ export function BusinessSettingsPage() {
                       {!isOpen && <span className="text-sm text-gray-500">Cerrado</span>}
                     </div>
                     {isOpen && (
-                      <div className="grid grid-cols-2 gap-3 min-w-0 sm:flex sm:flex-1 sm:items-center sm:gap-1">
-                        <label className="flex min-w-0 flex-col gap-1 sm:flex-1">
-                          <span className="text-sm text-gray-500 sm:sr-only">Abre</span>
-                          <input
-                            type="time"
-                            aria-label={`${dayLabels[hour.dayOfWeek]}: hora de apertura`}
-                            value={hour.opensAt ?? ''}
-                            onChange={(e) => handleHourChange(hour.dayOfWeek, 'opensAt', e.target.value)}
-                            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2.5 text-[15px] tabular-nums text-gray-900 focus:border-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-primary sm:py-1.5 sm:text-sm"
-                          />
-                        </label>
-                        <span className="hidden text-gray-300 text-xs shrink-0 sm:inline">—</span>
-                        <label className="flex min-w-0 flex-col gap-1 sm:flex-1">
-                          <span className="text-sm text-gray-500 sm:sr-only">Cierra</span>
-                          <input
-                            type="time"
-                            aria-label={`${dayLabels[hour.dayOfWeek]}: hora de cierre`}
-                            value={hour.closesAt ?? ''}
-                            onChange={(e) => handleHourChange(hour.dayOfWeek, 'closesAt', e.target.value)}
-                            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2.5 text-[15px] tabular-nums text-gray-900 focus:border-brand-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-primary sm:py-1.5 sm:text-sm"
-                          />
-                        </label>
+                      <div className="min-w-0 sm:flex-1">
+                        <ShiftsFields
+                          split={splitShifts}
+                          label={dayLabels[hour.dayOfWeek]}
+                          value={toDayShifts(hour.opensAt, hour.closesAt, hour.pmOpensAt, hour.pmClosesAt)}
+                          onChange={(shifts) => handleShiftsChange(hour.dayOfWeek, shifts)}
+                          error={hourErrors[hour.dayOfWeek]}
+                        />
                       </div>
                     )}
                   </div>
@@ -590,8 +666,8 @@ export function BusinessSettingsPage() {
             </div>
             <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
               {hoursDirty && <span className="text-sm text-amber-700">Hay cambios sin guardar</span>}
-              <button type="submit" disabled={isSavingSettings} className={saveBtnCls}>
-                {isSavingSettings ? 'Guardando…' : 'Guardar horarios'}
+              <button type="submit" disabled={isSavingSettings} aria-label="Guardar horarios" className={saveBtnCls}>
+                {isSavingSettings ? 'Guardando…' : 'Guardar'}
               </button>
             </div>
           </div>
@@ -825,8 +901,8 @@ export function BusinessSettingsPage() {
 
           <div className="flex flex-wrap items-center justify-end gap-3">
             {policyDirty && <span className="text-sm text-amber-700">Hay cambios sin guardar</span>}
-            <button type="submit" disabled={isSavingPolicy} className={saveBtnCls}>
-              {isSavingPolicy ? 'Guardando…' : 'Guardar política'}
+            <button type="submit" disabled={isSavingPolicy} aria-label="Guardar política" className={saveBtnCls}>
+              {isSavingPolicy ? 'Guardando…' : 'Guardar'}
             </button>
           </div>
         </form>
@@ -852,50 +928,44 @@ export function BusinessSettingsPage() {
       />
 
       {/* ── ZONA DE PELIGRO ── */}
-      <div className="mt-8">
+      <div className="mt-6">
         <button
           type="button"
           onClick={() => setDangerOpen((v) => !v)}
-          className="w-full flex items-center justify-between px-5 py-3 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm font-semibold hover:bg-red-100 transition-colors"
+          aria-expanded={dangerOpen}
+          className="flex w-full items-center justify-between rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50"
         >
-          <span className="flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            Zona de peligro
-          </span>
+          <span>Zona de peligro</span>
           <svg
             width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
             className={cn('transition-transform', dangerOpen ? 'rotate-180' : '')}
+            aria-hidden="true"
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </button>
 
         {dangerOpen && (
-          <div className="mt-2 rounded-xl border border-red-200 bg-white p-5 space-y-4">
+          <div className="mt-2 space-y-3 rounded-xl border border-red-200 bg-white p-4">
             {deleteSuccess && (
               <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                 {deleteSuccess}
               </p>
             )}
 
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Eliminar historial de reservas</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Elimina permanentemente todos los turnos del sistema. Esta acción no se puede deshacer.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setDeleteStep(1); setDeleteSuccess(null); setDeleteError(null) }}
-                className="shrink-0 rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors"
-              >
-                Eliminar historial
-              </button>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Eliminar historial de reservas</p>
+              <p className="mt-1 text-sm text-gray-500">
+                Elimina permanentemente todos los turnos del sistema. Esta acción no se puede deshacer.
+              </p>
             </div>
+            <button
+              type="button"
+              onClick={() => { setDeleteStep(1); setDeleteSuccess(null); setDeleteError(null) }}
+              className="w-full rounded-lg border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 sm:w-auto"
+            >
+              Eliminar historial
+            </button>
           </div>
         )}
       </div>

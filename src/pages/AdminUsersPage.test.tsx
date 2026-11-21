@@ -6,12 +6,10 @@ import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
 import { mockSessions } from '../hooks/__test-utils__/fixtures'
 
 const mockListAdminUsers = vi.fn()
-const mockGetAdminUserAnalytics = vi.fn()
 const mockAdminSetUserActive = vi.fn()
 
 vi.mock('../services/adminUsers', () => ({
   listAdminUsers: (...args: unknown[]) => mockListAdminUsers(...args),
-  getAdminUserAnalytics: (...args: unknown[]) => mockGetAdminUserAnalytics(...args),
   adminSetUserActive: (...args: unknown[]) => mockAdminSetUserActive(...args),
 }))
 
@@ -50,15 +48,6 @@ const admin = {
 describe('AdminUsersPage (simple directory)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetAdminUserAnalytics.mockResolvedValue({
-      totalUsers: 2,
-      activeUsers: 2,
-      inactiveUsers: 0,
-      customerUsers: 1,
-      staffUsers: 0,
-      adminUsers: 1,
-      recentSignups30Days: 1,
-    })
   })
 
   it('lists users with email, roles and status', async () => {
@@ -69,7 +58,6 @@ describe('AdminUsersPage (simple directory)', () => {
     expect(screen.getByText('ana@example.com')).toBeDefined()
     expect(screen.getByText('Cliente')).toBeDefined()
     expect(screen.getByText('Administrador')).toBeDefined()
-    expect(screen.getByText('Total usuarios')).toBeDefined()
   })
 
   it('has a title that mentions roles and explains where to edit them', async () => {
@@ -179,5 +167,73 @@ describe('AdminUsersPage (simple directory)', () => {
     mockListAdminUsers.mockResolvedValue([ana])
     renderPage({ notice: 'Usuario eliminado correctamente.' })
     expect(await screen.findByText('Usuario eliminado correctamente.')).toBeDefined()
+  })
+
+  describe('filters and retry', () => {
+    const staffUser = { ...ana, userId: 'u-3', name: 'Sofía', email: 'sofia@example.com', roles: ['staff', 'customer'] }
+    const inactive = { ...ana, userId: 'u-4', name: 'Inés', email: 'ines@example.com', isActive: false }
+
+    it('has no "Reintentar" button when the directory loaded fine', async () => {
+      mockListAdminUsers.mockResolvedValue([ana])
+      renderPage()
+      await screen.findByText('Ana')
+      expect(screen.queryByRole('button', { name: /Reintentar/ })).toBeNull()
+    })
+
+    it('offers "Reintentar" only when loading failed, and reloads on click (edge case)', async () => {
+      mockListAdminUsers.mockRejectedValueOnce(new Error('down'))
+      renderPage()
+      await screen.findByText(/No pudimos cargar la gestión de usuarios/)
+      mockListAdminUsers.mockResolvedValue([ana])
+      fireEvent.click(screen.getByRole('button', { name: /Reintentar/ }))
+      expect(await screen.findByText('Ana')).toBeDefined()
+      expect(screen.queryByRole('button', { name: /Reintentar/ })).toBeNull()
+    })
+
+    it('shows how many users each role filter has', async () => {
+      mockListAdminUsers.mockResolvedValue([ana, admin, staffUser])
+      renderPage()
+      await screen.findByText('Ana')
+      const group = screen.getByRole('group', { name: 'Filtrar por rol' })
+      expect(group.textContent).toContain('Todos3')
+      expect(group.textContent).toContain('Administradores1')
+      expect(group.textContent).toContain('Staff1')
+      expect(group.textContent).toContain('Clientes2')
+    })
+
+    it('filters by role (a user with several roles appears in each)', async () => {
+      mockListAdminUsers.mockResolvedValue([ana, admin, staffUser])
+      renderPage()
+      await screen.findByText('Ana')
+      fireEvent.click(screen.getByRole('button', { name: /^Staff/ }))
+      expect(screen.getByText('Sofía')).toBeDefined()
+      expect(screen.queryByText('Ana')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: /^Clientes/ }))
+      expect(screen.getByText('Sofía')).toBeDefined()
+      expect(screen.getByText('Ana')).toBeDefined()
+      expect(screen.queryByText('Admin')).toBeNull()
+    })
+
+    it('filters by status', async () => {
+      mockListAdminUsers.mockResolvedValue([ana, inactive])
+      renderPage()
+      await screen.findByText('Ana')
+      fireEvent.click(screen.getByRole('button', { name: 'Inactivos' }))
+      expect(screen.getByText('Inés')).toBeDefined()
+      expect(screen.queryByText('Ana')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Activos' }))
+      expect(screen.getByText('Ana')).toBeDefined()
+      expect(screen.queryByText('Inés')).toBeNull()
+    })
+
+    it('combines search, role and status, and says when nothing matches (edge case)', async () => {
+      mockListAdminUsers.mockResolvedValue([ana, admin, staffUser, inactive])
+      renderPage()
+      await screen.findByText('Ana')
+      fireEvent.click(screen.getByRole('button', { name: /^Clientes/ }))
+      fireEvent.click(screen.getByRole('button', { name: 'Inactivos' }))
+      fireEvent.change(screen.getByLabelText('Buscar usuarios'), { target: { value: 'sofia' } })
+      expect(screen.getByText('No se encontraron usuarios con ese criterio.')).toBeDefined()
+    })
   })
 })

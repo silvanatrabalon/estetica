@@ -7,6 +7,8 @@ import { MonthlyCalendar } from '../components/appointments/MonthlyCalendar'
 import { getMyStaffMemberId } from '../services/staffAvailability'
 import type { AppointmentSummary } from '../services/appointments'
 
+const staffDetailHref = (appointmentId: string) => `/staff/appointments/${appointmentId}`
+
 type Tab = 'proximos' | 'historial'
 type ViewMode = 'lista' | 'calendario'
 type CalendarMode = 'semanal' | 'mensual'
@@ -19,7 +21,7 @@ function isUpcoming(apt: AppointmentSummary): boolean {
 }
 
 export function StaffAppointmentsPage() {
-  const { appointments, loading, error, setAppointments } = useAppointments()
+  const { appointments, loading, error, setAppointments } = useAppointments({ scope: 'staff' })
   const [tab, setTab] = useState<Tab>('proximos')
   const [viewMode, setViewMode] = useState<ViewMode>('lista')
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('semanal')
@@ -152,6 +154,7 @@ export function StaffAppointmentsPage() {
                   key={apt.id}
                   appointment={apt}
                   showCustomerName={true}
+                  detailHref={staffDetailHref}
                   showRescheduleAction={tab === 'proximos'}
                   showCancelAction={tab === 'proximos'}
                   onCancelSuccess={handleCancelSuccess}
@@ -192,6 +195,7 @@ export function StaffAppointmentsPage() {
               appointments={appointments}
               orgTimezone={orgTimezone}
               showCustomerName={true}
+              detailHref={staffDetailHref}
               staffScheduleOverlay={staffScheduleOverlay}
               onRescheduleSuccess={(appointmentId, newStartsAt) => {
                 setAppointments((prev) =>
@@ -204,7 +208,11 @@ export function StaffAppointmentsPage() {
               }}
             />
           ) : (
-            <MonthlyCalendar appointments={appointments} orgTimezone={orgTimezone} />
+            <MonthlyCalendar
+              appointments={appointments}
+              orgTimezone={orgTimezone}
+              detailHref={staffDetailHref}
+            />
           )}
         </>
       )}

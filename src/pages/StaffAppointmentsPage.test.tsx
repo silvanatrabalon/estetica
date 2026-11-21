@@ -11,7 +11,7 @@ import type { AppointmentSummary } from '../services/appointments'
 const mockListAppointments = vi.fn()
 
 vi.mock('../services/appointments', () => ({
-  listAppointments: (...args: unknown[]) => mockListAppointments(...args),
+  listMyStaffAppointments: (...args: unknown[]) => mockListAppointments(...args),
 }))
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ describe('StaffAppointmentsPage', () => {
       )
     })
 
-    it('card links to confirmation page', async () => {
+    it('card links to the staff appointment detail (not the customer confirmation)', async () => {
       renderPage()
 
       await waitFor(() =>
@@ -134,7 +134,7 @@ describe('StaffAppointmentsPage', () => {
       )
 
       const link = screen.getByText('Corte de cabello').closest('a')
-      expect(link).toHaveAttribute('href', `/booking/confirmation/${APT_ID_1}`)
+      expect(link).toHaveAttribute('href', `/staff/appointments/${APT_ID_1}`)
     })
   })
 

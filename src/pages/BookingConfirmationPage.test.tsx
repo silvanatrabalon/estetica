@@ -207,4 +207,41 @@ describe('BookingConfirmationPage', () => {
       expect(link).toHaveAttribute('href', '/appointments')
     })
   })
+
+  describe('email notice and actions', () => {
+    it('tells the client an email with the confirmation was sent', async () => {
+      mockGetAppointment.mockResolvedValue(mockDetail)
+      renderPage()
+      expect(await screen.findByText(/Te enviamos un email con la confirmación/)).toBeInTheDocument()
+    })
+
+    it('does not promise an email for a cancelled appointment (edge case)', async () => {
+      mockGetAppointment.mockResolvedValue({ ...mockDetail, status: 'cancelled' })
+      renderPage()
+      await screen.findByText('Este turno fue cancelado')
+      expect(screen.queryByText(/Te enviamos un email/)).toBeNull()
+    })
+
+    it('does not promise an email for a completed appointment (edge case)', async () => {
+      mockGetAppointment.mockResolvedValue({ ...mockDetail, status: 'completed' })
+      renderPage()
+      await screen.findByText('Este turno ya se realizó')
+      expect(screen.queryByText(/Te enviamos un email/)).toBeNull()
+    })
+
+    it('"Hacer otra reserva" is the primary action, shown before "Ver mis turnos"', async () => {
+      mockGetAppointment.mockResolvedValue(mockDetail)
+      renderPage()
+      const links = await screen.findAllByRole('link')
+      const labels = links.map((l) => l.textContent)
+      expect(labels.indexOf('Hacer otra reserva')).toBeGreaterThanOrEqual(0)
+      expect(labels.indexOf('Hacer otra reserva')).toBeLessThan(labels.indexOf('Ver mis turnos'))
+    })
+
+    it('a cancelled appointment offers "Reservar de nuevo" (edge case)', async () => {
+      mockGetAppointment.mockResolvedValue({ ...mockDetail, status: 'cancelled' })
+      renderPage()
+      expect(await screen.findByRole('link', { name: 'Reservar de nuevo' })).toHaveAttribute('href', '/booking')
+    })
+  })
 })

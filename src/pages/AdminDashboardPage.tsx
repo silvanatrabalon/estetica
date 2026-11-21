@@ -1,72 +1,7 @@
-import { useState, useEffect } from 'react'
-import { cn } from '../lib/cn'
-import { getBusinessSettings } from '../services/businessSettings'
 import { StatCard } from '../components/StatCard'
 import { useAdminDashboardStats } from '../hooks/useAdminDashboardStats'
-import { getStatsByRange, type StatsByRange } from '../services/adminDashboard'
 import { TodayAgenda } from '../components/admin/TodayAgenda'
 import { useTodayAgenda } from '../hooks/useTodayAgenda'
-
-// ── Currency formatter ────────────────────────────────────────────────────────
-
-function formatARS(cents: number): string {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    maximumFractionDigits: 0,
-  }).format(cents / 100)
-}
-
-// ── Analytics breakdown ───────────────────────────────────────────────────────
-
-const ANALYTICS_STATUSES = [
-  { key: 'confirmed' as const, label: 'Confirmado' },
-  { key: 'pending' as const, label: 'Pendiente' },
-  { key: 'cancelled' as const, label: 'Cancelado' },
-  { key: 'completed' as const, label: 'Completado' },
-]
-
-const STATUS_BAR_COLORS: Record<string, string> = {
-  confirmed: 'bg-[var(--color-state-confirmed)]',
-  pending: 'bg-[var(--color-state-pending)]',
-  cancelled: 'bg-[var(--color-state-cancelled)]',
-  completed: 'bg-[var(--color-state-completed)]',
-}
-
-const STATUS_DOT_COLORS: Record<string, string> = STATUS_BAR_COLORS
-
-type RangePreset = 'today' | 'last_month' | 'last_6_months' | 'last_year'
-
-const PRESET_LABELS: Record<RangePreset, string> = {
-  today: 'Hoy',
-  last_month: 'Último mes',
-  last_6_months: 'Últimos 6 meses',
-  last_year: 'Último año',
-}
-
-function getPresetRange(preset: RangePreset): { dateFrom: string; dateTo: string } {
-  const now = new Date()
-  const today = now.toISOString().slice(0, 10)
-  const dateTo = today
-
-  if (preset === 'today') {
-    return { dateFrom: today, dateTo }
-  }
-  if (preset === 'last_month') {
-    const d = new Date(now)
-    d.setMonth(d.getMonth() - 1)
-    return { dateFrom: d.toISOString().slice(0, 10), dateTo }
-  }
-  if (preset === 'last_6_months') {
-    const d = new Date(now)
-    d.setMonth(d.getMonth() - 6)
-    return { dateFrom: d.toISOString().slice(0, 10), dateTo }
-  }
-  // last_year
-  const d = new Date(now)
-  d.setFullYear(d.getFullYear() - 1)
-  return { dateFrom: d.toISOString().slice(0, 10), dateTo }
-}
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -111,15 +46,6 @@ function IconCalendarMonth() {
   )
 }
 
-function IconCheckCircle() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22,4 12,14.01 9,11.01" />
-    </svg>
-  )
-}
-
 function IconXCircle() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -130,25 +56,11 @@ function IconXCircle() {
   )
 }
 
-function IconCurrency() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="1" x2="12" y2="23" />
-      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-    </svg>
-  )
-}
-
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function AdminDashboardPage() {
   const { stats, loading: statsLoading, error: statsError } = useAdminDashboardStats()
   const agenda = useTodayAgenda()
-
-  const [rangePreset, setRangePreset] = useState<RangePreset>('last_month')
-  const [rangeStats, setRangeStats] = useState<StatsByRange | null>(null)
-  const [rangeLoading, setRangeLoading] = useState(false)
-  const [rangeError, setRangeError] = useState<string | null>(null)
 
   const formattedDate = (() => {
     const raw = new Intl.DateTimeFormat('es-AR', {
@@ -160,49 +72,6 @@ export function AdminDashboardPage() {
     return raw.charAt(0).toUpperCase() + raw.slice(1)
   })()
 
-  // Fetch business settings for KPI timezone (non-blocking)
-  useEffect(() => {
-    void getBusinessSettings().catch(() => {})
-  }, [])
-
-  // Fetch analytics whenever preset changes
-  useEffect(() => {
-    let cancelled = false
-    setRangeLoading(true)
-    setRangeError(null)
-    const { dateFrom, dateTo } = getPresetRange(rangePreset)
-    getStatsByRange(dateFrom, dateTo)
-      .then((data) => { if (!cancelled) setRangeStats(data) })
-      .catch(() => { if (!cancelled) setRangeError('Error al cargar las analíticas. Intentá nuevamente.') })
-      .finally(() => { if (!cancelled) setRangeLoading(false) })
-    return () => { cancelled = true }
-  }, [rangePreset])
-
-  const confirmedPendingToday = stats ? stats.confirmedCount + stats.pendingCount : 0
-
-  const analyticsTotal = rangeStats
-    ? rangeStats.confirmedCount + rangeStats.pendingCount + rangeStats.cancelledCount + rangeStats.completedCount
-    : 0
-
-  function pct(count: number): string {
-    if (analyticsTotal === 0) return '0%'
-    return `${Math.round((count / analyticsTotal) * 100)}%`
-  }
-
-  function pctNum(count: number): number {
-    if (analyticsTotal === 0) return 0
-    return Math.round((count / analyticsTotal) * 100)
-  }
-
-  const analyticsCountByKey = rangeStats
-    ? {
-        confirmed: rangeStats.confirmedCount,
-        pending: rangeStats.pendingCount,
-        cancelled: rangeStats.cancelledCount,
-        completed: rangeStats.completedCount,
-      }
-    : null
-
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
       {/* Stats error */}
@@ -212,164 +81,51 @@ export function AdminDashboardPage() {
         </div>
       )}
 
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-heading font-extrabold tracking-tight text-shell-text sm:text-2xl">
-            Panel de administración
-          </h1>
-          <p className="mt-0.5 text-sm text-shell-subtleText">{formattedDate}</p>
-        </div>
-        <div className="shrink-0 flex items-center gap-2 rounded-full bg-brand-secondary px-3 py-1.5">
-          <span className="h-2 w-2 rounded-full bg-[var(--color-state-confirmed)] animate-pulse" />
-          <span className="text-xs font-bold text-shell-text">En vivo</span>
-        </div>
-      </header>
+      {/* The date is the page heading, so the screen still has an h1 for assistive tech */}
+      <h1 className="text-sm font-normal text-shell-subtleText">{formattedDate}</h1>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-      <TodayAgenda
-        items={agenda.items}
-        next={agenda.next}
-        timezone={agenda.timezone}
-        now={agenda.now}
-        loading={agenda.loading}
-        error={agenda.error}
-      />
+        <TodayAgenda
+          items={agenda.items}
+          next={agenda.next}
+          timezone={agenda.timezone}
+          now={agenda.now}
+          loading={agenda.loading}
+          error={agenda.error}
+        />
 
-      <div className="space-y-6">
-      {/* ── KPI section ──────────────────────────────────────────────────── */}
-      <section aria-label="Métricas principales">
-        {/* KPI grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <StatCard
-            label="Turnos hoy"
-            value={stats?.todayCount ?? 0}
-            loading={statsLoading}
-            icon={<IconCalendarDay />}
-          />
-          <StatCard
-            label="Turnos esta semana"
-            value={stats?.weekCount ?? 0}
-            loading={statsLoading}
-            icon={<IconCalendarWeek />}
-          />
-          <StatCard
-            label="Turnos este mes"
-            value={stats?.monthCount ?? 0}
-            loading={statsLoading}
-            icon={<IconCalendarMonth />}
-          />
-          <StatCard
-            label="Confirmados + pendientes hoy"
-            value={confirmedPendingToday}
-            loading={statsLoading}
-            icon={<IconCheckCircle />}
-          />
-          <StatCard
-            label="Cancelados"
-            value={stats?.cancelledCount ?? 0}
-            loading={statsLoading}
-            icon={<IconXCircle />}
-          />
-          <StatCard
-            label="Ingresos estimados este mes"
-            value={stats ? formatARS(stats.revenueCentsMonth) : '—'}
-            loading={statsLoading}
-            icon={<IconCurrency />}
-            accent="bg-[var(--color-peach)] text-[var(--color-peach-ink)]"
-          />
-        </div>
-      </section>
-
-      {/* ── Analytics section ─────────────────────────────────────────────── */}
-      <section
-        aria-label="Análisis de turnos"
-        className="rounded-3xl bg-white border border-shell-border p-5 sm:p-6"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
-          <div>
-            <h2 className="text-base font-heading font-semibold text-gray-900">Resumen de turnos</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Desglose por estado del período seleccionado</p>
+        <section aria-label="Métricas principales">
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard
+              label="Turnos hoy"
+              to="/admin/appointments?periodo=today"
+              value={stats?.todayCount ?? 0}
+              loading={statsLoading}
+              icon={<IconCalendarDay />}
+            />
+            <StatCard
+              label="Turnos esta semana"
+              to="/admin/appointments?periodo=week"
+              value={stats?.weekCount ?? 0}
+              loading={statsLoading}
+              icon={<IconCalendarWeek />}
+            />
+            <StatCard
+              label="Turnos este mes"
+              to="/admin/appointments?periodo=month"
+              value={stats?.monthCount ?? 0}
+              loading={statsLoading}
+              icon={<IconCalendarMonth />}
+            />
+            <StatCard
+              label="Cancelados este mes"
+              to="/admin/appointments?periodo=month&estado=cancelled"
+              value={stats?.cancelledCount ?? 0}
+              loading={statsLoading}
+              icon={<IconXCircle />}
+            />
           </div>
-          <div className="inline-flex rounded-xl border border-gray-100 bg-gray-50 p-1 gap-0.5">
-            {(Object.keys(PRESET_LABELS) as RangePreset[]).map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                onClick={() => setRangePreset(preset)}
-                className={cn(
-                  'px-3 py-1.5 text-xs rounded-lg font-medium transition-all duration-150',
-                  rangePreset === preset
-                    ? 'bg-white text-gray-900 shadow-sm border border-gray-100'
-                    : 'text-gray-400 hover:text-gray-600',
-                )}
-              >
-                {PRESET_LABELS[preset]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {rangeLoading ? (
-          <div className="space-y-5">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="space-y-2">
-                <div className="flex justify-between">
-                  <div className="h-4 w-24 rounded bg-gray-100 animate-pulse" />
-                  <div className="h-4 w-16 rounded bg-gray-100 animate-pulse" />
-                </div>
-                <div className="h-2.5 w-full rounded-full bg-gray-100 animate-pulse" />
-              </div>
-            ))}
-          </div>
-        ) : rangeError ? (
-          <div className="py-10 flex flex-col items-center justify-center gap-3 text-center">
-            <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 8v4M12 16h.01" />
-              </svg>
-            </div>
-            <p className="text-sm text-gray-400 max-w-xs leading-relaxed">{rangeError}</p>
-          </div>
-        ) : (
-          <div className="space-y-5">
-            <div className="flex items-center justify-between pb-5 border-b border-gray-50">
-              <span className="text-sm text-gray-400 font-medium">Total de turnos</span>
-              <span className="text-3xl font-heading font-bold text-gray-900 tabular-nums leading-none">
-                {analyticsTotal}
-              </span>
-            </div>
-            {ANALYTICS_STATUSES.map(({ key, label }) => {
-              const count = analyticsCountByKey?.[key] ?? 0
-              const percentage = pctNum(count)
-              return (
-                <div key={key}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', STATUS_DOT_COLORS[key])} />
-                      <span className="text-sm font-medium text-gray-700">{label}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <span className="font-semibold text-gray-900 tabular-nums w-5 text-right">{count}</span>
-                      <span className="text-gray-400 tabular-nums w-9 text-right text-xs">{pct(count)}</span>
-                    </div>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className={cn('h-full rounded-full', STATUS_BAR_COLORS[key])}
-                      style={{
-                        width: `${percentage}%`,
-                        transition: 'width 0.7s cubic-bezier(0.22, 1, 0.36, 1)',
-                      }}
-                    />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </section>
-      </div>
+        </section>
       </div>
     </div>
   )

@@ -53,7 +53,27 @@ describe('createAppointment', () => {
     expect(mockRpc).toHaveBeenCalledWith('create_appointment', {
       p_service_id: 'svc-1',
       p_starts_at: '2026-06-10T14:00:00Z',
+      p_coupon_code: null,
     })
+  })
+
+  it('sends the coupon code trimmed when there is one', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [mockAppointmentRow], error: null })
+    await createAppointment({ serviceId: 'svc-1', startsAt: '2026-06-10T14:00:00Z', couponCode: '  VERANO10 ' })
+    expect(mockRpc).toHaveBeenCalledWith('create_appointment', expect.objectContaining({ p_coupon_code: 'VERANO10' }))
+  })
+
+  it('a blank coupon code is sent as null (edge case)', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [mockAppointmentRow], error: null })
+    await createAppointment({ serviceId: 'svc-1', startsAt: '2026-06-10T14:00:00Z', couponCode: '   ' })
+    expect(mockRpc).toHaveBeenCalledWith('create_appointment', expect.objectContaining({ p_coupon_code: null }))
+  })
+
+  it('translates coupon errors raised by the database (edge case)', async () => {
+    mockRpc.mockResolvedValueOnce({ data: null, error: { code: 'P0001', message: 'COUPON_ALREADY_USED' } })
+    await expect(
+      createAppointment({ serviceId: 'svc-1', startsAt: '2026-06-10T14:00:00Z', couponCode: 'X' }),
+    ).rejects.toThrow('Ya usaste este cupón.')
   })
 
   it('throws Spanish message for 23P01 exclusion violation', async () => {

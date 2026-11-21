@@ -84,6 +84,8 @@ export function useStaffScheduleOverlay(
           is_working: boolean
           starts_at: string | null
           ends_at: string | null
+          pm_starts_at?: string | null
+          pm_ends_at?: string | null
           created_at: string
           updated_at: string
         }>) {
@@ -94,6 +96,8 @@ export function useStaffScheduleOverlay(
             isWorking: row.is_working,
             startsAt: row.starts_at,
             endsAt: row.ends_at,
+            pmStartsAt: row.pm_starts_at ?? null,
+            pmEndsAt: row.pm_ends_at ?? null,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
           }
@@ -108,6 +112,8 @@ export function useStaffScheduleOverlay(
           exception_type: 'day_off' | 'custom_hours'
           starts_at: string | null
           ends_at: string | null
+          pm_starts_at?: string | null
+          pm_ends_at?: string | null
           reason: string | null
           created_at: string
           updated_at: string
@@ -119,6 +125,8 @@ export function useStaffScheduleOverlay(
             exceptionType: row.exception_type,
             startsAt: row.starts_at,
             endsAt: row.ends_at,
+            pmStartsAt: row.pm_starts_at ?? null,
+            pmEndsAt: row.pm_ends_at ?? null,
             reason: row.reason,
             createdAt: row.created_at,
             updatedAt: row.updated_at,

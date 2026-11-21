@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   getMyAvailabilityPermission,
+  getMyDaysOffPermission,
   getMyStaffMemberId,
   getStaffWeeklySchedule,
   listStaffExceptions,
@@ -19,6 +20,8 @@ export interface UseMyStaffAvailabilityResult {
   status: MyStaffAvailabilityStatus
   /** False when the admin has not allowed this professional to edit their own availability. */
   canEdit: boolean
+  /** False when the admin has not allowed this professional to manage their own days off. */
+  canEditDaysOff: boolean
   schedule: StaffScheduleDay[]
   exceptions: StaffScheduleException[]
   isSaving: boolean
@@ -35,6 +38,7 @@ export function useMyStaffAvailability(): UseMyStaffAvailabilityResult {
   const [status, setStatus] = useState<MyStaffAvailabilityStatus>('loading')
   const [staffId, setStaffId] = useState<string | null>(null)
   const [canEdit, setCanEdit] = useState(true)
+  const [canEditDaysOff, setCanEditDaysOff] = useState(true)
   const [schedule, setSchedule] = useState<StaffScheduleDay[]>([])
   const [exceptions, setExceptions] = useState<StaffScheduleException[]>([])
   const [isSaving, setIsSaving] = useState(false)
@@ -56,12 +60,14 @@ export function useMyStaffAvailability(): UseMyStaffAvailabilityResult {
         }
 
         setStaffId(myStaffId)
-        const [scheduleData, exceptionsData, allowed] = await Promise.all([
+        const [scheduleData, exceptionsData, allowed, allowedDaysOff] = await Promise.all([
           getStaffWeeklySchedule(myStaffId),
           listStaffExceptions(myStaffId),
           getMyAvailabilityPermission(),
+          getMyDaysOffPermission(),
         ])
         setCanEdit(allowed)
+        setCanEditDaysOff(allowedDaysOff)
         setSchedule(scheduleData)
         setExceptions(exceptionsData)
         setStatus('ready')
@@ -113,13 +119,13 @@ export function useMyStaffAvailability(): UseMyStaffAvailabilityResult {
             a.exceptionDate.localeCompare(b.exceptionDate),
           )
         })
-        setSuccessMessage('Excepción guardada correctamente.')
+        setSuccessMessage('Día guardado correctamente.')
       } catch (err) {
         const msg = err instanceof Error ? err.message : ''
         if (msg.includes('past')) {
-          setErrorMessage('No podés agregar excepciones para fechas pasadas.')
+          setErrorMessage('No podés agregar días en fechas pasadas.')
         } else {
-          setErrorMessage('No pudimos guardar la excepción. Intentá de nuevo.')
+          setErrorMessage('No pudimos guardar el día. Intentá de nuevo.')
         }
       } finally {
         setIsSaving(false)
@@ -136,9 +142,9 @@ export function useMyStaffAvailability(): UseMyStaffAvailabilityResult {
     try {
       await removeMyException(exceptionDate)
       setExceptions((current) => current.filter((e) => e.exceptionDate !== exceptionDate))
-      setSuccessMessage('Excepción eliminada.')
+      setSuccessMessage('Día eliminado.')
     } catch {
-      setErrorMessage('No pudimos eliminar la excepción. Intentá de nuevo.')
+      setErrorMessage('No pudimos eliminar el día. Intentá de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -150,6 +156,7 @@ export function useMyStaffAvailability(): UseMyStaffAvailabilityResult {
   return {
     status,
     canEdit,
+    canEditDaysOff,
     schedule,
     exceptions,
     isSaving,

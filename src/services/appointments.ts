@@ -1,4 +1,5 @@
 import { initSupabase } from '../lib/supabase'
+import { translateCouponError } from '../lib/coupons'
 
 export interface AppointmentSummary {
   id: string
@@ -253,6 +254,9 @@ function translateBookingError(err: unknown): Error {
   // Application-level RAISE errors
   if (e.code === 'P0001') {
     const msg = e.message ?? ''
+    if (msg.includes('COUPON_')) {
+      return new Error(translateCouponError(msg))
+    }
     for (const [key, translation] of Object.entries(BOOKING_ERRORS)) {
       if (msg.includes(key)) {
         return new Error(translation)
@@ -280,12 +284,15 @@ export function isConflictError(err: unknown): boolean {
 export async function createAppointment(params: {
   serviceId: string
   startsAt: string
+  /** Optional discount coupon code, validated again on the server. */
+  couponCode?: string
 }): Promise<NewAppointment> {
   const supabase = initSupabase()
 
   const { data, error } = await supabase.rpc('create_appointment', {
     p_service_id: params.serviceId,
     p_starts_at: params.startsAt,
+    p_coupon_code: params.couponCode?.trim() ? params.couponCode.trim() : null,
   })
 
   if (error) {
@@ -379,17 +386,8 @@ export async function rescheduleAppointment(params: {
   }
 }
 
-export async function listAppointments(): Promise<AppointmentSummary[]> {
-  const supabase = initSupabase()
-
-  const { data, error } = await supabase.rpc('list_appointments')
-
-  if (error) {
-    throw error
-  }
-
-  const rows = (data ?? []) as AppointmentSummaryRow[]
-  return rows.map((row) => ({
+function toAppointmentSummary(row: AppointmentSummaryRow): AppointmentSummary {
+  return {
     id: row.id,
     startsAt: row.starts_at,
     endsAt: row.ends_at,
@@ -404,5 +402,30 @@ export async function listAppointments(): Promise<AppointmentSummary[]> {
     orgName: row.org_name,
     orgTimezone: row.org_timezone,
     customerName: row.customer_name,
-  }))
+  }
+}
+
+export async function listAppointments(): Promise<AppointmentSummary[]> {
+  const supabase = initSupabase()
+
+  const { data, error } = await supabase.rpc('list_appointments')
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as AppointmentSummaryRow[]).map(toAppointmentSummary)
+}
+
+/** Only the appointments where the logged-in user is the professional (admins included). */
+export async function listMyStaffAppointments(): Promise<AppointmentSummary[]> {
+  const supabase = initSupabase()
+
+  const { data, error } = await supabase.rpc('list_my_staff_appointments')
+
+  if (error) {
+    throw error
+  }
+
+  return ((data ?? []) as AppointmentSummaryRow[]).map(toAppointmentSummary)
 }

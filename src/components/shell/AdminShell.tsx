@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { MobileTabBar, NavBar, Sidebar } from './Navigation'
+import { ADMIN_TABS, MobileTabBar, NavBar, Sidebar } from './Navigation'
 import { useNavigation } from '../../features/shell/hooks/useNavigation'
 
 interface ShellProps {
@@ -19,7 +19,7 @@ export function AdminShell({ children }: ShellProps) {
           <div className="pb-20 md:pb-0">{children}</div>
         </main>
       </div>
-      <MobileTabBar />
+      <MobileTabBar tabs={ADMIN_TABS} />
     </div>
   )
 }

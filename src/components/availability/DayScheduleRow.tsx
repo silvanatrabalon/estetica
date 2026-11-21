@@ -1,4 +1,5 @@
-import { TimeRangeInput } from './TimeRangeInput'
+import type { DayShifts } from '../../lib/shifts'
+import { ShiftsFields } from './ShiftsFields'
 
 const DAY_LABELS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const DAY_LABELS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
@@ -6,24 +7,23 @@ const DAY_LABELS_FULL = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', '
 interface DayScheduleRowProps {
   dayOfWeek: number
   isWorking: boolean
-  startsAt: string
-  endsAt: string
+  shifts: DayShifts
+  /** true when the business works in two shifts (matutino / vespertino). */
+  split?: boolean
   disabled?: boolean
   onIsWorkingChange: (value: boolean) => void
-  onStartsAtChange: (value: string) => void
-  onEndsAtChange: (value: string) => void
+  onShiftsChange: (value: DayShifts) => void
   timeError?: string | null
 }
 
 export function DayScheduleRow({
   dayOfWeek,
   isWorking,
-  startsAt,
-  endsAt,
+  shifts,
+  split = false,
   disabled = false,
   onIsWorkingChange,
-  onStartsAtChange,
-  onEndsAtChange,
+  onShiftsChange,
   timeError,
 }: DayScheduleRowProps) {
   const id = `day-toggle-${dayOfWeek}`
@@ -83,13 +83,13 @@ export function DayScheduleRow({
         {/* Time range — wraps to next line on mobile when both toggle+label take full width */}
         {isWorking && (
           <div className="w-full sm:w-auto">
-            <TimeRangeInput
-              startsAt={startsAt}
-              endsAt={endsAt}
+            <ShiftsFields
+              split={split}
+              value={shifts}
+              onChange={onShiftsChange}
               disabled={disabled}
-              onStartsAtChange={onStartsAtChange}
-              onEndsAtChange={onEndsAtChange}
               error={timeError}
+              label={DAY_LABELS_FULL[dayOfWeek]}
             />
           </div>
         )}

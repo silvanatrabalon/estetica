@@ -24,9 +24,12 @@ vi.mock('../services/adminLanding', () => ({
   deleteMediaFile: (...args: unknown[]) => mockDeleteMediaFile(...args),
 }))
 
+const mockListCategories = vi.fn()
+const mockCreateCategory = vi.fn()
+
 vi.mock('../services/adminCategories', () => ({
-  adminListCategories: () => Promise.resolve([]),
-  adminCreateCategory: vi.fn(),
+  adminListCategories: (...args: unknown[]) => mockListCategories(...args),
+  adminCreateCategory: (...args: unknown[]) => mockCreateCategory(...args),
   adminUpdateCategory: vi.fn(),
   adminDeleteCategory: vi.fn(),
 }))
@@ -80,6 +83,7 @@ const mockService = {
 describe('AdminServicesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockListCategories.mockResolvedValue([])
   })
 
   it('shows loading state initially', () => {
@@ -167,7 +171,7 @@ describe('AdminServicesPage', () => {
         durationMinutes: 60,
         priceCents: 500000,
         imageUrl: null,
-        maxConcurrentBookings: 1,
+        maxConcurrentBookings: null,
         description: null,
         categoryId: null,
       })
@@ -185,7 +189,7 @@ describe('AdminServicesPage', () => {
     fireEvent.click(getTable().getByRole('button', { name: 'Editar' }))
 
     await waitFor(() => {
-      expect((screen.getByLabelText(/Capacidad simult/) as HTMLInputElement).value).toBe('')
+      expect((screen.getByLabelText(/Límite por recurso/) as HTMLInputElement).value).toBe('')
     })
   })
 
@@ -199,7 +203,7 @@ describe('AdminServicesPage', () => {
     fireEvent.click(getTable().getByRole('button', { name: 'Editar' }))
 
     await waitFor(() => {
-      expect((screen.getByLabelText(/Capacidad simult/) as HTMLInputElement).value).toBe('3')
+      expect((screen.getByLabelText(/Límite por recurso/) as HTMLInputElement).value).toBe('3')
     })
   })
 
@@ -295,7 +299,7 @@ describe('AdminServicesPage', () => {
     await openCreateForm()
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/Capacidad simult/)).toBeDefined()
+      expect(screen.getByLabelText(/Límite por recurso/)).toBeDefined()
     })
   })
 
@@ -307,7 +311,7 @@ describe('AdminServicesPage', () => {
 
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte' } })
     setDuration('1', '0')
-    fireEvent.change(screen.getByLabelText(/Capacidad simult/), { target: { value: '0' } })
+    fireEvent.change(screen.getByLabelText(/Límite por recurso/), { target: { value: '0' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => {
@@ -317,18 +321,18 @@ describe('AdminServicesPage', () => {
     })
   })
 
-  it('capacity defaults to 1 in the create form', async () => {
+  it('the shared-resource limit is empty by default in the create form', async () => {
     mockListServices.mockResolvedValue([])
     renderPage()
 
     await openCreateForm()
 
-    expect((screen.getByLabelText(/Capacidad simult/) as HTMLInputElement).value).toBe('1')
+    expect((screen.getByLabelText(/Límite por recurso/) as HTMLInputElement).value).toBe('')
   })
 
-  it('submitting without touching capacity passes 1 to createService', async () => {
+  it('submitting without touching the limit sends no limit to createService', async () => {
     mockListServices.mockResolvedValue([])
-    mockCreateService.mockResolvedValue({ ...mockService, maxConcurrentBookings: 1 })
+    mockCreateService.mockResolvedValue({ ...mockService, maxConcurrentBookings: null })
     renderPage()
 
     await openCreateForm()
@@ -340,7 +344,7 @@ describe('AdminServicesPage', () => {
 
     await waitFor(() => {
       expect(mockCreateService).toHaveBeenCalledWith(
-        expect.objectContaining({ maxConcurrentBookings: 1 }),
+        expect.objectContaining({ maxConcurrentBookings: null }),
       )
     })
   })
@@ -355,7 +359,7 @@ describe('AdminServicesPage', () => {
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte de cabello' } })
     setDuration('1', '0')
     fireEvent.change(screen.getByLabelText('Precio ($)'), { target: { value: '5000' } })
-    fireEvent.change(screen.getByLabelText(/Capacidad simult/), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText(/Límite por recurso/), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => {
@@ -374,5 +378,114 @@ describe('AdminServicesPage', () => {
     })
 
     expect(getTable().getByRole('button', { name: 'Gestionar disponibilidad' })).toBeDefined()
+  })
+})
+
+describe('AdminServicesPage — tabs, filter and inline category', () => {
+  const makeCategory = (id: string, name: string) => ({ id, name, displayOrder: 0, organizationId: 'org-1' })
+  const withCat = { ...mockService, id: 'svc-2', name: 'Masaje', categoryId: 'cat-1', categoryName: 'Corporal' }
+  const noCat = { ...mockService, id: 'svc-3', name: 'Limpieza' }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListCategories.mockResolvedValue([makeCategory('cat-1', 'Corporal')])
+  })
+
+  it('starts on the Servicios tab and switches to Categorías', async () => {
+    mockListServices.mockResolvedValue([mockService])
+    renderPage()
+    expect(await screen.findByRole('tab', { name: 'Servicios' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('button', { name: '+ Nueva categoría' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Categorías' }))
+    expect(screen.getByRole('button', { name: '+ Nueva categoría' })).toBeInTheDocument()
+    expect(screen.getByText('Corporal')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Agregar servicio/ })).toBeNull()
+  })
+
+  it('"Todos" lists services with and without category', async () => {
+    mockListServices.mockResolvedValue([withCat, noCat])
+    renderPage()
+    await screen.findByRole('tab', { name: 'Servicios' })
+    expect(getTable().getByText('Masaje')).toBeInTheDocument()
+    expect(getTable().getByText('Limpieza')).toBeInTheDocument()
+  })
+
+  it('filtering by a category hides the others; "Sin categoría" shows only the uncategorized ones', async () => {
+    mockListServices.mockResolvedValue([withCat, noCat])
+    renderPage()
+    await screen.findByRole('tab', { name: 'Servicios' })
+
+    fireEvent.click(screen.getByRole('button', { name: /Todos/ }))
+    fireEvent.click(screen.getByRole('option', { name: 'Corporal' }))
+    expect(getTable().getByText('Masaje')).toBeInTheDocument()
+    expect(getTable().queryByText('Limpieza')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /Corporal/ }))
+    fireEvent.click(screen.getByRole('option', { name: 'Sin categoría' }))
+    expect(getTable().getByText('Limpieza')).toBeInTheDocument()
+    expect(getTable().queryByText('Masaje')).toBeNull()
+  })
+
+  it('a category with no services shows an empty message (edge case)', async () => {
+    mockListCategories.mockResolvedValue([makeCategory('cat-1', 'Corporal'), makeCategory('cat-2', 'Facial')])
+    mockListServices.mockResolvedValue([withCat])
+    renderPage()
+    await screen.findByRole('tab', { name: 'Servicios' })
+    fireEvent.click(screen.getByRole('button', { name: /Todos/ }))
+    fireEvent.click(screen.getByRole('option', { name: 'Facial' }))
+    expect(screen.getByText('No hay servicios en esta categoría.')).toBeInTheDocument()
+  })
+
+  async function openInlineCategory() {
+    mockListServices.mockResolvedValue([])
+    renderPage()
+    await openCreateForm()
+    fireEvent.click(screen.getByRole('button', { name: /Categoría/ }))
+    fireEvent.click(screen.getByRole('option', { name: '+ Crear categoría nueva' }))
+  }
+
+  it('the category dropdown offers creating a new category and selects it for the service', async () => {
+    mockCreateCategory.mockResolvedValue(makeCategory('cat-9', 'Uñas'))
+    mockCreateService.mockResolvedValue({ ...mockService, categoryId: 'cat-9', categoryName: 'Uñas' })
+    await openInlineCategory()
+
+    fireEvent.change(screen.getByLabelText('Nombre de la nueva categoría'), { target: { value: 'Uñas' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear categoría' }))
+    await waitFor(() => expect(mockCreateCategory).toHaveBeenCalledWith('Uñas', 1))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Categoría/ }).textContent).toContain('Uñas'),
+    )
+
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Esmaltado' } })
+    setDuration('1', '0')
+    fireEvent.change(screen.getByLabelText('Precio ($)'), { target: { value: '3000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() =>
+      expect(mockCreateService).toHaveBeenCalledWith(expect.objectContaining({ categoryId: 'cat-9' })),
+    )
+  })
+
+  it('an empty category name is rejected without calling the backend (edge case)', async () => {
+    await openInlineCategory()
+    fireEvent.click(screen.getByRole('button', { name: 'Crear categoría' }))
+    expect(await screen.findByText('Escribí el nombre de la categoría.')).toBeInTheDocument()
+    expect(mockCreateCategory).not.toHaveBeenCalled()
+  })
+
+  it('a duplicated category name shows a friendly error and keeps the form open (edge case)', async () => {
+    mockCreateCategory.mockRejectedValue(new Error('duplicate key value violates unique constraint'))
+    await openInlineCategory()
+    fireEvent.change(screen.getByLabelText('Nombre de la nueva categoría'), { target: { value: 'Corporal' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Crear categoría' }))
+    expect(await screen.findByText('Ya existe una categoría con ese nombre.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Nombre')).toBeInTheDocument()
+  })
+
+  it('cancelling the inline category keeps the service form (edge case)', async () => {
+    await openInlineCategory()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancelar' })[0])
+    expect(screen.queryByLabelText('Nombre de la nueva categoría')).toBeNull()
+    expect(screen.getByLabelText('Nombre')).toBeInTheDocument()
   })
 })

@@ -242,4 +242,18 @@ describe('WeeklyCalendar', () => {
     expect(screen.getByLabelText('Semana anterior')).toBeInTheDocument()
     expect(screen.getByLabelText('Semana siguiente')).toBeInTheDocument()
   })
+
+  describe('detailHref', () => {
+    it('non-draggable appointments link to the custom detail path', () => {
+      renderCalendar([makeApt({ id: 'apt-x', status: 'completed' })], {
+        detailHref: (id) => `/staff/appointments/${id}`,
+      })
+      expect(screen.getByRole('link', { name: /Corte/ })).toHaveAttribute('href', '/staff/appointments/apt-x')
+    })
+
+    it('without detailHref they keep linking to the booking confirmation (edge case)', () => {
+      renderCalendar([makeApt({ id: 'apt-y', status: 'completed' })])
+      expect(screen.getByRole('link', { name: /Corte/ })).toHaveAttribute('href', '/booking/confirmation/apt-y')
+    })
+  })
 })

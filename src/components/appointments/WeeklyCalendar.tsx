@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   DndContext,
   PointerSensor,
@@ -55,9 +55,11 @@ interface DraggableAppointmentProps {
   apt: AppointmentSummary
   orgTimezone: string
   showCustomerName?: boolean
+  /** Opens the appointment detail on a plain click (a drag still reschedules). */
+  onOpen?: () => void
 }
 
-function DraggableAppointment({ apt, orgTimezone, showCustomerName }: DraggableAppointmentProps) {
+function DraggableAppointment({ apt, orgTimezone, showCustomerName, onOpen }: DraggableAppointmentProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: apt.id,
     data: { appointment: apt },
@@ -76,6 +78,7 @@ function DraggableAppointment({ apt, orgTimezone, showCustomerName }: DraggableA
       {...listeners}
       {...attributes}
       data-draggable="true"
+      onClick={onOpen}
       className={cn(
         'text-xs px-1.5 py-1 rounded border truncate cursor-grab active:cursor-grabbing select-none',
         colorClass,
@@ -98,13 +101,14 @@ interface StaticAppointmentProps {
   apt: AppointmentSummary
   orgTimezone: string
   showCustomerName?: boolean
+  href: string
 }
 
-function StaticAppointment({ apt, orgTimezone, showCustomerName }: StaticAppointmentProps) {
+function StaticAppointment({ apt, orgTimezone, showCustomerName, href }: StaticAppointmentProps) {
   const colorClass = STATUS_COLORS[apt.status] ?? 'bg-gray-100 border-gray-200 text-gray-700'
   return (
     <Link
-      to={`/booking/confirmation/${apt.id}`}
+      to={href}
       className={cn(
         'block text-xs px-1.5 py-1 rounded border truncate cursor-default',
         colorClass,
@@ -159,6 +163,8 @@ export interface WeeklyCalendarProps {
   onRescheduleSuccess?: (appointmentId: string, newStartsAt: string) => void
   staffScheduleOverlay?: AvailabilityOverlayData
   onWeekChange?: (weekStart: Date) => void
+  /** Where an appointment links to. Defaults to the customer's booking confirmation. */
+  detailHref?: (appointmentId: string) => string
 }
 
 export function WeeklyCalendar({
@@ -169,7 +175,11 @@ export function WeeklyCalendar({
   onRescheduleSuccess,
   staffScheduleOverlay,
   onWeekChange,
+  detailHref,
 }: WeeklyCalendarProps) {
+  const navigate = useNavigate()
+  const hrefFor = (appointmentId: string) =>
+    detailHref ? detailHref(appointmentId) : `/booking/confirmation/${appointmentId}`
   const [weekStart, setWeekStart] = useState(() =>
     getUTCMonday(initialDate ?? new Date()),
   )
@@ -347,7 +357,7 @@ export function WeeklyCalendar({
               return (
                 <Link
                   key={apt.id}
-                  to={`/booking/confirmation/${apt.id}`}
+                  to={hrefFor(apt.id)}
                   className={cn(
                     'block text-sm px-3 py-2 rounded border w-full',
                     colorClass,
@@ -433,6 +443,7 @@ export function WeeklyCalendar({
                         apt={apt}
                         orgTimezone={orgTimezone}
                         showCustomerName={showCustomerName}
+                        onOpen={detailHref ? () => navigate(hrefFor(apt.id)) : undefined}
                       />
                     )
                   }
@@ -442,6 +453,7 @@ export function WeeklyCalendar({
                       apt={apt}
                       orgTimezone={orgTimezone}
                       showCustomerName={showCustomerName}
+                      href={hrefFor(apt.id)}
                     />
                   )
                 })}

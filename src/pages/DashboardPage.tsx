@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
+import { StaffDashboard } from '../components/staff/StaffDashboard'
 
 interface ActionCard {
   title: string
@@ -27,18 +28,15 @@ const ACTION_CARDS: ActionCard[] = [
     accent: 'from-violet-500 to-fuchsia-400',
     bg: 'bg-violet-50 hover:bg-violet-100/70',
   },
-  {
-    title: 'Mi perfil',
-    description: 'Actualizá tus datos personales y preferencias.',
-    href: '/profile',
-    icon: '◎',
-    accent: 'from-amber-500 to-orange-400',
-    bg: 'bg-amber-50 hover:bg-amber-100/70',
-  },
 ]
 
 export function DashboardPage() {
-  const { profile } = useUser()
+  const { profile, activeRole } = useUser()
+
+  // A professional sees a summary of their own appointments instead of the customer shortcuts.
+  if (activeRole === 'staff') {
+    return <StaffDashboard />
+  }
 
   const firstName = profile?.name?.split(' ')[0] ?? null
 
@@ -51,7 +49,7 @@ export function DashboardPage() {
           className="inline-flex items-center gap-1.5 text-sm text-shell-subtleText hover:text-brand-primary transition-colors group"
         >
           <span className="inline-block transition-transform group-hover:-translate-x-0.5">←</span>
-          Ver la página principal
+          Ir al sitio web
         </Link>
       </div>
 
@@ -66,7 +64,7 @@ export function DashboardPage() {
       </header>
 
       {/* Action cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {ACTION_CARDS.map((card) => (
           <Link
             key={card.href}

@@ -51,12 +51,12 @@ describe('useNavigation hook', () => {
       expect(result.current).toBeDefined()
       expect(Array.isArray(result.current)).toBe(true)
       
-      // Should include shared items
-      const hasSharedItems = result.current.some(item =>
-        navigationByRole.all.some(shared => shared.id === item.id)
-      )
-      expect(hasSharedItems).toBe(true)
-      
+      // Shared items are shown only to the roles they list: the admin sees none of the customer/staff ones
+      const sharedForOthers = navigationByRole.all.filter(item => !item.roles.includes('admin'))
+      sharedForOthers.forEach(shared => {
+        expect(result.current.some(item => item.id === shared.id)).toBe(false)
+      })
+
       // Should include admin specific items
       const hasAdminItems = result.current.some(item =>
         navigationByRole.admin.some(admin => admin.id === item.id)

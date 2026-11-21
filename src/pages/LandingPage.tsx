@@ -4,6 +4,8 @@ import { useUser } from '../hooks/useUser'
 import { getLandingConfig, getUpcomingClosures } from '../services/landing'
 import { getPublicSocialLinks } from '../services/socialLinks'
 import { SocialLinksList } from '../components/landing/SocialLinksList'
+import { PromotionsSection } from '../components/landing/PromotionsSection'
+import { listPublicCoupons, type PublicCoupon } from '../services/coupons'
 import type { SocialLink } from '../lib/socialLinks'
 import { formatPriceARS } from '../lib/formatPrice'
 import { initSupabase } from '../lib/supabase'
@@ -513,6 +515,7 @@ export function LandingPage() {
   const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [upcomingClosures, setUpcomingClosures] = useState<UpcomingClosure[]>([])
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([])
+  const [promotions, setPromotions] = useState<PublicCoupon[]>([])
 
   const isAuthenticated = !!user
   const isCustomer = activeRole === 'customer'
@@ -531,6 +534,21 @@ export function LandingPage() {
       })
       .catch(() => {
         if (!cancelled) setSocialLinks([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Coupons the admin chose to show (failures just hide the section)
+  useEffect(() => {
+    let cancelled = false
+    listPublicCoupons()
+      .then((list) => {
+        if (!cancelled) setPromotions(list)
+      })
+      .catch(() => {
+        if (!cancelled) setPromotions([])
       })
     return () => {
       cancelled = true
@@ -699,6 +717,7 @@ export function LandingPage() {
         loading={loadingServices}
         primaryColor={effectiveConfig.primaryColor}
       />
+      <PromotionsSection coupons={promotions} />
       <AboutSection aboutText={effectiveConfig.aboutText} />
       <HoursSection showHours={effectiveConfig.showHours} hours={hours} />
       <UpcomingClosuresSection closures={futureClosures} />

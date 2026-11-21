@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { adminListAppointments } from './adminAppointments'
+import {
+  adminListAppointments,
+  adminUpdateAppointment,
+  getAdminAppointment,
+  translateAdminUpdateError,
+} from './adminAppointments'
 
 // ── Mock Supabase ────────────────────────────────────────────────────────────
 
@@ -196,5 +201,45 @@ describe('adminListAppointments', () => {
 
       await expect(adminListAppointments({}, 1)).rejects.toThrow('ADMIN_NOT_AUTHORIZED')
     })
+  })
+})
+
+describe('admin appointment edit services', () => {
+  beforeEach(() => mockRpc.mockReset())
+
+  const input = { appointmentId: 'a', serviceId: 's', staffMemberId: 'm', notes: '  hola  ' }
+
+  it('recorta la nota y manda null si queda vacía', async () => {
+    mockRpc.mockResolvedValue({ error: null })
+    await adminUpdateAppointment(input)
+    expect(mockRpc).toHaveBeenLastCalledWith('admin_update_appointment', expect.objectContaining({ p_notes: 'hola' }))
+    await adminUpdateAppointment({ ...input, notes: '   ' })
+    expect(mockRpc).toHaveBeenLastCalledWith('admin_update_appointment', expect.objectContaining({ p_notes: null }))
+  })
+
+  it('rechaza notas de más de 500 caracteres sin llamar al backend', async () => {
+    await expect(adminUpdateAppointment({ ...input, notes: 'x'.repeat(501) })).rejects.toThrow('500')
+    expect(mockRpc).not.toHaveBeenCalled()
+  })
+
+  it('acepta una nota de exactamente 500 caracteres', async () => {
+    mockRpc.mockResolvedValue({ error: null })
+    await expect(adminUpdateAppointment({ ...input, notes: 'x'.repeat(500) })).resolves.toBeUndefined()
+  })
+
+  it('traduce el conflicto de horario', async () => {
+    mockRpc.mockResolvedValue({ error: { message: 'APPOINTMENT_CONFLICT' } })
+    await expect(adminUpdateAppointment(input)).rejects.toThrow('otro turno')
+  })
+
+  it('traduce códigos conocidos y usa un mensaje genérico para el resto', () => {
+    expect(translateAdminUpdateError('APPOINTMENT_NOT_EDITABLE')).toContain('pendientes o confirmados')
+    expect(translateAdminUpdateError('STAFF_NOT_ASSIGNED_TO_SERVICE')).toContain('no realiza')
+    expect(translateAdminUpdateError('algo raro')).toContain('Intentá de nuevo')
+  })
+
+  it('getAdminAppointment devuelve null si no hay fila', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    expect(await getAdminAppointment('x')).toBeNull()
   })
 })
