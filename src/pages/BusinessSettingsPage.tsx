@@ -348,20 +348,27 @@ export function BusinessSettingsPage() {
 
       {/* Sticky tab bar */}
       <div className="sticky top-0 z-10 -mx-6 px-6 pt-2 pb-4 bg-shell-base/95 backdrop-blur-sm">
-        <div className="flex gap-1 rounded-2xl bg-white border border-shell-border p-1 shadow-sm">
+        <div
+          role="tablist"
+          aria-label="Secciones de Negocio"
+          className="flex gap-1 overflow-x-auto rounded-2xl bg-white border border-shell-border p-1 shadow-sm"
+        >
           {TABS.map((tab) => (
             <button
               key={tab.key}
               type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-medium transition-all',
+                'flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium transition-all sm:px-3',
                 activeTab === tab.key
                   ? 'bg-brand-primary text-white shadow-sm'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
               )}
             >
-              {tab.icon}
+              {/* Icons only where there is room; on phones the four labels need the space */}
+              <span className="hidden sm:inline-flex">{tab.icon}</span>
               <span>{tab.label}</span>
             </button>
           ))}
@@ -423,46 +430,59 @@ export function BusinessSettingsPage() {
               {weeklyHours.map((hour) => {
                 const isOpen = !hour.isClosed
                 return (
-                  <div key={hour.dayOfWeek} className="flex items-center gap-3">
-                    <span className="w-20 shrink-0 text-sm text-gray-700 font-medium">
-                      {dayLabels[hour.dayOfWeek]}
-                    </span>
-                    {/* Toggle switch */}
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={isOpen}
-                      onClick={() => handleClosedSet(hour.dayOfWeek, isOpen)}
-                      className={cn(
-                        'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-300',
-                        isOpen ? 'bg-brand-primary' : 'bg-gray-200',
-                      )}
-                    >
-                      <span
+                  <div
+                    key={hour.dayOfWeek}
+                    className="flex flex-col gap-2 border-b border-gray-100 pb-3 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:gap-3 sm:border-0 sm:pb-0"
+                  >
+                    <div className="flex items-center gap-3 sm:w-40 sm:shrink-0">
+                      <span className="w-24 shrink-0 text-sm text-gray-700 font-medium">
+                        {dayLabels[hour.dayOfWeek]}
+                      </span>
+                      {/* Toggle switch */}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={isOpen}
+                        aria-label={`${dayLabels[hour.dayOfWeek]}: abierto`}
+                        onClick={() => handleClosedSet(hour.dayOfWeek, isOpen)}
                         className={cn(
-                          'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-                          isOpen ? 'translate-x-4' : 'translate-x-0.5',
+                          'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-300',
+                          isOpen ? 'bg-brand-primary' : 'bg-gray-200',
                         )}
-                      />
-                    </button>
-                    {isOpen ? (
-                      <div className="flex flex-1 items-center gap-1 min-w-0">
-                        <input
-                          type="time"
-                          value={hour.opensAt ?? ''}
-                          onChange={(e) => handleHourChange(hour.dayOfWeek, 'opensAt', e.target.value)}
-                          className="flex-1 min-w-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
+                      >
+                        <span
+                          className={cn(
+                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
+                            isOpen ? 'translate-x-4' : 'translate-x-0.5',
+                          )}
                         />
-                        <span className="text-gray-300 text-xs shrink-0">—</span>
-                        <input
-                          type="time"
-                          value={hour.closesAt ?? ''}
-                          onChange={(e) => handleHourChange(hour.dayOfWeek, 'closesAt', e.target.value)}
-                          className="flex-1 min-w-0 rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none"
-                        />
+                      </button>
+                      {!isOpen && <span className="text-sm text-gray-500">Cerrado</span>}
+                    </div>
+                    {isOpen && (
+                      <div className="grid grid-cols-2 gap-3 min-w-0 sm:flex sm:flex-1 sm:items-center sm:gap-1">
+                        <label className="flex min-w-0 flex-col gap-1 sm:flex-1">
+                          <span className="text-xs text-gray-500 sm:sr-only">Abre</span>
+                          <input
+                            type="time"
+                            aria-label={`${dayLabels[hour.dayOfWeek]}: hora de apertura`}
+                            value={hour.opensAt ?? ''}
+                            onChange={(e) => handleHourChange(hour.dayOfWeek, 'opensAt', e.target.value)}
+                            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2.5 text-[15px] tabular-nums text-gray-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none sm:py-1.5 sm:text-sm"
+                          />
+                        </label>
+                        <span className="hidden text-gray-300 text-xs shrink-0 sm:inline">—</span>
+                        <label className="flex min-w-0 flex-col gap-1 sm:flex-1">
+                          <span className="text-xs text-gray-500 sm:sr-only">Cierra</span>
+                          <input
+                            type="time"
+                            aria-label={`${dayLabels[hour.dayOfWeek]}: hora de cierre`}
+                            value={hour.closesAt ?? ''}
+                            onChange={(e) => handleHourChange(hour.dayOfWeek, 'closesAt', e.target.value)}
+                            className="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-1.5 py-2.5 text-[15px] tabular-nums text-gray-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none sm:py-1.5 sm:text-sm"
+                          />
+                        </label>
                       </div>
-                    ) : (
-                      <span className="text-xs text-gray-400">Cerrado</span>
                     )}
                   </div>
                 )

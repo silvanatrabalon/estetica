@@ -143,7 +143,91 @@ describe('BusinessSettingsPage', () => {
   it('does not have a Redes tab anymore (social links live in Página pública)', async () => {
     renderBusinessSettingsPage()
     await screen.findByDisplayValue('Salon Centro')
-    expect(screen.queryByRole('button', { name: /Redes/ })).toBeNull()
+    expect(screen.queryByRole('tab', { name: /Redes/ })).toBeNull()
+  })
+
+  describe('Tabs', () => {
+    it('are exposed as a tablist with the active one selected', async () => {
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+
+      expect(screen.getByRole('tablist', { name: 'Secciones de Negocio' })).toBeDefined()
+      const tabs = screen.getAllByRole('tab')
+      expect(tabs.map((t) => t.textContent)).toEqual(['General', 'Horarios', 'Cierres', 'Política'])
+      expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false'])
+    })
+
+    it('moves the selection when another tab is pressed', async () => {
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+
+      fireEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
+
+      expect(screen.getByRole('tab', { name: 'Horarios' }).getAttribute('aria-selected')).toBe('true')
+      expect(screen.getByRole('tab', { name: 'General' }).getAttribute('aria-selected')).toBe('false')
+    })
+  })
+
+  describe('Horarios rows (phone layout)', () => {
+    async function openHours() {
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+      fireEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
+    }
+
+    it('every open day has labelled opening and closing time fields', async () => {
+      await openHours()
+
+      const open = screen.getByLabelText('Lunes: hora de apertura') as HTMLInputElement
+      const close = screen.getByLabelText('Lunes: hora de cierre') as HTMLInputElement
+      expect(open.value).toBe('09:00')
+      expect(close.value).toBe('18:00')
+      expect(screen.getAllByLabelText(/hora de apertura/)).toHaveLength(5)
+    })
+
+    it('shows the visible "Abre" and "Cierra" captions for phones', async () => {
+      await openHours()
+      expect(screen.getAllByText('Abre').length).toBe(5)
+      expect(screen.getAllByText('Cierra').length).toBe(5)
+    })
+
+    it('a closed day shows "Cerrado" and no time fields (edge case)', async () => {
+      await openHours()
+
+      expect(screen.getAllByText('Cerrado').length).toBeGreaterThanOrEqual(2)
+      expect(screen.queryByLabelText('Sabado: hora de apertura')).toBeNull()
+      expect(screen.queryByLabelText('Domingo: hora de apertura')).toBeNull()
+    })
+
+    it('each day switch has an accessible name and reflects its state', async () => {
+      await openHours()
+
+      const monday = screen.getByRole('switch', { name: 'Lunes: abierto' })
+      expect(monday.getAttribute('aria-checked')).toBe('true')
+      expect(screen.getByRole('switch', { name: 'Sabado: abierto' }).getAttribute('aria-checked')).toBe('false')
+      expect(screen.getAllByRole('switch')).toHaveLength(7)
+    })
+
+    it('opening a closed day reveals its time fields (edge case)', async () => {
+      await openHours()
+
+      fireEvent.click(screen.getByRole('switch', { name: 'Sabado: abierto' }))
+
+      expect(await screen.findByLabelText('Sabado: hora de apertura')).toBeDefined()
+      expect(screen.getByLabelText('Sabado: hora de cierre')).toBeDefined()
+    })
+
+    it('editing a time updates the value that will be saved', async () => {
+      mockSaveBusinessSettings.mockResolvedValue(createSettingsResponse())
+      await openHours()
+
+      fireEvent.change(screen.getByLabelText('Lunes: hora de apertura'), { target: { value: '08:30' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar horarios' }))
+
+      await waitFor(() => expect(mockSaveBusinessSettings).toHaveBeenCalled())
+      const monday = mockSaveBusinessSettings.mock.calls[0][0].weeklyHours.find((h: { dayOfWeek: number }) => h.dayOfWeek === 1)
+      expect(monday.opensAt).toBe('08:30')
+    })
   })
 
   describe('General tab (business rules only)', () => {
@@ -174,7 +258,7 @@ describe('BusinessSettingsPage', () => {
 
   describe('Notification settings (Política tab)', () => {
     async function openPolicyTab() {
-      const tab = await screen.findByRole('button', { name: /Política/ })
+      const tab = await screen.findByRole('tab', { name: /Política/ })
       fireEvent.click(tab)
     }
 
