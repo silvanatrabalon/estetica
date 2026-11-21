@@ -315,6 +315,47 @@ describe('BookingPage', () => {
     })
   })
 
+  describe('Admin-configured texts', () => {
+    const baseSettings = { timezone: 'UTC', bookingMaxHorizonDays: 60, weeklyHours: [] }
+
+    it('shows the admin title and subtitle when configured', async () => {
+      mockGetBusinessSettings.mockResolvedValue({
+        ...baseSettings,
+        bookingHeaderText: 'Reservá tu momento',
+        bookingSubtitleText: 'Elegí tu tratamiento favorito',
+      })
+      mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [], error: null }))
+      renderPage()
+
+      await waitFor(() => expect(screen.getByText('Reservá tu momento')).toBeDefined())
+      expect(screen.getByText('Elegí tu tratamiento favorito')).toBeDefined()
+      expect(screen.queryByText('Reservar turno')).toBeNull()
+    })
+
+    it('keeps the default texts when the admin left them empty (edge case)', async () => {
+      mockGetBusinessSettings.mockResolvedValue({
+        ...baseSettings,
+        bookingHeaderText: null,
+        bookingSubtitleText: '   ',
+      })
+      mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [], error: null }))
+      renderPage()
+
+      await waitFor(() => expect(mockGetBusinessSettings).toHaveBeenCalled())
+      expect(screen.getByText('Reservar turno')).toBeDefined()
+      expect(screen.getByText('Elegí el servicio que querés reservar.')).toBeDefined()
+    })
+
+    it('keeps the default texts when business settings fail to load (edge case)', async () => {
+      mockGetBusinessSettings.mockRejectedValue(new Error('down'))
+      mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [], error: null }))
+      renderPage()
+
+      await waitFor(() => expect(mockGetBusinessSettings).toHaveBeenCalled())
+      expect(screen.getByText('Reservar turno')).toBeDefined()
+    })
+  })
+
   describe('Spanish copy', () => {
     it('page heading is in Spanish', async () => {
       mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [], error: null }))

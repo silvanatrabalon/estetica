@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { getNavigationForRole } from './navigation'
 import {
   canAccessRoute,
   getRoutePolicy,
@@ -115,6 +116,25 @@ describe('routing policy', () => {
     expect(isKnownRoute('/admin/settings/business')).toBe(true)
     expect(isKnownRoute('/admin/staff')).toBe(true)
     expect(isKnownRoute('/unknown')).toBe(false)
+  })
+
+  it('Apariencia is admin-only (edge case)', () => {
+    expect(isKnownRoute('/admin/appearance')).toBe(true)
+    expect(canAccessRoute({ path: '/admin/appearance', isAuthenticated: true, role: 'admin' })).toBe(true)
+    expect(canAccessRoute({ path: '/admin/appearance', isAuthenticated: true, role: 'staff' })).toBe(false)
+    expect(canAccessRoute({ path: '/admin/appearance', isAuthenticated: true, role: 'customer' })).toBe(false)
+    expect(canAccessRoute({ path: '/admin/appearance', isAuthenticated: false, role: null })).toBe(false)
+  })
+
+  it('admin menu has Apariencia and no separate Página pública entry', () => {
+    const adminItems = getNavigationForRole('admin')
+    expect(adminItems.find((i) => i.href === '/admin/appearance')?.label).toBe('Apariencia')
+    expect(adminItems.some((i) => i.label === 'Página pública')).toBe(false)
+  })
+
+  it('non-admins do not see Apariencia in their menu (edge case)', () => {
+    expect(getNavigationForRole('staff').some((i) => i.href === '/admin/appearance')).toBe(false)
+    expect(getNavigationForRole('customer').some((i) => i.href === '/admin/appearance')).toBe(false)
   })
 
   it('allows authenticated route access for profile setup', () => {

@@ -1,3 +1,4 @@
+import { resolveBookingTexts } from '../lib/brand'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useActiveServices } from '../hooks/useActiveServices'
@@ -29,6 +30,7 @@ export function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null)
   const [orgTimezone, setOrgTimezone] = useState('UTC')
+  const [bookingTexts, setBookingTexts] = useState(() => resolveBookingTexts({}))
   const [orgOpenTime, setOrgOpenTime] = useState('08:00')
   const [orgCloseTime, setOrgCloseTime] = useState('20:00')
   const [maxHorizonDays, setMaxHorizonDays] = useState(60)
@@ -50,6 +52,12 @@ export function BookingPage() {
     void Promise.all([
       getBusinessSettings().then((settings) => {
         setOrgTimezone(settings.timezone)
+        setBookingTexts(
+          resolveBookingTexts({
+            bookingHeaderText: settings.bookingHeaderText,
+            bookingSubtitleText: settings.bookingSubtitleText,
+          }),
+        )
         setMaxHorizonDays(settings.bookingMaxHorizonDays)
         const { openTime, closeTime } = deriveGridTimes(settings.weeklyHours)
         setOrgOpenTime(openTime)
@@ -172,7 +180,7 @@ export function BookingPage() {
       )}
 
       {step === 1 && (
-        <h2 className="text-2xl font-heading font-bold text-shell-text mb-6">Reservar turno</h2>
+        <h2 className="text-2xl font-heading font-bold text-shell-text mb-6">{bookingTexts.header}</h2>
       )}
 
       {/* Step indicator — only on step 1 */}
@@ -191,7 +199,7 @@ export function BookingPage() {
       {/* Step 1: Service selector */}
       {step === 1 && (
         <div>
-          <p className="text-shell-subtleText mb-4">Elegí el servicio que querés reservar.</p>
+          <p className="text-shell-subtleText mb-4">{bookingTexts.subtitle}</p>
           {servicesLoading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (

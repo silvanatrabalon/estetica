@@ -12,11 +12,15 @@ The system MUST provide an admin-only business settings experience for the singl
 - **THEN** the system denies access through existing authorization mechanisms
 
 ### Requirement: Canonical Business Identity And Branding
-The system MUST persist the single business identity and basic branding in the database as canonical business configuration.
+The system MUST persist the single business identity in the database as canonical business configuration. Negocio (General tab) MUST manage only the business name and time zone. The logo and the booking title/subtitle MUST be managed in Apariencia, and the colors in the Página pública design settings. The brand color previously editable in Negocio is no longer editable or used.
 
-#### Scenario: Admin updates business identity and branding
-- **WHEN** an authenticated admin saves valid business identity and branding changes
-- **THEN** the system persists the visible business name, logo, primary brand color, and booking header or subtitle text as canonical business settings
+#### Scenario: Admin updates business name and time zone
+- **WHEN** an authenticated admin saves a valid business name and time zone in Negocio
+- **THEN** the system persists them as canonical business settings without changing the logo or booking texts
+
+#### Scenario: Branding is not edited in Negocio
+- **WHEN** an admin opens Negocio
+- **THEN** there are no logo, color or booking text fields; they are in Apariencia
 
 ### Requirement: Canonical Business Timezone
 The system MUST store one canonical IANA timezone for the business and use it as the local-time context for business scheduling configuration.

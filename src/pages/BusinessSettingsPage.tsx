@@ -14,8 +14,6 @@ import { adminDeleteAllAppointments } from '../services/adminAppointments'
 import { validateNotificationEmail } from '../lib/businessSettings'
 import type { BusinessClosureType, BusinessHoursInput } from '../lib/businessSettings'
 import { commonCopy } from '../lib/uiCopy'
-import { buildLogoPath, validateLogoFile } from '../lib/logoUpload'
-import { uploadMediaFile } from '../services/adminLanding'
 import { useUser } from '../hooks/useUser'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { Select } from '../components/Select'
@@ -72,10 +70,6 @@ export function BusinessSettingsPage() {
   const [organizationId, setOrganizationId] = useState<string>('')
   const [name, setName] = useState('')
   const [timezone, setTimezone] = useState('UTC')
-  const [logoUrl, setLogoUrl] = useState('')
-  const [primaryColor, setPrimaryColor] = useState('')
-  const [bookingHeaderText, setBookingHeaderText] = useState('')
-  const [bookingSubtitleText, setBookingSubtitleText] = useState('')
   const [notificationEmail, setNotificationEmail] = useState('')
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [bookingMinNoticeMinutes, setBookingMinNoticeMinutes] = useState(60)
@@ -90,8 +84,6 @@ export function BusinessSettingsPage() {
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [isSavingClosure, setIsSavingClosure] = useState(false)
   const [isSavingPolicy, setIsSavingPolicy] = useState(false)
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
-  const [logoError, setLogoError] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
@@ -133,10 +125,6 @@ export function BusinessSettingsPage() {
     setOrganizationId(data.organizationId)
     setName(data.name)
     setTimezone(data.timezone)
-    setLogoUrl(data.logoUrl ?? '')
-    setPrimaryColor(data.primaryColor ?? '')
-    setBookingHeaderText(data.bookingHeaderText ?? '')
-    setBookingSubtitleText(data.bookingSubtitleText ?? '')
     setNotificationEmail(data.notificationEmail ?? '')
     setNotificationsEnabled(data.notificationsEnabled ?? true)
     setBookingMinNoticeMinutes(data.bookingMinNoticeMinutes)
@@ -176,28 +164,6 @@ export function BusinessSettingsPage() {
     )
   }
 
-  const handleLogoFileChange = async (file: File | undefined) => {
-    if (!file) return
-    setLogoError(null)
-
-    const validationError = validateLogoFile(file)
-    if (validationError) {
-      setLogoError(validationError)
-      return
-    }
-
-    setIsUploadingLogo(true)
-    try {
-      const publicUrl = await uploadMediaFile('media', buildLogoPath(file.name), file)
-      setLogoUrl(publicUrl)
-      setSuccessMessage('Logo subido. Guardá la configuración del negocio para aplicarlo.')
-    } catch {
-      setLogoError('No se pudo subir el logo. Intentá de nuevo.')
-    } finally {
-      setIsUploadingLogo(false)
-    }
-  }
-
   const handleSaveSettings = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setErrorMessage(null)
@@ -208,10 +174,6 @@ export function BusinessSettingsPage() {
       const updated = await saveBusinessSettings({
         name,
         timezone,
-        logoUrl,
-        primaryColor,
-        bookingHeaderText,
-        bookingSubtitleText,
         weeklyHours: toHoursInput(weeklyHours),
       })
 
@@ -318,7 +280,7 @@ export function BusinessSettingsPage() {
   const TABS = [
     {
       key: 'identity' as const,
-      label: 'Identidad',
+      label: 'General',
       icon: (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="12" cy="10" r="3" /><path d="M6 20c0-3 2-5 6-5s6 2 6 5" />
@@ -406,11 +368,11 @@ export function BusinessSettingsPage() {
         </div>
       </div>
 
-      {/* ── IDENTIDAD ── */}
+      {/* ── GENERAL ── */}
       <div className={activeTab !== 'identity' ? 'hidden' : ''}>
         <form onSubmit={handleSaveSettings} className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5 space-y-4">
-            <h3 className="font-semibold text-gray-900 text-sm">Identidad y branding</h3>
+            <h3 className="font-semibold text-gray-900 text-sm">Datos del negocio</h3>
 
             <div className="space-y-3">
               <div>
@@ -439,95 +401,6 @@ export function BusinessSettingsPage() {
                   <option value="America/Lima">Lima (PET)</option>
                   <option value="UTC">UTC</option>
                 </Select>
-              </div>
-
-              <div>
-                <label htmlFor="business-logo-file" className="mb-1.5 block text-xs font-medium text-gray-600">Logo</label>
-                {logoUrl && (
-                  <div className="mb-2 flex items-center gap-3">
-                    <img src={logoUrl} alt="Logo actual" className="h-14 w-14 rounded-lg border border-gray-200 object-contain bg-white" />
-                    <button
-                      type="button"
-                      onClick={() => setLogoUrl('')}
-                      className="text-xs font-medium text-red-600 hover:underline"
-                    >
-                      Quitar logo
-                    </button>
-                  </div>
-                )}
-                <input
-                  id="business-logo-file"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  disabled={isUploadingLogo}
-                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
-                  onChange={(e) => {
-                    void handleLogoFileChange(e.target.files?.[0])
-                    e.target.value = ''
-                  }}
-                />
-                <p className="mt-1.5 text-xs text-gray-400">
-                  {isUploadingLogo ? 'Subiendo…' : 'JPG, PNG, WEBP o GIF. Máximo 2 MB.'}
-                </p>
-                {logoError && <p className="mt-1.5 text-xs text-red-600">{logoError}</p>}
-              </div>
-
-              <div>
-                <label htmlFor="business-logo" className="mb-1.5 block text-xs font-medium text-gray-600">O pegá la URL del logo</label>
-                <input
-                  id="business-logo"
-                  className={fieldCls}
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://…"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="business-color" className="mb-1.5 block text-xs font-medium text-gray-600">Color principal (hex)</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    className="h-9 w-14 cursor-pointer rounded-lg border border-gray-200 bg-white p-0.5"
-                  />
-                  <input
-                    id="business-color"
-                    className={cn(fieldCls, 'flex-1')}
-                    type="text"
-                    value={primaryColor}
-                    onChange={(e) => setPrimaryColor(e.target.value)}
-                    placeholder="#0f766e"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5 space-y-4">
-            <h3 className="font-semibold text-gray-900 text-sm">Textos de reserva</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-600">Título principal</label>
-                <input
-                  className={fieldCls}
-                  type="text"
-                  value={bookingHeaderText}
-                  onChange={(e) => setBookingHeaderText(e.target.value)}
-                  placeholder="Ej: Reserva tu turno"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-gray-600">Subtítulo</label>
-                <input
-                  className={fieldCls}
-                  type="text"
-                  value={bookingSubtitleText}
-                  onChange={(e) => setBookingSubtitleText(e.target.value)}
-                  placeholder="Ej: Elegí el servicio y horario"
-                />
               </div>
             </div>
           </div>

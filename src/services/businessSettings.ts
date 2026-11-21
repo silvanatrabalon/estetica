@@ -296,16 +296,18 @@ export async function getBusinessSettings(): Promise<BusinessSettingsRecord> {
 export async function saveBusinessSettings(input: {
   name: string
   timezone: string
-  logoUrl: string
-  primaryColor: string
-  bookingHeaderText: string
-  bookingSubtitleText: string
+  // Branding fields are optional: only the ones provided are written, so saving the
+  // business rules never overwrites what was set in Apariencia.
+  logoUrl?: string
+  primaryColor?: string
+  bookingHeaderText?: string
+  bookingSubtitleText?: string
   weeklyHours: BusinessHoursInput[]
 }): Promise<BusinessSettingsRecord> {
   const identityValidation = validateBusinessIdentity({
     name: input.name,
     timezone: input.timezone,
-    primaryColor: normalizeBusinessColor(input.primaryColor),
+    primaryColor: input.primaryColor === undefined ? undefined : normalizeBusinessColor(input.primaryColor),
   })
 
   if (!identityValidation.valid) {
@@ -328,10 +330,16 @@ export async function saveBusinessSettings(input: {
     .update({
       name: normalizeBusinessName(input.name),
       timezone: input.timezone.trim(),
-      logo_url: normalizeBusinessText(input.logoUrl),
-      brand_primary_color: normalizeBusinessColor(input.primaryColor),
-      booking_header_text: normalizeBusinessText(input.bookingHeaderText),
-      booking_subtitle_text: normalizeBusinessText(input.bookingSubtitleText),
+      ...(input.logoUrl === undefined ? {} : { logo_url: normalizeBusinessText(input.logoUrl) }),
+      ...(input.primaryColor === undefined
+        ? {}
+        : { brand_primary_color: normalizeBusinessColor(input.primaryColor) }),
+      ...(input.bookingHeaderText === undefined
+        ? {}
+        : { booking_header_text: normalizeBusinessText(input.bookingHeaderText) }),
+      ...(input.bookingSubtitleText === undefined
+        ? {}
+        : { booking_subtitle_text: normalizeBusinessText(input.bookingSubtitleText) }),
       updated_at: now,
     })
     .eq('id', organization.id)

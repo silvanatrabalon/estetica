@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { UserProvider } from './context'
 import {
   AuthGuard,
@@ -21,8 +21,8 @@ import {
   BookingConfirmationPage,
   BookingPage,
   BusinessSettingsPage,
+  AppearancePage,
   DashboardPage,
-  LandingConfigPage,
   LandingPage,
   NotFoundPage,
   PrivacyPage,
@@ -85,7 +85,8 @@ function AppContent() {
             <Route path="/admin/appointments" element={<AdminAppointmentsPage />} />
             <Route path="/admin/calendar" element={<AdminCalendarPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />
-            <Route path="/admin/settings/landing" element={<LandingConfigPage />} />
+            <Route path="/admin/appearance" element={<AppearancePage />} />
+            <Route path="/admin/settings/landing" element={<Navigate to="/admin/appearance" replace />} />
           </Route>
         </Route>
       </Route>

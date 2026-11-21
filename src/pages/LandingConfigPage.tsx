@@ -305,19 +305,8 @@ export function LandingConfigPage() {
   if (loading) return <RouteLoadingState />
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Página pública</h1>
-        <a
-          href="/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-pink-600 hover:underline font-medium"
-        >
-          Ver landing →
-        </a>
-      </div>
-
+    // Rendered inside the Apariencia page, which provides the title and layout
+    <div className="space-y-8">
       {feedback && (
         <div
           className={`rounded-xl px-4 py-3 text-sm font-medium ${
@@ -454,25 +443,6 @@ export function LandingConfigPage() {
             >
               El rápido zorro marrón salta sobre el perro perezoso
             </p>
-          </div>
-        </section>
-
-        {/* Social */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-700">Redes sociales y contacto</h2>
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="instagramUrl">
-              URL de Instagram
-            </label>
-            <input
-              id="instagramUrl"
-              name="instagramUrl"
-              type="url"
-              value={form.instagramUrl}
-              onChange={handleFieldChange}
-              placeholder="https://instagram.com/tu_perfil"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
-            />
           </div>
         </section>
 
