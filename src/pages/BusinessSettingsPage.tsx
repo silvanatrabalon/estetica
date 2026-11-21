@@ -16,6 +16,7 @@ import type { BusinessClosureType, BusinessHoursInput } from '../lib/businessSet
 import { commonCopy } from '../lib/uiCopy'
 import { useUser } from '../hooks/useUser'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { FeedbackToast } from '../components/FeedbackToast'
 import { Select } from '../components/Select'
 
 const dayLabels = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado']
@@ -65,6 +66,26 @@ function toDraft(closure: BusinessClosureRecord): ClosureDraft {
   }
 }
 
+function sameHours(a: BusinessHoursRecord[], b: BusinessHoursRecord[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((hour, i) => {
+    const other = b[i]
+    return (
+      hour.dayOfWeek === other.dayOfWeek &&
+      hour.isClosed === other.isClosed &&
+      (hour.opensAt ?? null) === (other.opensAt ?? null) &&
+      (hour.closesAt ?? null) === (other.closesAt ?? null)
+    )
+  })
+}
+
+interface PolicySnapshot {
+  minNotice: number
+  maxHorizon: number
+  email: string
+  enabled: boolean
+}
+
 export function BusinessSettingsPage() {
   const { isLoading: isUserLoading } = useUser()
   const [organizationId, setOrganizationId] = useState<string>('')
@@ -77,6 +98,10 @@ export function BusinessSettingsPage() {
   const [bookingPolicyError, setBookingPolicyError] = useState<string | null>(null)
   const [weeklyHours, setWeeklyHours] = useState<BusinessHoursRecord[]>([])
   const [closures, setClosures] = useState<BusinessClosureRecord[]>([])
+  // What is stored in the database: used to tell which tab has unsaved edits
+  const [savedGeneral, setSavedGeneral] = useState({ name: '', timezone: 'UTC' })
+  const [savedHours, setSavedHours] = useState<BusinessHoursRecord[]>([])
+  const [savedPolicy, setSavedPolicy] = useState<PolicySnapshot>({ minNotice: 60, maxHorizon: 60, email: '', enabled: true })
   const [closureDraft, setClosureDraft] = useState<ClosureDraft>(emptyClosureDraft())
   const [missingReadiness, setMissingReadiness] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState<'identity' | 'hours' | 'closures' | 'policy'>('identity')
@@ -132,6 +157,14 @@ export function BusinessSettingsPage() {
     setWeeklyHours(data.weeklyHours)
     setClosures(data.closures)
     setMissingReadiness(data.readiness.missing)
+    setSavedGeneral({ name: data.name, timezone: data.timezone })
+    setSavedHours(data.weeklyHours)
+    setSavedPolicy({
+      minNotice: data.bookingMinNoticeMinutes,
+      maxHorizon: data.bookingMaxHorizonDays,
+      email: data.notificationEmail ?? '',
+      enabled: data.notificationsEnabled ?? true,
+    })
   }
 
   useEffect(() => {
@@ -164,26 +197,61 @@ export function BusinessSettingsPage() {
     )
   }
 
-  const handleSaveSettings = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  // General and Horarios save independently: each one writes only its own edits and
+  // leaves the other tab's unsaved changes alone.
+  const saveSection = async (section: 'general' | 'hours') => {
     setErrorMessage(null)
     setSuccessMessage(null)
     setIsSavingSettings(true)
 
     try {
       const updated = await saveBusinessSettings({
-        name,
-        timezone,
-        weeklyHours: toHoursInput(weeklyHours),
+        name: section === 'general' ? name : savedGeneral.name,
+        timezone: section === 'general' ? timezone : savedGeneral.timezone,
+        weeklyHours: toHoursInput(section === 'hours' ? weeklyHours : savedHours),
       })
 
-      applyLoadedData(updated)
-      setSuccessMessage('Configuracion del negocio guardada correctamente.')
+      setClosures(updated.closures)
+      setMissingReadiness(updated.readiness.missing)
+      if (section === 'general') {
+        setName(updated.name)
+        setTimezone(updated.timezone)
+        setSavedGeneral({ name: updated.name, timezone: updated.timezone })
+        setSuccessMessage('Datos del negocio guardados.')
+      } else {
+        setWeeklyHours(updated.weeklyHours)
+        setSavedHours(updated.weeklyHours)
+        setSuccessMessage('Horarios guardados.')
+      }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'No pudimos guardar la configuracion del negocio.')
+      setErrorMessage(error instanceof Error ? error.message : 'No pudimos guardar los cambios. Intentá de nuevo.')
     } finally {
       setIsSavingSettings(false)
     }
+  }
+
+  const handleSaveGeneral = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void saveSection('general')
+  }
+
+  const handleSaveHours = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    void saveSection('hours')
+  }
+
+  const generalDirty = name !== savedGeneral.name || timezone !== savedGeneral.timezone
+  const hoursDirty = !sameHours(weeklyHours, savedHours)
+  const policyDirty =
+    bookingMinNoticeMinutes !== savedPolicy.minNotice ||
+    bookingMaxHorizonDays !== savedPolicy.maxHorizon ||
+    notificationEmail !== savedPolicy.email ||
+    notificationsEnabled !== savedPolicy.enabled
+  const dirtyByTab: Record<string, boolean> = {
+    identity: generalDirty,
+    hours: hoursDirty,
+    closures: false,
+    policy: policyDirty,
   }
 
   const handleSaveClosure = async (event: FormEvent<HTMLFormElement>) => {
@@ -260,6 +328,12 @@ export function BusinessSettingsPage() {
     try {
       await updateBookingPolicy(bookingMinNoticeMinutes, bookingMaxHorizonDays)
       await saveNotificationSettings({ notificationEmail, notificationsEnabled })
+      setSavedPolicy({
+        minNotice: bookingMinNoticeMinutes,
+        maxHorizon: bookingMaxHorizonDays,
+        email: notificationEmail,
+        enabled: notificationsEnabled,
+      })
       setSuccessMessage('Política de reservas actualizada.')
     } catch {
       setBookingPolicyError('No se pudo guardar la configuración.')
@@ -330,12 +404,6 @@ export function BusinessSettingsPage() {
             Configuracion incompleta. Falta definir: {missingReadiness.map(missingLabel).join(', ')}.
           </p>
         ) : null}
-        {errorMessage ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{errorMessage}</p>
-        ) : null}
-        {successMessage ? (
-          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{successMessage}</p>
-        ) : null}
       </div>
 
       {/* Page header */}
@@ -346,12 +414,12 @@ export function BusinessSettingsPage() {
         </p>
       </div>
 
-      {/* Sticky tab bar */}
-      <div className="sticky top-0 z-10 -mx-6 px-6 pt-2 pb-4 bg-shell-base/95 backdrop-blur-sm">
+      {/* Tab bar (not sticky: the shell's <main> is the scroll container and never scrolls) */}
+      <div className="pt-2 pb-4">
         <div
           role="tablist"
           aria-label="Secciones de Negocio"
-          className="flex gap-1 overflow-x-auto rounded-2xl bg-white border border-shell-border p-1 shadow-sm"
+          className="flex gap-1 overflow-x-auto rounded-2xl bg-white border border-shell-border p-1 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {TABS.map((tab) => (
             <button
@@ -361,7 +429,7 @@ export function BusinessSettingsPage() {
               aria-selected={activeTab === tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                'flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium transition-all sm:px-3',
+                'relative flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium transition-all sm:px-3',
                 activeTab === tab.key
                   ? 'bg-brand-primary text-white shadow-sm'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
@@ -370,6 +438,12 @@ export function BusinessSettingsPage() {
               {/* Icons only where there is room; on phones the four labels need the space */}
               <span className="hidden sm:inline-flex">{tab.icon}</span>
               <span>{tab.label}</span>
+              {dirtyByTab[tab.key] && (
+                <>
+                  <span aria-hidden="true" className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-400" />
+                  <span className="sr-only"> (con cambios sin guardar)</span>
+                </>
+              )}
             </button>
           ))}
         </div>
@@ -377,7 +451,7 @@ export function BusinessSettingsPage() {
 
       {/* ── GENERAL ── */}
       <div className={activeTab !== 'identity' ? 'hidden' : ''}>
-        <form onSubmit={handleSaveSettings} className="space-y-4">
+        <form onSubmit={handleSaveGeneral} className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5 space-y-4">
             <h3 className="font-semibold text-gray-900 text-sm">Datos del negocio</h3>
 
@@ -412,7 +486,8 @@ export function BusinessSettingsPage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {generalDirty && <span className="text-xs text-amber-700">Hay cambios sin guardar</span>}
             <button type="submit" disabled={isSavingSettings} className={saveBtnCls}>
               {isSavingSettings ? 'Guardando…' : 'Guardar configuracion del negocio'}
             </button>
@@ -423,7 +498,7 @@ export function BusinessSettingsPage() {
       {/* ── HORARIOS ── */}
       <div className={activeTab !== 'hours' ? 'hidden' : ''}>
       {true && (
-        <form onSubmit={handleSaveSettings} className="space-y-4">
+        <form onSubmit={handleSaveHours} className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5">
             <h3 className="font-semibold text-gray-900 text-sm mb-4">Horarios del negocio</h3>
             <div className="space-y-3">
@@ -488,7 +563,8 @@ export function BusinessSettingsPage() {
                 )
               })}
             </div>
-            <div className="flex justify-end mt-5">
+            <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+              {hoursDirty && <span className="text-xs text-amber-700">Hay cambios sin guardar</span>}
               <button type="submit" disabled={isSavingSettings} className={saveBtnCls}>
                 {isSavingSettings ? 'Guardando…' : 'Guardar horarios'}
               </button>
@@ -718,7 +794,8 @@ export function BusinessSettingsPage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {policyDirty && <span className="text-xs text-amber-700">Hay cambios sin guardar</span>}
             <button type="submit" disabled={isSavingPolicy} className={saveBtnCls}>
               {isSavingPolicy ? 'Guardando…' : 'Guardar política'}
             </button>
@@ -726,6 +803,15 @@ export function BusinessSettingsPage() {
         </form>
       )}
       </div>
+
+      <FeedbackToast
+        success={successMessage}
+        error={errorMessage}
+        onDismiss={() => {
+          setSuccessMessage(null)
+          setErrorMessage(null)
+        }}
+      />
 
       <ConfirmModal
         isOpen={confirmState.isOpen}

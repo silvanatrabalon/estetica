@@ -96,7 +96,7 @@ describe('BusinessSettingsPage', () => {
 
     await waitFor(() => {
       expect(mockSaveBusinessSettings).toHaveBeenCalled()
-      expect(screen.getByText('Configuracion del negocio guardada correctamente.')).toBeDefined()
+      expect(screen.getByText('Datos del negocio guardados.')).toBeDefined()
     })
 
     expect(mockSaveBusinessSettings.mock.calls[0][0].name).toBe('Salon Norte')
@@ -227,6 +227,102 @@ describe('BusinessSettingsPage', () => {
       await waitFor(() => expect(mockSaveBusinessSettings).toHaveBeenCalled())
       const monday = mockSaveBusinessSettings.mock.calls[0][0].weeklyHours.find((h: { dayOfWeek: number }) => h.dayOfWeek === 1)
       expect(monday.opensAt).toBe('08:30')
+    })
+  })
+
+  describe('Saving without surprises', () => {
+    const saved = (overrides = {}) => createSettingsResponse(overrides)
+
+    it('saving Horarios does not save an unsaved name edit (edge case)', async () => {
+      mockSaveBusinessSettings.mockResolvedValue(saved())
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+
+      fireEvent.change(screen.getByLabelText('Nombre del negocio'), { target: { value: 'Nombre a medio editar' } })
+      fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
+      fireEvent.change(screen.getByLabelText('Lunes: hora de apertura'), { target: { value: '08:30' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar horarios' }))
+
+      await waitFor(() => expect(mockSaveBusinessSettings).toHaveBeenCalled())
+      const payload = mockSaveBusinessSettings.mock.calls[0][0]
+      expect(payload.name).toBe('Salon Centro')
+      expect(payload.weeklyHours.find((h: { dayOfWeek: number }) => h.dayOfWeek === 1).opensAt).toBe('08:30')
+    })
+
+    it('saving General does not save unsaved hour edits, and keeps them on screen (edge case)', async () => {
+      mockSaveBusinessSettings.mockResolvedValue(saved({ name: 'Salon Norte' }))
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+
+      fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
+      fireEvent.change(screen.getByLabelText('Lunes: hora de apertura'), { target: { value: '08:30' } })
+      fireEvent.click(screen.getByRole('tab', { name: /General/ }))
+      fireEvent.change(screen.getByLabelText('Nombre del negocio'), { target: { value: 'Salon Norte' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar configuracion del negocio' }))
+
+      await waitFor(() => expect(mockSaveBusinessSettings).toHaveBeenCalled())
+      const payload = mockSaveBusinessSettings.mock.calls[0][0]
+      expect(payload.name).toBe('Salon Norte')
+      expect(payload.weeklyHours.find((h: { dayOfWeek: number }) => h.dayOfWeek === 1).opensAt).toBe('09:00')
+      expect((screen.getByLabelText('Lunes: hora de apertura') as HTMLInputElement).value).toBe('08:30')
+    })
+
+    it('shows "Hay cambios sin guardar" and marks the tab, then clears both after saving', async () => {
+      mockSaveBusinessSettings.mockResolvedValue(saved({ name: 'Salon Norte' }))
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+      expect(screen.queryByText('Hay cambios sin guardar')).toBeNull()
+
+      fireEvent.change(screen.getByLabelText('Nombre del negocio'), { target: { value: 'Salon Norte' } })
+      expect(screen.getByText('Hay cambios sin guardar')).toBeDefined()
+      expect(screen.getByRole('tab', { name: /General.*con cambios sin guardar/ })).toBeDefined()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar configuracion del negocio' }))
+      await waitFor(() => expect(screen.queryByText('Hay cambios sin guardar')).toBeNull())
+      expect(screen.getByRole('tab', { name: 'General' })).toBeDefined()
+    })
+
+    it('editing back to the stored value clears the unsaved cue (edge case)', async () => {
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+
+      fireEvent.change(screen.getByLabelText('Nombre del negocio'), { target: { value: 'Otro' } })
+      expect(screen.getByText('Hay cambios sin guardar')).toBeDefined()
+      fireEvent.change(screen.getByLabelText('Nombre del negocio'), { target: { value: 'Salon Centro' } })
+      expect(screen.queryByText('Hay cambios sin guardar')).toBeNull()
+    })
+
+    it('marks the Política tab when its fields change', async () => {
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+
+      fireEvent.click(screen.getByRole('tab', { name: /Política/ }))
+      fireEvent.change(await screen.findByLabelText('Anticipación mínima (minutos)'), { target: { value: '120' } })
+
+      expect(screen.getByRole('tab', { name: /Política.*con cambios sin guardar/ })).toBeDefined()
+    })
+
+    it('shows a failed save as an alert that stays until closed (edge case)', async () => {
+      mockSaveBusinessSettings.mockRejectedValue(new Error('El nombre del negocio debe tener al menos 2 caracteres.'))
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar configuracion del negocio' }))
+
+      expect((await screen.findByRole('alert')).textContent).toContain('al menos 2 caracteres')
+      fireEvent.click(screen.getByRole('button', { name: 'Cerrar aviso' }))
+      expect(screen.queryByRole('alert')).toBeNull()
+    })
+
+    it('announces a successful save as a status message', async () => {
+      mockSaveBusinessSettings.mockResolvedValue(saved())
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+      fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
+
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar horarios' }))
+
+      expect((await screen.findByRole('status')).textContent).toContain('Horarios guardados.')
     })
   })
 
