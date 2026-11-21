@@ -14,6 +14,8 @@ import { adminDeleteAllAppointments } from '../services/adminAppointments'
 import { validateNotificationEmail } from '../lib/businessSettings'
 import type { BusinessClosureType, BusinessHoursInput } from '../lib/businessSettings'
 import { commonCopy } from '../lib/uiCopy'
+import { buildLogoPath, validateLogoFile } from '../lib/logoUpload'
+import { uploadMediaFile } from '../services/adminLanding'
 import { useUser } from '../hooks/useUser'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { Select } from '../components/Select'
@@ -88,6 +90,8 @@ export function BusinessSettingsPage() {
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [isSavingClosure, setIsSavingClosure] = useState(false)
   const [isSavingPolicy, setIsSavingPolicy] = useState(false)
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const [logoError, setLogoError] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
@@ -170,6 +174,28 @@ export function BusinessSettingsPage() {
           : hour,
       ),
     )
+  }
+
+  const handleLogoFileChange = async (file: File | undefined) => {
+    if (!file) return
+    setLogoError(null)
+
+    const validationError = validateLogoFile(file)
+    if (validationError) {
+      setLogoError(validationError)
+      return
+    }
+
+    setIsUploadingLogo(true)
+    try {
+      const publicUrl = await uploadMediaFile('media', buildLogoPath(file.name), file)
+      setLogoUrl(publicUrl)
+      setSuccessMessage('Logo subido. Guardá la configuración del negocio para aplicarlo.')
+    } catch {
+      setLogoError('No se pudo subir el logo. Intentá de nuevo.')
+    } finally {
+      setIsUploadingLogo(false)
+    }
   }
 
   const handleSaveSettings = async (event: FormEvent<HTMLFormElement>) => {
@@ -416,7 +442,38 @@ export function BusinessSettingsPage() {
               </div>
 
               <div>
-                <label htmlFor="business-logo" className="mb-1.5 block text-xs font-medium text-gray-600">URL del logo</label>
+                <label htmlFor="business-logo-file" className="mb-1.5 block text-xs font-medium text-gray-600">Logo</label>
+                {logoUrl && (
+                  <div className="mb-2 flex items-center gap-3">
+                    <img src={logoUrl} alt="Logo actual" className="h-14 w-14 rounded-lg border border-gray-200 object-contain bg-white" />
+                    <button
+                      type="button"
+                      onClick={() => setLogoUrl('')}
+                      className="text-xs font-medium text-red-600 hover:underline"
+                    >
+                      Quitar logo
+                    </button>
+                  </div>
+                )}
+                <input
+                  id="business-logo-file"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  disabled={isUploadingLogo}
+                  className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
+                  onChange={(e) => {
+                    void handleLogoFileChange(e.target.files?.[0])
+                    e.target.value = ''
+                  }}
+                />
+                <p className="mt-1.5 text-xs text-gray-400">
+                  {isUploadingLogo ? 'Subiendo…' : 'JPG, PNG, WEBP o GIF. Máximo 2 MB.'}
+                </p>
+                {logoError && <p className="mt-1.5 text-xs text-red-600">{logoError}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="business-logo" className="mb-1.5 block text-xs font-medium text-gray-600">O pegá la URL del logo</label>
                 <input
                   id="business-logo"
                   className={fieldCls}

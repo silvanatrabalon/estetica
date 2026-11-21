@@ -11,6 +11,11 @@ const mockSaveNotificationSettings = vi.fn()
 const mockSaveBusinessClosure = vi.fn()
 const mockDeleteBusinessClosure = vi.fn()
 const mockUpdateBookingPolicy = vi.fn()
+const mockUploadMediaFile = vi.fn()
+
+vi.mock('../services/adminLanding', () => ({
+  uploadMediaFile: (...args: unknown[]) => mockUploadMediaFile(...args),
+}))
 
 vi.mock('../services/businessSettings', () => ({
   getBusinessSettings: (...args: unknown[]) => mockGetBusinessSettings(...args),
@@ -137,6 +142,83 @@ describe('BusinessSettingsPage', () => {
         reason: 'Capacitacion',
       })
       expect(screen.getByText('Cierre excepcional guardado correctamente.')).toBeDefined()
+    })
+  })
+
+  describe('Logo upload', () => {
+    it('uploads the chosen image and uses its public URL on save', async () => {
+      mockUploadMediaFile.mockResolvedValue('https://cdn.test/media/logo/logo-1.png')
+      mockSaveBusinessSettings.mockResolvedValue(createSettingsResponse())
+      renderBusinessSettingsPage()
+
+      const input = (await screen.findByLabelText('Logo')) as HTMLInputElement
+      const file = new File(['x'], 'mi-logo.png', { type: 'image/png' })
+      fireEvent.change(input, { target: { files: [file] } })
+
+      await waitFor(() => {
+        expect(mockUploadMediaFile).toHaveBeenCalledWith('media', expect.stringMatching(/^logo\/logo-\d+\.png$/), file)
+      })
+      expect(await screen.findByAltText('Logo actual')).toBeDefined()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar configuracion del negocio' }))
+      await waitFor(() => {
+        expect(mockSaveBusinessSettings).toHaveBeenCalledWith(
+          expect.objectContaining({ logoUrl: 'https://cdn.test/media/logo/logo-1.png' }),
+        )
+      })
+    })
+
+    it('rejects a non-image file without uploading (edge case)', async () => {
+      renderBusinessSettingsPage()
+
+      const input = (await screen.findByLabelText('Logo')) as HTMLInputElement
+      fireEvent.change(input, { target: { files: [new File(['x'], 'doc.pdf', { type: 'application/pdf' })] } })
+
+      expect(await screen.findByText('El logo debe ser una imagen JPG, PNG, WEBP o GIF.')).toBeDefined()
+      expect(mockUploadMediaFile).not.toHaveBeenCalled()
+    })
+
+    it('rejects a file over 2 MB without uploading (edge case)', async () => {
+      renderBusinessSettingsPage()
+
+      const input = (await screen.findByLabelText('Logo')) as HTMLInputElement
+      const big = new File(['x'], 'big.png', { type: 'image/png' })
+      Object.defineProperty(big, 'size', { value: 3 * 1024 * 1024 })
+      fireEvent.change(input, { target: { files: [big] } })
+
+      expect(await screen.findByText('El logo no puede superar los 2 MB.')).toBeDefined()
+      expect(mockUploadMediaFile).not.toHaveBeenCalled()
+    })
+
+    it('shows an error when the upload fails and keeps the previous logo (edge case)', async () => {
+      mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ logoUrl: 'https://old.test/logo.png' }))
+      mockUploadMediaFile.mockRejectedValue(new Error('boom'))
+      renderBusinessSettingsPage()
+
+      const input = (await screen.findByLabelText('Logo')) as HTMLInputElement
+      fireEvent.change(input, { target: { files: [new File(['x'], 'a.png', { type: 'image/png' })] } })
+
+      expect(await screen.findByText('No se pudo subir el logo. Intentá de nuevo.')).toBeDefined()
+      expect((screen.getByLabelText('O pegá la URL del logo') as HTMLInputElement).value).toBe('https://old.test/logo.png')
+    })
+
+    it('does nothing when the file dialog is cancelled (edge case)', async () => {
+      renderBusinessSettingsPage()
+
+      const input = (await screen.findByLabelText('Logo')) as HTMLInputElement
+      fireEvent.change(input, { target: { files: [] } })
+
+      expect(mockUploadMediaFile).not.toHaveBeenCalled()
+    })
+
+    it('removes the current logo with "Quitar logo"', async () => {
+      mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ logoUrl: 'https://old.test/logo.png' }))
+      renderBusinessSettingsPage()
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Quitar logo' }))
+
+      expect((screen.getByLabelText('O pegá la URL del logo') as HTMLInputElement).value).toBe('')
+      expect(screen.queryByAltText('Logo actual')).toBeNull()
     })
   })
 
