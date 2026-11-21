@@ -11,3 +11,6 @@ dist/
 
 # Test coverage output
 coverage/
+
+# Claude Code local config
+.claude/
