@@ -63,7 +63,7 @@ The system SHALL enforce validation rules on service fields before persisting th
 - **THEN** the system rejects the submission and shows a Spanish validation message
 
 #### Scenario: max_concurrent_bookings is optional
-- **WHEN** an admin submits a service without specifying max_concurrent_bookings
+- **WHEN** an admin clears the capacity field (pre-filled with `1` in the create form) and submits
 - **THEN** the system accepts the submission and stores null (no capacity restriction)
 
 ### Requirement: Service Availability Link Per Service Row
@@ -113,3 +113,26 @@ The system SHALL allow admins to upload a service image via file picker. The ima
 #### Scenario: Service without image shows placeholder
 - **WHEN** a service has no image_url (null) or the image fails to load
 - **THEN** the system shows a fallback placeholder icon instead of a broken image
+
+### Requirement: Create form defaults service capacity to 1
+The create-service form MUST pre-fill the "Capacidad simultánea" field with `1`. Clearing the field MUST still mean "no limit" and be stored as `null`. The default MUST NOT be applied when editing an existing service.
+
+#### Scenario: Create form shows capacity 1
+- **WHEN** an admin opens the create-service form
+- **THEN** the capacity field contains `1`
+
+#### Scenario: Saving the untouched form stores capacity 1
+- **WHEN** an admin fills the required fields and saves without touching the capacity field
+- **THEN** the service is created with `max_concurrent_bookings = 1`
+
+#### Scenario: Admin clears the default to allow unlimited bookings
+- **WHEN** an admin clears the capacity field and saves
+- **THEN** the service is created with `max_concurrent_bookings = null`
+
+#### Scenario: Editing a service without a limit does not apply the default
+- **WHEN** an admin edits a service whose `max_concurrent_bookings` is null
+- **THEN** the capacity field is empty, and saving without changes keeps it null
+
+#### Scenario: Editing a service keeps its stored capacity
+- **WHEN** an admin edits a service whose `max_concurrent_bookings` is 3
+- **THEN** the capacity field shows `3`

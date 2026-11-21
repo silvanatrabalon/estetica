@@ -167,11 +167,39 @@ describe('AdminServicesPage', () => {
         durationMinutes: 60,
         priceCents: 500000,
         imageUrl: null,
-        maxConcurrentBookings: null,
+        maxConcurrentBookings: 1,
         description: null,
         categoryId: null,
       })
       expect(screen.getByText('Servicio creado correctamente.')).toBeDefined()
+    })
+  })
+
+  it('editing a service without a limit keeps the capacity blank, not 1 (edge case)', async () => {
+    mockListServices.mockResolvedValue([mockService])
+    renderPage()
+
+    await waitFor(() => {
+      expect(getTable().getByText('Corte de cabello')).toBeDefined()
+    })
+    fireEvent.click(getTable().getByRole('button', { name: 'Editar' }))
+
+    await waitFor(() => {
+      expect((screen.getByLabelText(/Capacidad simult/) as HTMLInputElement).value).toBe('')
+    })
+  })
+
+  it('editing a service keeps its stored capacity (edge case)', async () => {
+    mockListServices.mockResolvedValue([{ ...mockService, maxConcurrentBookings: 3 }])
+    renderPage()
+
+    await waitFor(() => {
+      expect(getTable().getByText('Corte de cabello')).toBeDefined()
+    })
+    fireEvent.click(getTable().getByRole('button', { name: 'Editar' }))
+
+    await waitFor(() => {
+      expect((screen.getByLabelText(/Capacidad simult/) as HTMLInputElement).value).toBe('3')
     })
   })
 
@@ -289,6 +317,34 @@ describe('AdminServicesPage', () => {
     })
   })
 
+  it('capacity defaults to 1 in the create form', async () => {
+    mockListServices.mockResolvedValue([])
+    renderPage()
+
+    await openCreateForm()
+
+    expect((screen.getByLabelText(/Capacidad simult/) as HTMLInputElement).value).toBe('1')
+  })
+
+  it('submitting without touching capacity passes 1 to createService', async () => {
+    mockListServices.mockResolvedValue([])
+    mockCreateService.mockResolvedValue({ ...mockService, maxConcurrentBookings: 1 })
+    renderPage()
+
+    await openCreateForm()
+
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte de cabello' } })
+    setDuration('1', '0')
+    fireEvent.change(screen.getByLabelText('Precio ($)'), { target: { value: '5000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => {
+      expect(mockCreateService).toHaveBeenCalledWith(
+        expect.objectContaining({ maxConcurrentBookings: 1 }),
+      )
+    })
+  })
+
   it('submitting with blank capacity passes null to createService', async () => {
     mockListServices.mockResolvedValue([])
     mockCreateService.mockResolvedValue({ ...mockService, maxConcurrentBookings: null })
@@ -299,7 +355,7 @@ describe('AdminServicesPage', () => {
     fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Corte de cabello' } })
     setDuration('1', '0')
     fireEvent.change(screen.getByLabelText('Precio ($)'), { target: { value: '5000' } })
-    // leave capacity blank
+    fireEvent.change(screen.getByLabelText(/Capacidad simult/), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => {

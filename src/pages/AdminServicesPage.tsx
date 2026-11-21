@@ -40,7 +40,8 @@ const EMPTY_FORM: FormData = {
   durationMins: '30',
   priceCents: '0',
   imageUrl: null,
-  maxConcurrentBookings: '',
+  // New services default to one booking at a time; clearing the field means unlimited
+  maxConcurrentBookings: '1',
   description: '',
   categoryId: '',
 }
