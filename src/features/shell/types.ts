@@ -18,4 +18,7 @@ export interface ShellContextValue {
   isMobileMenuOpen: boolean
   toggleMobileMenu: () => void
   closeMobileMenu: () => void
+  isUserMenuOpen: boolean
+  toggleUserMenu: () => void
+  closeUserMenu: () => void
 }

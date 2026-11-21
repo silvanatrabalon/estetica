@@ -1,14 +1,14 @@
-import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { User } from '@supabase/supabase-js'
 import { useUser } from '../../../hooks/useUser'
+import { useShellContext } from '../../../features/shell/hooks/useShellContext'
 
 interface UserMenuProps {
   user: User
 }
 
 export function UserMenu({ user }: UserMenuProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const { isUserMenuOpen: isOpen, toggleUserMenu, closeUserMenu } = useShellContext()
   const { signOut, profile, roles } = useUser()
   const navigate = useNavigate()
   const menuId = 'user-menu-panel'
@@ -19,7 +19,7 @@ export function UserMenu({ user }: UserMenuProps) {
   const handleLogout = async () => {
     try {
       await signOut()
-      setIsOpen(false)
+      closeUserMenu()
       navigate('/', { replace: true })
     } catch (err) {
       console.error('Logout error:', err)
@@ -40,7 +40,7 @@ export function UserMenu({ user }: UserMenuProps) {
   return (
     <div className="relative">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={toggleUserMenu}
         className="transition-micro flex items-center gap-2 rounded-xl border border-transparent p-2 hover:border-shell-border hover:bg-shell-muted"
         title={displayName}
         aria-expanded={isOpen}
@@ -70,7 +70,7 @@ export function UserMenu({ user }: UserMenuProps) {
         <Link
           to="/profile"
           role="menuitem"
-          onClick={() => setIsOpen(false)}
+          onClick={() => closeUserMenu()}
           className="transition-micro block w-full rounded-t-xl px-4 py-2.5 text-left text-sm text-shell-subtleText hover:bg-shell-muted"
         >
           Perfil
@@ -78,7 +78,7 @@ export function UserMenu({ user }: UserMenuProps) {
         {roles.length > 1 && (
           <button
             onClick={() => {
-              setIsOpen(false)
+              closeUserMenu()
               navigate('/seleccionar-rol')
             }}
             role="menuitem"
@@ -102,7 +102,7 @@ export function UserMenu({ user }: UserMenuProps) {
           type="button"
           aria-label="Cerrar menú de usuario"
           className="fixed inset-0 z-40"
-          onClick={() => setIsOpen(false)}
+          onClick={() => closeUserMenu()}
         />
       )}
     </div>
