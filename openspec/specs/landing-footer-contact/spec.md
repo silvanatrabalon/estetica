@@ -1,20 +1,28 @@
 ## ADDED Requirements
 
 ### Requirement: Footer displays Instagram icon link
-The system SHALL render the Instagram contact link in the landing page footer as an SVG icon (no text label). The icon link MUST use the correct Instagram URL. The `<a>` element MUST have `aria-label="Instagram"`. The SVG MUST have `aria-hidden="true"`.
+The system SHALL render the Instagram link in the landing footer as an SVG icon only when Instagram is enabled in the social links configuration and has a valid value. The `<a>` element MUST have `aria-label="Instagram"` and the SVG MUST have `aria-hidden="true"`.
 
 #### Scenario: Instagram icon is visible and linked
-- **WHEN** a visitor views the landing page footer
-- **THEN** the Instagram SVG icon is visible and clicking/tapping it opens the Instagram profile URL
+- **WHEN** Instagram is enabled with a valid URL and a visitor views the footer
+- **THEN** the Instagram icon is visible and opens that URL
+
+#### Scenario: Instagram hidden
+- **WHEN** Instagram is not enabled or has no value
+- **THEN** no Instagram icon is rendered
 
 ---
 
 ### Requirement: Footer displays WhatsApp icon link
-The system SHALL render a WhatsApp icon-only link in the footer. The link MUST show only the WhatsApp SVG logo with no visible text label. The `<a>` element MUST have `aria-label="WhatsApp"`. The link MUST point to `https://w.app/bfs0ip`. The URL MUST be fixed and MUST NOT use the `wa.me` constructor.
+The system SHALL render the WhatsApp link in the footer as an SVG icon only when WhatsApp is enabled and has a valid number. The link MUST point to `https://wa.me/<digits>` built from the configured number. The `<a>` element MUST have `aria-label="WhatsApp"`. The previously fixed `https://w.app/bfs0ip` link MUST NOT be used.
 
-#### Scenario: WhatsApp icon is visible and linked
-- **WHEN** a visitor views the landing page footer
-- **THEN** the WhatsApp SVG icon is visible with no text label, and clicking/tapping it opens `https://w.app/bfs0ip`
+#### Scenario: WhatsApp icon links to the configured number
+- **WHEN** WhatsApp is enabled with number `5491112345678`
+- **THEN** the icon links to `https://wa.me/5491112345678`
+
+#### Scenario: WhatsApp hidden until configured
+- **WHEN** no WhatsApp number is saved
+- **THEN** no WhatsApp icon is rendered
 
 ---
 
