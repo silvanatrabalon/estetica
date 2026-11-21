@@ -26,6 +26,8 @@ interface AppointmentRow {
   starts_at: string
   ends_at: string
   customer_user_id: string | null
+  guest_name: string | null
+  guest_email: string | null
   service: { name: string } | null
   staff: { display_name: string; profile_user_id: string | null } | null
   org: { name: string; timezone: string | null; notification_email: string | null } | null
@@ -74,7 +76,7 @@ Deno.serve(async (req: Request) => {
   const { data, error } = await admin
     .from('appointments')
     .select(
-      'id, starts_at, ends_at, customer_user_id, service:services(name), staff:staff_members(display_name, profile_user_id), org:organizations(name, timezone, notification_email)',
+      'id, starts_at, ends_at, customer_user_id, guest_name, guest_email, service:services(name), staff:staff_members(display_name, profile_user_id), org:organizations(name, timezone, notification_email)',
     )
     .eq('id', appointmentId)
     .maybeSingle()
@@ -99,6 +101,10 @@ Deno.serve(async (req: Request) => {
       .eq('user_id', appt.customer_user_id)
       .maybeSingle()
     customerName = profile?.full_name ?? ''
+  } else {
+    // Booked for a person without an account: use what was typed (the email may be empty)
+    customerEmail = appt.guest_email ?? null
+    customerName = appt.guest_name ?? ''
   }
 
   let staffEmail: string | null = null

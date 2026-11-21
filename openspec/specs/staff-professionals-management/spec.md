@@ -120,3 +120,6 @@ Each professional card MUST show one badge per role of the linked user (Administ
 #### Scenario: Linked user not found or none
 - **WHEN** the user is missing from the directory or the professional has no linked user
 - **THEN** the card shows the role returned by the staff list
+
+### Requirement: A professional's name is the name of their account
+`staff_members.display_name` SHALL always equal the account's name (profile full name; if the account has none, the email prefix at creation). Creating a professional ignores any typed name, renaming the account renames the professional (a blank name never overwrites it), and existing professionals were aligned once. There is no separate "nombre para mostrar" and no "Cambiar nombre" action; the name is edited in Usuarios y roles.

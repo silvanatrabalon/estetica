@@ -15,7 +15,7 @@ El formulario muestra nombre, horas, minutos y precio en una grilla, descripció
 El desplegable de categoría SHALL ofrecer "+ Crear categoría nueva". Al crearla queda elegida para ese servicio sin perder lo cargado; un nombre vacío o repetido muestra su error y no cierra el formulario.
 
 ### Requirement: Profesionales
-Cada tarjeta muestra avatar, nombre, roles y estado; "Disponibilidad" y "Servicios" como botones; "Cambiar nombre", "Editar roles" y "Desactivar" como links. El botón "+ Agregar profesional" está siempre arriba, sin botón flotante. Al elegir el usuario vinculado, el nombre para mostrar se completa con el nombre de su cuenta, salvo que ya se haya escrito uno.
+Cada tarjeta muestra avatar, nombre, roles y estado; "Disponibilidad" y "Servicios" como botones; "Editar roles" y "Desactivar" como links. El botón "+ Agregar profesional" está siempre arriba, sin botón flotante. No hay "nombre para mostrar": el formulario solo pide elegir la cuenta ("Usuario vinculado") y el profesional usa el nombre de esa cuenta.
 
 ### Requirement: Asignar servicio
 Una tarjeta con "Agregar un servicio" y el botón "Asignar", y los servicios asignados como filas con "Quitar", con flecha para volver a Profesionales y sin títulos repetidos.
