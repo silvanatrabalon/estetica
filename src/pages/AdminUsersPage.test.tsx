@@ -7,23 +7,17 @@ import { mockSessions } from '../hooks/__test-utils__/fixtures'
 
 const mockListAdminUsers = vi.fn()
 const mockGetAdminUserAnalytics = vi.fn()
-const mockAdminUpdateUserProfile = vi.fn()
-const mockAdminAssignUserRole = vi.fn()
-const mockAdminRevokeUserRole = vi.fn()
 const mockAdminSetUserActive = vi.fn()
 
 vi.mock('../services/adminUsers', () => ({
   listAdminUsers: (...args: unknown[]) => mockListAdminUsers(...args),
   getAdminUserAnalytics: (...args: unknown[]) => mockGetAdminUserAnalytics(...args),
-  adminUpdateUserProfile: (...args: unknown[]) => mockAdminUpdateUserProfile(...args),
-  adminAssignUserRole: (...args: unknown[]) => mockAdminAssignUserRole(...args),
-  adminRevokeUserRole: (...args: unknown[]) => mockAdminRevokeUserRole(...args),
   adminSetUserActive: (...args: unknown[]) => mockAdminSetUserActive(...args),
 }))
 
-function renderAdminUsersPage() {
+function renderPage(state?: unknown) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[{ pathname: '/admin/users', state }]}>
       <TestUserProvider user={mockSessions.authenticatedAdmin.user} roles={['admin']} activeRole="admin" isLoading={false}>
         <AdminUsersPage />
       </TestUserProvider>
@@ -31,183 +25,159 @@ function renderAdminUsersPage() {
   )
 }
 
-describe('AdminUsersPage', () => {
+const ana = {
+  userId: 'u-1',
+  email: 'ana@example.com',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  lastSignInAt: null,
+  name: 'Ana',
+  phone: null,
+  roles: ['customer'],
+  isActive: true,
+}
+
+const admin = {
+  userId: mockSessions.authenticatedAdmin.user.id,
+  email: 'admin@example.com',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  lastSignInAt: null,
+  name: 'Admin',
+  phone: null,
+  roles: ['admin'],
+  isActive: true,
+}
+
+describe('AdminUsersPage (simple directory)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-
     mockGetAdminUserAnalytics.mockResolvedValue({
       totalUsers: 2,
       activeUsers: 2,
       inactiveUsers: 0,
       customerUsers: 1,
-      staffUsers: 1,
+      staffUsers: 0,
       adminUsers: 1,
       recentSignups30Days: 1,
     })
   })
 
-  it('loads users and analytics with deterministic state rendering', async () => {
-    mockListAdminUsers.mockResolvedValue([
-      {
-        userId: 'u-1',
-        email: 'ana@example.com',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        lastSignInAt: null,
-        name: 'Ana',
-        phone: null,
-        roles: ['customer'],
-        isActive: true,
-      },
-      {
-        userId: 'u-2',
-        email: 'bruno@example.com',
-        createdAt: '2026-02-01T00:00:00.000Z',
-        lastSignInAt: null,
-        name: 'Bruno',
-        phone: '+54 11 9999 0000',
-        roles: ['staff'],
-        isActive: true,
-      },
-    ])
+  it('lists users with email, roles and status', async () => {
+    mockListAdminUsers.mockResolvedValue([ana, admin])
+    renderPage()
 
-    renderAdminUsersPage()
-
-    await waitFor(() => {
-      expect(screen.getByText('Ana')).toBeDefined()
-      expect(screen.getByText('Bruno')).toBeDefined()
-      expect(screen.getByText('Total usuarios')).toBeDefined()
-      expect(screen.getByText('2')).toBeDefined()
-    })
+    expect(await screen.findByText('Ana')).toBeDefined()
+    expect(screen.getByText('ana@example.com')).toBeDefined()
+    expect(screen.getByText('Cliente')).toBeDefined()
+    expect(screen.getByText('Administrador')).toBeDefined()
+    expect(screen.getByText('Total usuarios')).toBeDefined()
   })
 
-  it('updates selected user profile', async () => {
-    mockListAdminUsers.mockResolvedValue([
-      {
-        userId: 'u-1',
-        email: 'ana@example.com',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        lastSignInAt: null,
-        name: 'Ana',
-        phone: null,
-        roles: ['customer'],
-        isActive: true,
-      },
-    ])
+  it('has a title that mentions roles and explains where to edit them', async () => {
+    mockListAdminUsers.mockResolvedValue([ana])
+    renderPage()
 
-    mockAdminUpdateUserProfile.mockResolvedValue({ userId: 'u-1', name: 'Ana Maria', phone: null })
-
-    renderAdminUsersPage()
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Ana')).toBeDefined()
-    })
-
-    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Ana Maria' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar perfil de usuario' }))
-
-    await waitFor(() => {
-      expect(mockAdminUpdateUserProfile).toHaveBeenCalledWith('u-1', {
-        name: 'Ana Maria',
-        phone: '',
-      })
-      expect(screen.getByText('Perfil de usuario actualizado correctamente.')).toBeDefined()
-    })
+    expect(await screen.findByRole('heading', { name: 'Usuarios y roles' })).toBeDefined()
+    expect(screen.getByText(/usá “Editar roles”/)).toBeDefined()
   })
 
-  it('assigns a role with confirmation', async () => {
-    mockListAdminUsers.mockResolvedValue([
-      {
-        userId: 'u-1',
-        email: 'ana@example.com',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        lastSignInAt: null,
-        name: 'Ana',
-        phone: null,
-        roles: ['customer'],
-        isActive: true,
-      },
-      {
-        userId: mockSessions.authenticatedAdmin.user.id,
-        email: 'admin@example.com',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        lastSignInAt: null,
-        name: 'Admin',
-        phone: null,
-        roles: ['admin'],
-        isActive: true,
-      },
-    ])
+  it('no longer edits roles or personal data inline', async () => {
+    mockListAdminUsers.mockResolvedValue([ana])
+    renderPage()
+    await screen.findByText('Ana')
 
-    mockAdminAssignUserRole.mockResolvedValue(undefined)
-
-    renderAdminUsersPage()
-
-    await waitFor(() => {
-      expect(screen.getByText('Roles asignados')).toBeDefined()
-    })
-
-    // Ana is selected by default - check the 'staff' checkbox to assign
-    const checkboxes = screen.getAllByRole('checkbox')
-    // customer checkbox (index 0) should be checked, staff (index 1) unchecked
-    fireEvent.click(checkboxes[1]) // assign staff role
-
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDefined()
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
-
-    await waitFor(() => {
-      expect(mockAdminAssignUserRole).toHaveBeenCalledWith('u-1', 'staff')
-      expect(screen.getByText('Roles actualizados correctamente.')).toBeDefined()
-    })
+    expect(screen.queryByRole('checkbox')).toBeNull()
+    expect(screen.queryByText('Roles asignados')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Guardar perfil/ })).toBeNull()
+    expect(screen.queryByLabelText(/Eliminar usuario/)).toBeNull()
   })
 
-  it('deactivates user with confirmation and updates feedback', async () => {
-    mockListAdminUsers.mockResolvedValue([
-      {
-        userId: 'u-1',
-        email: 'ana@example.com',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        lastSignInAt: null,
-        name: 'Ana',
-        phone: null,
-        roles: ['customer'],
-        isActive: true,
-      },
-      {
-        userId: mockSessions.authenticatedAdmin.user.id,
-        email: 'admin@example.com',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        lastSignInAt: null,
-        name: 'Admin',
-        phone: null,
-        roles: ['admin'],
-        isActive: true,
-      },
-    ])
+  it('each row links to its own edit screen', async () => {
+    mockListAdminUsers.mockResolvedValue([ana, admin])
+    renderPage()
 
-    mockAdminSetUserActive.mockResolvedValue({
-      user_id: 'u-1',
-      role: 'customer',
-      is_active: false,
-    })
+    const link = await screen.findByRole('link', { name: 'Editar roles de Ana' })
+    expect(link).toHaveAttribute('href', '/admin/users/u-1')
+    expect(screen.getByRole('link', { name: 'Editar roles de Admin' })).toHaveAttribute(
+      'href',
+      `/admin/users/${admin.userId}`,
+    )
+  })
 
-    renderAdminUsersPage()
+  it('deactivates a user after confirmation', async () => {
+    mockListAdminUsers.mockResolvedValue([ana, admin])
+    mockAdminSetUserActive.mockResolvedValue({ user_id: 'u-1', role: 'customer', is_active: false })
+    renderPage()
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Desactivar usuario' })).toBeDefined()
-    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar a Ana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Desactivar usuario' }))
+    await waitFor(() => expect(mockAdminSetUserActive).toHaveBeenCalledWith('u-1', false))
+    expect(await screen.findByText('Usuario desactivado correctamente.')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Reactivar a Ana' })).toBeDefined()
+  })
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Confirmar' })).toBeDefined()
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+  it('reactivates an inactive user (edge case)', async () => {
+    mockListAdminUsers.mockResolvedValue([{ ...ana, isActive: false }, admin])
+    mockAdminSetUserActive.mockResolvedValue({ user_id: 'u-1', role: 'customer', is_active: true })
+    renderPage()
 
-    await waitFor(() => {
-      expect(mockAdminSetUserActive).toHaveBeenCalledWith('u-1', false)
-      expect(screen.getByText('Usuario desactivado correctamente.')).toBeDefined()
-    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Reactivar a Ana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
+
+    await waitFor(() => expect(mockAdminSetUserActive).toHaveBeenCalledWith('u-1', true))
+    expect(await screen.findByText('Usuario reactivado correctamente.')).toBeDefined()
+  })
+
+  it('blocks deactivating the last active admin (edge case)', async () => {
+    mockListAdminUsers.mockResolvedValue([ana, admin])
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar a Admin' }))
+
+    expect(await screen.findByText('No podés desactivar al último administrador activo.')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Confirmar' })).toBeNull()
+    expect(mockAdminSetUserActive).not.toHaveBeenCalled()
+  })
+
+  it('shows an error when the status change fails (edge case)', async () => {
+    mockListAdminUsers.mockResolvedValue([ana, admin])
+    mockAdminSetUserActive.mockRejectedValue(new Error('x'))
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar a Ana' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
+
+    expect(await screen.findByText(/No pudimos cambiar el estado del usuario/)).toBeDefined()
+  })
+
+  it('filters by name or email and says when nothing matches (edge case)', async () => {
+    mockListAdminUsers.mockResolvedValue([ana, admin])
+    renderPage()
+    await screen.findByText('Ana')
+
+    fireEvent.change(screen.getByLabelText('Buscar usuarios'), { target: { value: 'admin@' } })
+    expect(screen.queryByText('Ana')).toBeNull()
+    expect(screen.getByText('Admin')).toBeDefined()
+
+    fireEvent.change(screen.getByLabelText('Buscar usuarios'), { target: { value: 'zzz' } })
+    expect(screen.getByText('No se encontraron usuarios con ese criterio.')).toBeDefined()
+  })
+
+  it('shows an empty state when there are no users (edge case)', async () => {
+    mockListAdminUsers.mockResolvedValue([])
+    renderPage()
+    expect(await screen.findByText('No hay usuarios disponibles para administrar.')).toBeDefined()
+  })
+
+  it('shows an error when the directory cannot be loaded (edge case)', async () => {
+    mockListAdminUsers.mockRejectedValue(new Error('down'))
+    renderPage()
+    expect(await screen.findByText(/No pudimos cargar la gestión de usuarios/)).toBeDefined()
+  })
+
+  it('shows the notice passed after deleting a user (edge case)', async () => {
+    mockListAdminUsers.mockResolvedValue([ana])
+    renderPage({ notice: 'Usuario eliminado correctamente.' })
+    expect(await screen.findByText('Usuario eliminado correctamente.')).toBeDefined()
   })
 })

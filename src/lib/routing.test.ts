@@ -118,6 +118,18 @@ describe('routing policy', () => {
     expect(isKnownRoute('/unknown')).toBe(false)
   })
 
+  it('admin menu labels the users entry as Usuarios y roles', () => {
+    const entry = getNavigationForRole('admin').find((i) => i.href === '/admin/users')
+    expect(entry?.label).toBe('Usuarios y roles')
+  })
+
+  it('the per-user edit screen is covered by the admin-only users policy (edge case)', () => {
+    expect(getRoutePolicy('/admin/users/abc-123')?.path).toBe('/admin/users')
+    expect(canAccessRoute({ path: '/admin/users/abc-123', isAuthenticated: true, role: 'admin' })).toBe(true)
+    expect(canAccessRoute({ path: '/admin/users/abc-123', isAuthenticated: true, role: 'staff' })).toBe(false)
+    expect(canAccessRoute({ path: '/admin/users/abc-123', isAuthenticated: true, role: 'customer' })).toBe(false)
+  })
+
   it('Apariencia is admin-only (edge case)', () => {
     expect(isKnownRoute('/admin/appearance')).toBe(true)
     expect(canAccessRoute({ path: '/admin/appearance', isAuthenticated: true, role: 'admin' })).toBe(true)

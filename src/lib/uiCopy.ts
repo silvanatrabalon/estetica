@@ -22,7 +22,7 @@ export const navigationCopy = {
   staffAppointments: 'Agenda',
   clients: 'Clientes',
   businessSettings: 'Negocio',
-  users: 'Usuarios',
+  users: 'Usuarios y roles',
   staffProfessionals: 'Profesionales',
   services: 'Servicios',
   reports: 'Reportes',

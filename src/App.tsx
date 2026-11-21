@@ -17,6 +17,7 @@ import {
   AdminStaffPage,
   AdminStaffServicesPage,
   AdminUsersPage,
+  AdminUserEditPage,
   AppointmentsPage,
   BookingConfirmationPage,
   BookingPage,
@@ -77,6 +78,7 @@ function AppContent() {
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
             <Route path="/admin/settings/business" element={<BusinessSettingsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/users/:userId" element={<AdminUserEditPage />} />
             <Route path="/admin/staff" element={<AdminStaffPage />} />
             <Route path="/admin/staff/:staffId/availability" element={<StaffAvailabilityPage />} />
             <Route path="/admin/staff/:staffId/services" element={<AdminStaffServicesPage />} />
