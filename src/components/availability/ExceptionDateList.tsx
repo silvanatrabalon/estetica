@@ -20,9 +20,11 @@ interface ExceptionDateListProps {
   exceptions: StaffScheduleException[]
   isSaving: boolean
   onRemove: (exceptionDate: string) => void
+  /** View only: hides the delete buttons. */
+  readOnly?: boolean
 }
 
-export function ExceptionDateList({ exceptions, isSaving, onRemove }: ExceptionDateListProps) {
+export function ExceptionDateList({ exceptions, isSaving, onRemove, readOnly = false }: ExceptionDateListProps) {
   if (exceptions.length === 0) {
     return (
       <p className="text-sm text-shell-subtleText py-3 text-center italic">
@@ -58,6 +60,7 @@ export function ExceptionDateList({ exceptions, isSaving, onRemove }: ExceptionD
               )}
             </div>
           </div>
+          {!readOnly && (
           <button
             type="button"
             onClick={() => onRemove(exc.exceptionDate)}
@@ -66,6 +69,7 @@ export function ExceptionDateList({ exceptions, isSaving, onRemove }: ExceptionD
           >
             Eliminar
           </button>
+          )}
         </li>
       ))}
     </ul>

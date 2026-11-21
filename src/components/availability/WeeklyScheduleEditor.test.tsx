@@ -101,4 +101,28 @@ describe('WeeklyScheduleEditor', () => {
 
     expect(screen.getByText('Guardando...')).toBeDisabled()
   })
+  describe('readOnly', () => {
+    it('hides the save button when read-only', () => {
+      render(
+        <WeeklyScheduleEditor schedule={loadedSchedule} isSaving={false} onSave={vi.fn()} onDirtyChange={vi.fn()} readOnly />,
+      )
+      expect(screen.queryByRole('button', { name: 'Guardar horario' })).toBeNull()
+    })
+
+    it('disables every control when read-only (edge case)', () => {
+      const { container } = render(
+        <WeeklyScheduleEditor schedule={loadedSchedule} isSaving={false} onSave={vi.fn()} onDirtyChange={vi.fn()} readOnly />,
+      )
+      const controls = container.querySelectorAll('input, select, button')
+      expect(controls.length).toBeGreaterThan(0)
+      controls.forEach((el) => expect(el).toBeDisabled())
+    })
+
+    it('stays editable by default', () => {
+      render(
+        <WeeklyScheduleEditor schedule={loadedSchedule} isSaving={false} onSave={vi.fn()} onDirtyChange={vi.fn()} />,
+      )
+      expect(screen.getByRole('button', { name: 'Guardar horario' })).toBeEnabled()
+    })
+  })
 })

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  getMyAvailabilityPermission,
   getMyStaffMemberId,
   getStaffWeeklySchedule,
   listStaffExceptions,
@@ -16,6 +17,8 @@ export type MyStaffAvailabilityStatus = 'loading' | 'not-staff' | 'ready' | 'err
 
 export interface UseMyStaffAvailabilityResult {
   status: MyStaffAvailabilityStatus
+  /** False when the admin has not allowed this professional to edit their own availability. */
+  canEdit: boolean
   schedule: StaffScheduleDay[]
   exceptions: StaffScheduleException[]
   isSaving: boolean
@@ -31,6 +34,7 @@ export interface UseMyStaffAvailabilityResult {
 export function useMyStaffAvailability(): UseMyStaffAvailabilityResult {
   const [status, setStatus] = useState<MyStaffAvailabilityStatus>('loading')
   const [staffId, setStaffId] = useState<string | null>(null)
+  const [canEdit, setCanEdit] = useState(true)
   const [schedule, setSchedule] = useState<StaffScheduleDay[]>([])
   const [exceptions, setExceptions] = useState<StaffScheduleException[]>([])
   const [isSaving, setIsSaving] = useState(false)
@@ -52,10 +56,12 @@ export function useMyStaffAvailability(): UseMyStaffAvailabilityResult {
         }
 
         setStaffId(myStaffId)
-        const [scheduleData, exceptionsData] = await Promise.all([
+        const [scheduleData, exceptionsData, allowed] = await Promise.all([
           getStaffWeeklySchedule(myStaffId),
           listStaffExceptions(myStaffId),
+          getMyAvailabilityPermission(),
         ])
+        setCanEdit(allowed)
         setSchedule(scheduleData)
         setExceptions(exceptionsData)
         setStatus('ready')
@@ -143,6 +149,7 @@ export function useMyStaffAvailability(): UseMyStaffAvailabilityResult {
 
   return {
     status,
+    canEdit,
     schedule,
     exceptions,
     isSaving,

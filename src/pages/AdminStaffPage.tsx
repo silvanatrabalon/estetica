@@ -1,10 +1,12 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   adminCreateStaffMember,
   adminSetStaffActive,
+  adminSetStaffAvailabilityPermission,
   adminUpdateStaffMember,
   listAdminStaffMembers,
+  listStaffAvailabilityPermissions,
   type AdminStaffMember,
 } from '../services/adminStaff'
 import { listAdminUsers, type AdminManagedUser } from '../services/adminUsers'
@@ -27,9 +29,19 @@ interface StaffMemberCardProps {
   onEdit: (member: AdminStaffMember) => void
   onToggleActive: (member: AdminStaffMember) => void
   onNavigate: (path: string) => void
+  /** undefined = unknown (toggle hidden) */
+  canEditAvailability?: boolean
+  onToggleAvailabilityPermission: (member: AdminStaffMember, allowed: boolean) => void
 }
 
-function StaffMemberCard({ member, onEdit, onToggleActive, onNavigate }: StaffMemberCardProps) {
+function StaffMemberCard({
+  member,
+  onEdit,
+  onToggleActive,
+  onNavigate,
+  canEditAvailability,
+  onToggleAvailabilityPermission,
+}: StaffMemberCardProps) {
   const initials = getInitials(member.displayName)
   const roleLabel =
     member.role === 'admin' ? 'Admin' : member.role === 'staff' ? 'Staff' : 'Cliente'
@@ -83,6 +95,24 @@ function StaffMemberCard({ member, onEdit, onToggleActive, onNavigate }: StaffMe
         </div>
       </div>
 
+      {canEditAvailability !== undefined && (
+        <label className="px-4 pb-3 flex items-start gap-2 text-xs text-shell-subtleText cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={canEditAvailability}
+            onChange={(e) => onToggleAvailabilityPermission(member, e.target.checked)}
+            aria-label={`Puede editar su propia disponibilidad: ${member.displayName}`}
+          />
+          <span>
+            Puede editar su propia disponibilidad
+            <span className="block text-[11px] text-gray-400">
+              Si lo desmarcás, ve su horario pero solo vos podés cambiarlo.
+            </span>
+          </span>
+        </label>
+      )}
+
       {/* Actions */}
       <div className="px-4 pb-4 flex flex-wrap gap-2 border-t border-shell-border pt-3">
         <button
@@ -134,11 +164,13 @@ export function AdminStaffPage() {
   const navigate = useNavigate()
   const [staffMembers, setStaffMembers] = useState<AdminStaffMember[]>([])
   const [allUsers, setAllUsers] = useState<AdminManagedUser[]>([])
+  const [availabilityPermissions, setAvailabilityPermissions] = useState<Record<string, boolean>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const [formMode, setFormMode] = useState<FormMode>(null)
+  const formRef = useRef<HTMLElement | null>(null)
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -162,6 +194,8 @@ export function AdminStaffPage() {
       const [staffData, usersData] = await Promise.all([listAdminStaffMembers(), listAdminUsers()])
       setStaffMembers(staffData)
       setAllUsers(usersData)
+      // Non-critical: if this fails the toggle is simply hidden
+      setAvailabilityPermissions(await listStaffAvailabilityPermissions().catch(() => ({})))
     } catch {
       setErrorMessage('No pudimos cargar la lista de profesionales en este momento.')
     } finally {
@@ -172,6 +206,13 @@ export function AdminStaffPage() {
   useEffect(() => {
     void loadData()
   }, [])
+
+  // The form opens above the cards: bring it into view so "Editar" visibly does something
+  useEffect(() => {
+    if (formMode !== null) {
+      formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    }
+  }, [formMode, editingStaffId])
 
   const openCreateForm = () => {
     setFormMode('create')
@@ -242,6 +283,25 @@ export function AdminStaffPage() {
       }
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  const handleToggleAvailabilityPermission = async (member: AdminStaffMember, allowed: boolean) => {
+    setSuccessMessage(null)
+    setErrorMessage(null)
+    const previous = availabilityPermissions[member.id]
+    setAvailabilityPermissions((current) => ({ ...current, [member.id]: allowed }))
+
+    try {
+      await adminSetStaffAvailabilityPermission(member.id, allowed)
+      setSuccessMessage(
+        allowed
+          ? `${member.displayName} ahora puede editar su disponibilidad.`
+          : `${member.displayName} ya no puede editar su disponibilidad.`,
+      )
+    } catch {
+      setAvailabilityPermissions((current) => ({ ...current, [member.id]: previous }))
+      setErrorMessage('No pudimos cambiar el permiso. Intentá de nuevo.')
     }
   }
 
@@ -332,7 +392,7 @@ export function AdminStaffPage() {
 
         {/* Create / Edit form */}
         {formMode !== null && (
-          <section className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
+          <section ref={formRef} className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-shell-border bg-shell-muted/20">
               <h2 className="font-heading text-base font-semibold text-shell-text">
                 {formMode === 'create' ? 'Nuevo profesional' : 'Editar profesional'}
@@ -442,6 +502,8 @@ export function AdminStaffPage() {
                 onEdit={openEditForm}
                 onToggleActive={handleToggleActive}
                 onNavigate={navigate}
+                canEditAvailability={availabilityPermissions[member.id]}
+                onToggleAvailabilityPermission={(m, allowed) => void handleToggleAvailabilityPermission(m, allowed)}
               />
             ))}
           </div>

@@ -102,3 +102,33 @@ export async function adminSetStaffActive(staffId: string, isActive: boolean): P
     throw error
   }
 }
+
+// ── Permission: may the professional edit their own availability? ─────────────
+
+/** Map of staffMemberId -> permission. Empty if the lookup fails (the toggle is then hidden). */
+export async function listStaffAvailabilityPermissions(): Promise<Record<string, boolean>> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('admin_list_staff_availability_permissions')
+
+  if (error) {
+    throw error
+  }
+
+  const result: Record<string, boolean> = {}
+  for (const row of (data ?? []) as Array<{ staff_member_id: string; can_edit_own_availability: boolean }>) {
+    result[row.staff_member_id] = row.can_edit_own_availability
+  }
+  return result
+}
+
+export async function adminSetStaffAvailabilityPermission(staffId: string, allowed: boolean): Promise<void> {
+  const supabase = initSupabase()
+  const { error } = await supabase.rpc('admin_set_staff_availability_permission', {
+    p_staff_id: staffId,
+    p_allowed: allowed,
+  })
+
+  if (error) {
+    throw error
+  }
+}

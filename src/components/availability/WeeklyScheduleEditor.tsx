@@ -22,6 +22,8 @@ interface WeeklyScheduleEditorProps {
   isSaving: boolean
   onSave: (days: StaffScheduleDayInput[]) => void
   onDirtyChange: (dirty: boolean) => void
+  /** View only: inputs are disabled and the save button is hidden. */
+  readOnly?: boolean
 }
 
 export function WeeklyScheduleEditor({
@@ -29,6 +31,7 @@ export function WeeklyScheduleEditor({
   isSaving,
   onSave,
   onDirtyChange,
+  readOnly = false,
 }: WeeklyScheduleEditorProps) {
   const [draft, setDraft] = useState<StaffScheduleDayInput[]>(() => buildDraft(schedule))
   const [timeErrors, setTimeErrors] = useState<Record<number, string | null>>({})
@@ -85,7 +88,7 @@ export function WeeklyScheduleEditor({
             isWorking={day.is_working}
             startsAt={day.starts_at ?? '09:00'}
             endsAt={day.ends_at ?? '18:00'}
-            disabled={isSaving}
+            disabled={isSaving || readOnly}
             onIsWorkingChange={(value) => {
               updateDay(day.day_of_week, {
                 is_working: value,
@@ -100,6 +103,7 @@ export function WeeklyScheduleEditor({
         ))}
       </div>
 
+      {!readOnly && (
       <div className="mt-4 flex justify-end">
         <button
           type="button"
@@ -110,6 +114,7 @@ export function WeeklyScheduleEditor({
           {isSaving ? 'Guardando...' : 'Guardar horario'}
         </button>
       </div>
+      )}
     </div>
   )
 }

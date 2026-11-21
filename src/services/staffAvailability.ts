@@ -206,6 +206,21 @@ export async function getMyStaffMemberId(): Promise<string | null> {
   return data as string | null
 }
 
+/**
+ * Whether the current user may edit their own availability.
+ * Fails open (true) if the lookup fails: the server still enforces the real rule on every write.
+ */
+export async function getMyAvailabilityPermission(): Promise<boolean> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('get_my_availability_permission')
+
+  if (error) {
+    return true
+  }
+
+  return data !== false
+}
+
 export async function setMyWeeklySchedule(
   schedule: StaffScheduleDayInput[],
 ): Promise<StaffScheduleDay[]> {
