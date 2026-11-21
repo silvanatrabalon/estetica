@@ -326,6 +326,63 @@ describe('BusinessSettingsPage', () => {
     })
   })
 
+  describe('Cierres accessibility', () => {
+    const closure = {
+      id: 'c1',
+      closureDate: '2026-12-24',
+      closureType: 'full_day',
+      startsAt: null,
+      endsAt: null,
+      reason: 'Navidad',
+    }
+
+    async function openClosures() {
+      mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ closures: [closure] }))
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+      fireEvent.click(screen.getByRole('tab', { name: /Cierres/ }))
+    }
+
+    it('each closure has Editar and Eliminar buttons that say which closure they act on', async () => {
+      await openClosures()
+
+      expect(screen.getByRole('button', { name: 'Editar cierre del 2026-12-24' })).toBeDefined()
+      expect(screen.getByRole('button', { name: 'Eliminar cierre del 2026-12-24' })).toBeDefined()
+    })
+
+    it('Editar loads the closure into the form', async () => {
+      await openClosures()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Editar cierre del 2026-12-24' }))
+
+      expect(screen.getByDisplayValue('Navidad')).toBeDefined()
+      expect(screen.getByDisplayValue('2026-12-24')).toBeDefined()
+      expect(screen.getByRole('button', { name: 'Actualizar cierre' })).toBeDefined()
+    })
+
+    it('with no closures it shows the empty message and no row buttons (edge case)', async () => {
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+      fireEvent.click(screen.getByRole('tab', { name: /Cierres/ }))
+
+      expect(screen.getByText('Todavia no hay cierres excepcionales configurados.')).toBeDefined()
+      expect(screen.queryByRole('button', { name: /Editar cierre del/ })).toBeNull()
+    })
+  })
+
+  describe('Notification toggle target', () => {
+    it('the whole row is one label, so the label text toggles the checkbox', async () => {
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+      fireEvent.click(screen.getByRole('tab', { name: /Política/ }))
+
+      const checkbox = (await screen.findByLabelText(/Enviar notificaciones por email/)) as HTMLInputElement
+      expect(checkbox.checked).toBe(true)
+      fireEvent.click(screen.getByText('Enviar notificaciones por email'))
+      expect(checkbox.checked).toBe(false)
+    })
+  })
+
   describe('General tab (business rules only)', () => {
     it('no longer has logo, color or booking text fields (they live in Apariencia)', async () => {
       renderBusinessSettingsPage()

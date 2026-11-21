@@ -347,9 +347,9 @@ export function BusinessSettingsPage() {
   }
 
   const fieldCls =
-    'w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition-colors'
+    'min-h-11 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-base text-gray-900 sm:text-sm focus:border-teal-400 focus:ring-2 focus:ring-teal-100 outline-none transition-colors'
   const saveBtnCls =
-    'rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong transition-colors disabled:opacity-50'
+    'min-h-11 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-strong transition-colors disabled:opacity-50'
 
   const TABS = [
     {
@@ -457,7 +457,7 @@ export function BusinessSettingsPage() {
 
             <div className="space-y-3">
               <div>
-                <label htmlFor="business-name" className="mb-1.5 block text-xs font-medium text-gray-600">Nombre del negocio</label>
+                <label htmlFor="business-name" className="mb-1.5 block text-sm font-medium text-gray-700">Nombre del negocio</label>
                 <input
                   id="business-name"
                   className={fieldCls}
@@ -469,9 +469,10 @@ export function BusinessSettingsPage() {
               </div>
 
               <div>
-                <label htmlFor="business-timezone" className="mb-1.5 block text-xs font-medium text-gray-600">Zona horaria</label>
+                <label htmlFor="business-timezone" className="mb-1.5 block text-sm font-medium text-gray-700">Zona horaria</label>
                 <Select
                   id="business-timezone"
+                  className={fieldCls}
                   value={timezone}
                   onChange={(e) => setTimezone(e.target.value)}
                 >
@@ -487,7 +488,7 @@ export function BusinessSettingsPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
-            {generalDirty && <span className="text-xs text-amber-700">Hay cambios sin guardar</span>}
+            {generalDirty && <span className="text-sm text-amber-700">Hay cambios sin guardar</span>}
             <button type="submit" disabled={isSavingSettings} className={saveBtnCls}>
               {isSavingSettings ? 'Guardando…' : 'Guardar configuracion del negocio'}
             </button>
@@ -520,24 +521,28 @@ export function BusinessSettingsPage() {
                         aria-checked={isOpen}
                         aria-label={`${dayLabels[hour.dayOfWeek]}: abierto`}
                         onClick={() => handleClosedSet(hour.dayOfWeek, isOpen)}
-                        className={cn(
-                          'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-300',
-                          isOpen ? 'bg-brand-primary' : 'bg-gray-200',
-                        )}
+                        className="inline-flex h-11 w-14 shrink-0 items-center justify-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
                       >
                         <span
                           className={cn(
-                            'inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform',
-                            isOpen ? 'translate-x-4' : 'translate-x-0.5',
+                            'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+                            isOpen ? 'bg-brand-primary' : 'bg-gray-300',
                           )}
-                        />
+                        >
+                          <span
+                            className={cn(
+                              'inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform',
+                              isOpen ? 'translate-x-5' : 'translate-x-0.5',
+                            )}
+                          />
+                        </span>
                       </button>
                       {!isOpen && <span className="text-sm text-gray-500">Cerrado</span>}
                     </div>
                     {isOpen && (
                       <div className="grid grid-cols-2 gap-3 min-w-0 sm:flex sm:flex-1 sm:items-center sm:gap-1">
                         <label className="flex min-w-0 flex-col gap-1 sm:flex-1">
-                          <span className="text-xs text-gray-500 sm:sr-only">Abre</span>
+                          <span className="text-sm text-gray-500 sm:sr-only">Abre</span>
                           <input
                             type="time"
                             aria-label={`${dayLabels[hour.dayOfWeek]}: hora de apertura`}
@@ -548,7 +553,7 @@ export function BusinessSettingsPage() {
                         </label>
                         <span className="hidden text-gray-300 text-xs shrink-0 sm:inline">—</span>
                         <label className="flex min-w-0 flex-col gap-1 sm:flex-1">
-                          <span className="text-xs text-gray-500 sm:sr-only">Cierra</span>
+                          <span className="text-sm text-gray-500 sm:sr-only">Cierra</span>
                           <input
                             type="time"
                             aria-label={`${dayLabels[hour.dayOfWeek]}: hora de cierre`}
@@ -564,7 +569,7 @@ export function BusinessSettingsPage() {
               })}
             </div>
             <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
-              {hoursDirty && <span className="text-xs text-amber-700">Hay cambios sin guardar</span>}
+              {hoursDirty && <span className="text-sm text-amber-700">Hay cambios sin guardar</span>}
               <button type="submit" disabled={isSavingSettings} className={saveBtnCls}>
                 {isSavingSettings ? 'Guardando…' : 'Guardar horarios'}
               </button>
@@ -596,6 +601,7 @@ export function BusinessSettingsPage() {
                 <label htmlFor="closure-type" className="block text-sm text-gray-700">Tipo de cierre</label>
                 <Select
                   id="closure-type"
+                  className={fieldCls}
                   wrapperClassName="mt-1"
                   value={closureDraft.closureType}
                   onChange={(e) =>
@@ -674,25 +680,27 @@ export function BusinessSettingsPage() {
                   <li key={closure.id} className="flex items-start justify-between gap-4 px-5 py-3.5">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900">{closure.closureDate}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-sm text-gray-500 mt-0.5">
                         {closure.closureType === 'full_day'
                           ? 'Dia completo'
                           : `Media jornada (${closure.startsAt ?? '--'} a ${closure.endsAt ?? '--'})`}
                         {closure.reason ? ` · ${closure.reason}` : ''}
                       </p>
                     </div>
-                    <div className="flex gap-2 shrink-0">
+                    <div className="flex shrink-0 gap-1">
                       <button
                         type="button"
+                        aria-label={`Editar cierre del ${closure.closureDate}`}
                         onClick={() => setClosureDraft(toDraft(closure))}
-                        className="text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors"
+                        className="min-h-11 rounded-lg px-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
                       >
                         Editar
                       </button>
                       <button
                         type="button"
+                        aria-label={`Eliminar cierre del ${closure.closureDate}`}
                         onClick={() => handleDeleteClosure(closure.id)}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium transition-colors"
+                        className="min-h-11 rounded-lg px-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
                       >
                         Eliminar
                       </button>
@@ -704,7 +712,7 @@ export function BusinessSettingsPage() {
           )}
 
           {closures.length === 0 && (
-            <p className="text-center py-6 text-sm text-gray-400">Todavia no hay cierres excepcionales configurados.</p>
+            <p className="text-center py-6 text-sm text-gray-500">Todavia no hay cierres excepcionales configurados.</p>
           )}
         </div>
       )}
@@ -724,10 +732,10 @@ export function BusinessSettingsPage() {
             )}
 
             <div>
-              <p className="text-xs text-gray-500 mb-3">
+              <p className="text-sm text-gray-500 mb-3">
                 Tiempo mínimo antes del turno para que un cliente pueda reservar.
               </p>
-              <label htmlFor="notice-minutes" className="mb-1.5 block text-xs font-medium text-gray-600">
+              <label htmlFor="notice-minutes" className="mb-1.5 block text-sm font-medium text-gray-700">
                 Anticipación mínima (minutos)
               </label>
               <input
@@ -742,10 +750,10 @@ export function BusinessSettingsPage() {
             </div>
 
             <div className="border-t border-gray-100 pt-5">
-              <p className="text-xs text-gray-500 mb-3">
+              <p className="text-sm text-gray-500 mb-3">
                 Cuántos días hacia el futuro puede reservar un cliente.
               </p>
-              <label htmlFor="horizon-days" className="mb-1.5 block text-xs font-medium text-gray-600">
+              <label htmlFor="horizon-days" className="mb-1.5 block text-sm font-medium text-gray-700">
                 Horizonte de reservas (días)
               </label>
               <input
@@ -762,22 +770,22 @@ export function BusinessSettingsPage() {
 
           <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-3">
             <h3 className="font-semibold text-gray-900 text-sm">Notificaciones</h3>
-            <label className="flex items-start gap-2.5 text-sm text-gray-700">
+            <label className="flex min-h-11 items-start gap-3 py-2 text-sm text-gray-700">
               <input
                 type="checkbox"
-                className="mt-0.5"
+                className="mt-0.5 h-5 w-5 shrink-0"
                 checked={notificationsEnabled}
                 onChange={(e) => setNotificationsEnabled(e.target.checked)}
               />
               <span>
                 Enviar notificaciones por email
-                <span className="block text-xs text-gray-400">
+                <span className="block text-sm text-gray-500">
                   Desactivalo mientras hacés pruebas para que no se envíen emails reales a clientes.
                 </span>
               </span>
             </label>
             <div>
-              <label htmlFor="business-notification-email" className="mb-1.5 block text-xs font-medium text-gray-600">
+              <label htmlFor="business-notification-email" className="mb-1.5 block text-sm font-medium text-gray-700">
                 Email para notificaciones del negocio
               </label>
               <input
@@ -788,14 +796,14 @@ export function BusinessSettingsPage() {
                 onChange={(e) => setNotificationEmail(e.target.value)}
                 placeholder="negocio@ejemplo.com"
               />
-              <p className="mt-1.5 text-xs text-gray-400">
+              <p className="mt-1.5 text-sm text-gray-500">
                 Recibirás una copia de cada turno confirmado, cancelado y reprogramado. Es opcional.
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3">
-            {policyDirty && <span className="text-xs text-amber-700">Hay cambios sin guardar</span>}
+            {policyDirty && <span className="text-sm text-amber-700">Hay cambios sin guardar</span>}
             <button type="submit" disabled={isSavingPolicy} className={saveBtnCls}>
               {isSavingPolicy ? 'Guardando…' : 'Guardar política'}
             </button>
@@ -854,7 +862,7 @@ export function BusinessSettingsPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-gray-900">Eliminar historial de reservas</p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-sm text-gray-500 mt-1">
                   Elimina permanentemente todos los turnos del sistema. Esta acción no se puede deshacer.
                 </p>
               </div>
