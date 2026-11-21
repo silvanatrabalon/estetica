@@ -1,5 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import type { User } from '@supabase/supabase-js'
+import { useState } from 'react'
+import { canShowProfilePhoto, getGoogleAvatarUrl } from '../../../lib/avatar'
 import { useUser } from '../../../hooks/useUser'
 import { useShellContext } from '../../../features/shell/hooks/useShellContext'
 
@@ -12,6 +14,8 @@ export function UserMenu({ user }: UserMenuProps) {
   const { signOut, profile, roles } = useUser()
   const navigate = useNavigate()
   const menuId = 'user-menu-panel'
+  const [photoFailed, setPhotoFailed] = useState(false)
+  const photoUrl = canShowProfilePhoto(roles) && !photoFailed ? getGoogleAvatarUrl(user) : null
 
   const fallbackName = user.email?.split('@')[0] ?? 'Usuario'
   const displayName = profile?.name.trim().length ? profile.name : fallbackName
@@ -48,9 +52,19 @@ export function UserMenu({ user }: UserMenuProps) {
         aria-controls={menuId}
       >
         {/* Avatar circle */}
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary text-sm font-semibold text-white">
-          {userInitials}
-        </div>
+        {photoUrl ? (
+          <img
+            src={photoUrl}
+            alt={displayName}
+            referrerPolicy="no-referrer"
+            onError={() => setPhotoFailed(true)}
+            className="h-8 w-8 rounded-full object-cover"
+          />
+        ) : (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-primary text-sm font-semibold text-white">
+            {userInitials}
+          </div>
+        )}
         {/* User name (hidden on mobile) */}
         <span className="hidden max-w-[120px] truncate text-sm font-medium text-shell-subtleText sm:inline">
           {displayName}

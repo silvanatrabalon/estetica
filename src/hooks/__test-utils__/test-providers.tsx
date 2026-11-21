@@ -70,6 +70,9 @@ export function TestShellProvider({
   onToggleSidebar = () => {},
   onToggleMobileMenu = () => {},
   onCloseMobileMenu = () => {},
+  isUserMenuOpen = false,
+  onToggleUserMenu = () => {},
+  onCloseUserMenu = () => {},
 }: {
   children: ReactNode
   isSidebarOpen?: boolean
@@ -77,6 +80,9 @@ export function TestShellProvider({
   onToggleSidebar?: () => void
   onToggleMobileMenu?: () => void
   onCloseMobileMenu?: () => void
+  isUserMenuOpen?: boolean
+  onToggleUserMenu?: () => void
+  onCloseUserMenu?: () => void
 }) {
   const value: ShellContextValue = {
     isSidebarOpen,
@@ -84,6 +90,9 @@ export function TestShellProvider({
     isMobileMenuOpen,
     toggleMobileMenu: onToggleMobileMenu,
     closeMobileMenu: onCloseMobileMenu,
+    isUserMenuOpen,
+    toggleUserMenu: onToggleUserMenu,
+    closeUserMenu: onCloseUserMenu,
   }
 
   return (
