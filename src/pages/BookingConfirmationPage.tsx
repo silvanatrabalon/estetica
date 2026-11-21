@@ -28,7 +28,7 @@ function formatAppointmentDate(isoUtc: string, orgTimezone: string): string {
 
 export function BookingConfirmationPage() {
   const { appointmentId } = useParams<{ appointmentId: string }>()
-  const { isLoading: sessionLoading } = useUser()
+  const { user, isLoading: sessionLoading } = useUser()
   const [pageState, setPageState] = useState<PageState>('loading')
   const [appointment, setAppointment] = useState<AppointmentDetail | null>(null)
 
@@ -124,6 +124,8 @@ export function BookingConfirmationPage() {
       : '¡Tu turno está reservado!'
 
   const isActive = !isCancelled && !isCompleted
+  // Admin or staff looking at an appointment they booked for someone else
+  const isForSomeoneElse = apt.customerUserId !== (user?.id ?? null)
 
   return (
     <div className="mx-auto max-w-lg space-y-4 pb-4">
@@ -152,7 +154,20 @@ export function BookingConfirmationPage() {
         </div>
       </section>
 
-      {isActive && (
+      {isActive && isForSomeoneElse && (
+        <p
+          role="note"
+          className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+        >
+          <span aria-hidden="true" className="text-lg leading-none">✉️</span>
+          <span>
+            <strong>Turno reservado{apt.customerName ? ` para ${apt.customerName}` : ''}.</strong> Avisamos por email
+            al profesional y, si la persona tiene email, también a ella.
+          </span>
+        </p>
+      )}
+
+      {isActive && !isForSomeoneElse && (
         <p
           role="note"
           className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"

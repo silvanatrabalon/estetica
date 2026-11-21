@@ -54,6 +54,10 @@ describe('createAppointment', () => {
       p_service_id: 'svc-1',
       p_starts_at: '2026-06-10T14:00:00Z',
       p_coupon_code: null,
+      p_customer_user_id: null,
+      p_guest_name: null,
+      p_guest_phone: null,
+      p_guest_email: null,
     })
   })
 
@@ -67,6 +71,36 @@ describe('createAppointment', () => {
     mockRpc.mockResolvedValueOnce({ data: [mockAppointmentRow], error: null })
     await createAppointment({ serviceId: 'svc-1', startsAt: '2026-06-10T14:00:00Z', couponCode: '   ' })
     expect(mockRpc).toHaveBeenCalledWith('create_appointment', expect.objectContaining({ p_coupon_code: null }))
+  })
+
+  it('books for an existing client account', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [mockAppointmentRow], error: null })
+    await createAppointment({ serviceId: 'svc-1', startsAt: '2026-06-10T14:00:00Z', customerUserId: 'client-1' })
+    expect(mockRpc).toHaveBeenCalledWith('create_appointment', expect.objectContaining({ p_customer_user_id: 'client-1' }))
+  })
+
+  it('books for a person without an account, trimming what was typed', async () => {
+    mockRpc.mockResolvedValueOnce({ data: [mockAppointmentRow], error: null })
+    await createAppointment({
+      serviceId: 'svc-1',
+      startsAt: '2026-06-10T14:00:00Z',
+      guest: { name: '  Rosa Gómez ', phone: ' 1155 ', email: '' },
+    })
+    expect(mockRpc).toHaveBeenCalledWith(
+      'create_appointment',
+      expect.objectContaining({ p_guest_name: 'Rosa Gómez', p_guest_phone: '1155', p_guest_email: null }),
+    )
+  })
+
+  it('translates the errors for booking on behalf of someone (edge case)', async () => {
+    mockRpc.mockResolvedValueOnce({ data: null, error: { code: 'P0001', message: 'BOOKING_NOT_ALLOWED' } })
+    await expect(
+      createAppointment({ serviceId: 'svc-1', startsAt: '2026-06-10T14:00:00Z', customerUserId: 'x' }),
+    ).rejects.toThrow('No tenés permiso para reservar a nombre de otra persona.')
+    mockRpc.mockResolvedValueOnce({ data: null, error: { code: 'P0001', message: 'BOOKING_GUEST_INVALID' } })
+    await expect(
+      createAppointment({ serviceId: 'svc-1', startsAt: '2026-06-10T14:00:00Z', guest: { name: 'A' } }),
+    ).rejects.toThrow('Revisá los datos de la persona')
   })
 
   it('translates coupon errors raised by the database (edge case)', async () => {

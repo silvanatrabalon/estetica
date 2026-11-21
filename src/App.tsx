@@ -62,9 +62,12 @@ function AppContent() {
           <Route path="/profile/setup" element={<ProfileSetupPage />} />
           <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-          <Route element={<RoleGuard allowedRoles={['customer']} />}>
+          <Route element={<RoleGuard allowedRoles={['customer', 'staff', 'admin']} />}>
             <Route path="/booking" element={<BookingPage />} />
             <Route path="/booking/confirmation/:appointmentId" element={<BookingConfirmationPage />} />
+          </Route>
+
+          <Route element={<RoleGuard allowedRoles={['customer']} />}>
             <Route path="/appointments" element={<AppointmentsPage />} />
           </Route>
 

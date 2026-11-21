@@ -38,6 +38,13 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
   // Staff-specific navigation
   staff: [
     {
+      id: 'staff-booking',
+      label: navigationCopy.booking,
+      href: '/booking',
+      icon: undefined,
+      roles: ['staff', 'admin'],
+    },
+    {
       id: 'staff-appointments',
       label: navigationCopy.staffAppointments,
       href: '/staff/appointments',
@@ -88,6 +95,13 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
       label: navigationCopy.services,
       href: '/admin/services',
       icon: undefined, // TODO: Add settings icon
+      roles: ['admin'],
+    },
+    {
+      id: 'admin-booking',
+      label: navigationCopy.booking,
+      href: '/booking',
+      icon: undefined,
       roles: ['admin'],
     },
     {

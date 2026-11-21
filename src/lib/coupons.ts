@@ -66,6 +66,7 @@ const COUPON_ERRORS: Record<string, string> = {
   COUPON_CODE_INVALID: 'El código debe tener entre 3 y 30 caracteres: letras, números, guiones o guion bajo.',
   COUPON_VALUE_INVALID: 'El valor del descuento no es válido.',
   COUPON_DATES_INVALID: 'La fecha de fin no puede ser anterior a la de inicio.',
+  COUPON_NOT_FOR_GUEST: 'Los cupones son solo para clientes con cuenta.',
   COUPON_CODE_TAKEN: 'Ya existe un cupón con ese código.',
 }
 

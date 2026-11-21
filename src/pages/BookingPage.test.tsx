@@ -55,6 +55,13 @@ vi.mock('../services/coupons', () => ({
   validateCoupon: (...args: unknown[]) => mockValidateCoupon(...args),
 }))
 
+const mockListBookingClients = vi.fn()
+
+vi.mock('../services/bookingClients', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../services/bookingClients')>()
+  return { ...actual, listBookingClients: (...args: unknown[]) => mockListBookingClients(...args) }
+})
+
 const mockGetLandingConfig = vi.fn()
 
 vi.mock('../services/landing', () => ({
@@ -810,5 +817,131 @@ describe('BookingPage — coupon', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quitar' }))
     expect(screen.queryByText(/aplicado/)).toBeNull()
     expect(screen.getByLabelText('¿Tenés un cupón?')).toBeDefined()
+  })
+})
+
+describe('BookingPage — booking for someone else (admin and staff)', () => {
+  function renderAs(role: 'staff' | 'admin' | 'customer') {
+    const session = {
+      staff: mockSessions.authenticatedStaff,
+      admin: mockSessions.authenticatedAdmin,
+      customer: mockSessions.authenticatedCustomer,
+    }[role]
+    return render(
+      <MemoryRouter>
+        <TestUserProvider user={session.user} roles={[role]} activeRole={role} isLoading={false}>
+          <BookingPage />
+        </TestUserProvider>
+      </MemoryRouter>,
+    )
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetBusinessSettings.mockResolvedValue({ timezone: 'UTC', bookingMaxHorizonDays: 60, weeklyHours: [] })
+    mockListCategories.mockResolvedValue([])
+    mockGetLandingConfig.mockResolvedValue({
+      primaryColor: '#f3e8ff', businessName: 'Test', tagline: null, logoUrl: null, heroImageUrl: null, carouselImages: [],
+    })
+    mockGetAvailableDays.mockResolvedValue([{ day: todayKey(), slotCount: 3 }])
+    mockGetAvailableSlots.mockResolvedValue([mockSlot])
+    mockListBookingClients.mockResolvedValue([{ userId: 'client-1', name: 'Ana Pérez', email: 'ana@mail.com' }])
+    mockCreateAppointment.mockResolvedValue({ id: 'apt-1' })
+  })
+
+  async function goToReview(role: 'staff' | 'admin' | 'customer') {
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [mockServiceRow], error: null }))
+    renderAs(role)
+    await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
+    await selectService()
+    await pickDay()
+    await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId('slot-block'))
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await waitFor(() => expect(screen.getByText(/Revisá tu reserva/)).toBeDefined())
+  }
+
+  it('a client never sees the "who is it for" choice and never loads the client list', async () => {
+    await goToReview('customer')
+    expect(screen.queryByRole('radiogroup', { name: '¿Para quién es la reserva?' })).toBeNull()
+    expect(mockListBookingClients).not.toHaveBeenCalled()
+  })
+
+  it.each(['staff', 'admin'] as const)('%s sees the choice, defaulting to "Para mí"', async (role) => {
+    await goToReview(role)
+    expect(screen.getByRole('radio', { name: 'Para mí' })).toHaveAttribute('aria-checked', 'true')
+    expect(mockListBookingClients).toHaveBeenCalled()
+  })
+
+  it('booking for oneself sends no customer (the user is the client)', async () => {
+    await goToReview('staff')
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
+    await waitFor(() => expect(mockCreateAppointment).toHaveBeenCalled())
+    const args = mockCreateAppointment.mock.calls[0][0]
+    expect(args.customerUserId).toBeUndefined()
+    expect(args.guest).toBeUndefined()
+  })
+
+  it('books for an existing client account', async () => {
+    await goToReview('admin')
+    fireEvent.click(screen.getByRole('radio', { name: 'Para un cliente' }))
+    fireEvent.change(await screen.findByLabelText('Cliente'), { target: { value: 'client-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
+    await waitFor(() =>
+      expect(mockCreateAppointment).toHaveBeenCalledWith(expect.objectContaining({ customerUserId: 'client-1' })),
+    )
+  })
+
+  it('books for a person without an account', async () => {
+    await goToReview('staff')
+    fireEvent.click(screen.getByRole('radio', { name: 'Otra persona' }))
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Rosa Gómez' } })
+    fireEvent.change(screen.getByLabelText(/Email/), { target: { value: 'rosa@mail.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
+    await waitFor(() =>
+      expect(mockCreateAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({ guest: { name: 'Rosa Gómez', phone: '', email: 'rosa@mail.com' } }),
+      ),
+    )
+  })
+
+  it('does not book without choosing the client or without a name (edge cases)', async () => {
+    await goToReview('staff')
+    fireEvent.click(screen.getByRole('radio', { name: 'Para un cliente' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
+    expect(await screen.findByText('Elegí al cliente para la reserva.')).toBeDefined()
+    fireEvent.click(screen.getByRole('radio', { name: 'Otra persona' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
+    expect(await screen.findByText(/Escribí el nombre de la persona/)).toBeDefined()
+    expect(mockCreateAppointment).not.toHaveBeenCalled()
+  })
+
+  it('the coupon box only appears when booking for oneself (edge case)', async () => {
+    await goToReview('staff')
+    expect(screen.getByLabelText('¿Tenés un cupón?')).toBeDefined()
+    fireEvent.click(screen.getByRole('radio', { name: 'Para un cliente' }))
+    expect(screen.queryByLabelText('¿Tenés un cupón?')).toBeNull()
+    fireEvent.click(screen.getByRole('radio', { name: 'Para mí' }))
+    expect(screen.getByLabelText('¿Tenés un cupón?')).toBeDefined()
+  })
+
+  it('switching away from "Para mí" drops an applied coupon (edge case)', async () => {
+    mockValidateCoupon.mockResolvedValue({ discountCents: 500, finalPriceCents: 4500 })
+    await goToReview('staff')
+    fireEvent.change(screen.getByLabelText('¿Tenés un cupón?'), { target: { value: 'VERANO10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
+    await screen.findByText(/aplicado/)
+    fireEvent.click(screen.getByRole('radio', { name: 'Otra persona' }))
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Rosa' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
+    await waitFor(() => expect(mockCreateAppointment).toHaveBeenCalled())
+    expect(mockCreateAppointment.mock.calls[0][0].couponCode).toBeUndefined()
+  })
+
+  it('says who gets the notification when it is not for oneself', async () => {
+    await goToReview('staff')
+    expect(screen.getByText(/te enviamos un email con los datos/)).toBeDefined()
+    fireEvent.click(screen.getByRole('radio', { name: 'Otra persona' }))
+    expect(screen.getByText(/avisamos por email a la persona/)).toBeDefined()
   })
 })

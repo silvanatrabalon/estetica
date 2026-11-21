@@ -17,6 +17,8 @@ export interface AdminAppointmentFilters {
   statuses?: string[]
   dateFrom?: string
   dateTo?: string
+  /** Only this professional's appointments. */
+  staffMemberId?: string
 }
 
 export interface AdminAppointmentPage {
@@ -65,6 +67,7 @@ export async function adminListAppointments(
     p_date_to: filters.dateTo ? new Date(filters.dateTo).toISOString() : null,
     p_page: page,
     p_page_size: pageSize ?? null,
+    p_staff_member_id: filters.staffMemberId || null,
   })
 
   if (error) {

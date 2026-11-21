@@ -14,6 +14,11 @@ vi.mock('../services/adminAppointments', () => ({
   adminListAppointments: (...args: unknown[]) => mockAdminListAppointments(...args),
 }))
 
+const mockListStaff = vi.fn()
+vi.mock('../services/adminStaff', () => ({
+  listAdminStaffMembers: (...a: unknown[]) => mockListStaff(...a),
+}))
+
 vi.mock('../services/businessSettings', () => ({
   getBusinessSettings: (...args: unknown[]) => mockGetBusinessSettings(...args),
 }))
@@ -58,6 +63,7 @@ describe('AdminAppointmentsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetBusinessSettings.mockResolvedValue({ timezone: 'UTC' })
+    mockListStaff.mockResolvedValue([])
   })
 
   describe('loading state', () => {
@@ -304,6 +310,76 @@ describe('AdminAppointmentsPage', () => {
           PAGE_SIZE,
         )
       })
+    })
+  })
+
+  describe('professional filter', () => {
+    const staff = [
+      { id: 'sm-1', displayName: 'Sil' },
+      { id: 'sm-2', displayName: 'Marta' },
+    ]
+
+    beforeEach(() => {
+      mockListStaff.mockResolvedValue(staff)
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+    })
+
+    it('lists the professionals and filters by the chosen one, back to page 1', async () => {
+      renderPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por profesional' }))
+      expect(screen.getByRole('menuitemradio', { name: 'Todos los profesionales' })).toBeDefined()
+      mockAdminListAppointments.mockClear()
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Marta' }))
+
+      await waitFor(() =>
+        expect(mockAdminListAppointments).toHaveBeenCalledWith(
+          expect.objectContaining({ staffMemberId: 'sm-2' }),
+          1,
+          PAGE_SIZE,
+        ),
+      )
+      expect(screen.getByRole('button', { name: 'Filtrar por profesional' }).textContent).toContain('Marta')
+    })
+
+    it('starts without a professional filter', async () => {
+      renderPage()
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalled())
+      expect(mockAdminListAppointments.mock.calls[0][0].staffMemberId).toBeUndefined()
+    })
+
+    it('"Todos los profesionales" clears the filter (edge case)', async () => {
+      renderPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por profesional' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sil' }))
+      await waitFor(() =>
+        expect(mockAdminListAppointments).toHaveBeenLastCalledWith(expect.objectContaining({ staffMemberId: 'sm-1' }), 1, PAGE_SIZE),
+      )
+      fireEvent.click(screen.getByRole('button', { name: 'Filtrar por profesional' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Todos los profesionales' }))
+      await waitFor(() =>
+        expect(mockAdminListAppointments).toHaveBeenLastCalledWith(expect.objectContaining({ staffMemberId: undefined }), 1, PAGE_SIZE),
+      )
+    })
+
+    it('combines with the other filters (edge case)', async () => {
+      renderPage('/admin/appointments?periodo=month&estado=cancelled')
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por profesional' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sil' }))
+      await waitFor(() =>
+        expect(mockAdminListAppointments).toHaveBeenLastCalledWith(
+          expect.objectContaining({ staffMemberId: 'sm-1', statuses: ['cancelled'] }),
+          1,
+          PAGE_SIZE,
+        ),
+      )
+    })
+
+    it('hides the filter when there are no professionals or they cannot be loaded (edge case)', async () => {
+      mockListStaff.mockRejectedValue(new Error('down'))
+      renderPage()
+      await screen.findByRole('button', { name: 'Filtrar por período' })
+      expect(screen.queryByRole('button', { name: 'Filtrar por profesional' })).toBeNull()
     })
   })
 })

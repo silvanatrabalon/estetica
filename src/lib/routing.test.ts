@@ -213,4 +213,21 @@ describe('redirect resolution', () => {
     expect(resolveRoleHomePath('staff')).toBe('/staff/schedule')
     expect(resolveRoleHomePath('admin')).toBe('/admin/dashboard')
   })
+
+  describe('booking is open to the team too', () => {
+    it.each(['customer', 'staff', 'admin'] as const)('%s can open /booking and its confirmation', (role) => {
+      expect(canAccessRoute({ path: '/booking', isAuthenticated: true, role })).toBe(true)
+      expect(canAccessRoute({ path: '/booking/confirmation/abc', isAuthenticated: true, role })).toBe(true)
+    })
+
+    it('"Mis turnos" stays for customers only (edge case)', () => {
+      expect(canAccessRoute({ path: '/appointments', isAuthenticated: true, role: 'customer' })).toBe(true)
+      expect(canAccessRoute({ path: '/appointments', isAuthenticated: true, role: 'staff' })).toBe(false)
+      expect(canAccessRoute({ path: '/appointments', isAuthenticated: true, role: 'admin' })).toBe(false)
+    })
+
+    it('an unauthenticated visitor still cannot book (edge case)', () => {
+      expect(canAccessRoute({ path: '/booking', isAuthenticated: false, role: null })).toBe(false)
+    })
+  })
 })

@@ -229,6 +229,9 @@ const BOOKING_ERRORS: Record<string, string> = {
   BOOKING_OUTSIDE_POLICY_WINDOW:
     'Este horario ya no está dentro del rango de reservas permitido.',
   BOOKING_SERVICE_NOT_FOUND: 'El servicio seleccionado no está disponible.',
+  BOOKING_NOT_ALLOWED: 'No tenés permiso para reservar a nombre de otra persona.',
+  BOOKING_CUSTOMER_INVALID: 'No pudimos identificar a la persona para la reserva. Elegí otra.',
+  BOOKING_GUEST_INVALID: 'Revisá los datos de la persona: el nombre (mínimo 2 letras) y el email si lo cargaste.',
 }
 
 function translateBookingError(err: unknown): Error {
@@ -286,6 +289,10 @@ export async function createAppointment(params: {
   startsAt: string
   /** Optional discount coupon code, validated again on the server. */
   couponCode?: string
+  /** Admin/staff only: book for an existing client account instead of for themselves. */
+  customerUserId?: string
+  /** Admin/staff only: book for a person without an account. */
+  guest?: { name: string; phone?: string; email?: string }
 }): Promise<NewAppointment> {
   const supabase = initSupabase()
 
@@ -293,6 +300,10 @@ export async function createAppointment(params: {
     p_service_id: params.serviceId,
     p_starts_at: params.startsAt,
     p_coupon_code: params.couponCode?.trim() ? params.couponCode.trim() : null,
+    p_customer_user_id: params.customerUserId ?? null,
+    p_guest_name: params.guest?.name.trim() || null,
+    p_guest_phone: params.guest?.phone?.trim() || null,
+    p_guest_email: params.guest?.email?.trim() || null,
   })
 
   if (error) {

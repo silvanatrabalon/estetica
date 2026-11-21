@@ -7,13 +7,11 @@ import { mockSessions } from '../hooks/__test-utils__/fixtures'
 
 const mockListAdminStaffMembers = vi.fn()
 const mockAdminCreateStaffMember = vi.fn()
-const mockAdminUpdateStaffMember = vi.fn()
 const mockAdminSetStaffActive = vi.fn()
 
 vi.mock('../services/adminStaff', () => ({
   listAdminStaffMembers: (...args: unknown[]) => mockListAdminStaffMembers(...args),
   adminCreateStaffMember: (...args: unknown[]) => mockAdminCreateStaffMember(...args),
-  adminUpdateStaffMember: (...args: unknown[]) => mockAdminUpdateStaffMember(...args),
   adminSetStaffActive: (...args: unknown[]) => mockAdminSetStaffActive(...args),
 }))
 
@@ -98,99 +96,52 @@ describe('AdminStaffPage', () => {
     })
   })
 
-  it('shows validation error on create form for empty display name', async () => {
+  async function openCreateForm() {
+    fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
+    await screen.findByLabelText('Usuario vinculado')
+  }
+
+  it('the create form only asks for the account, with no display name field', async () => {
     mockListAdminStaffMembers.mockResolvedValue([])
     renderAdminStaffPage()
+    await openCreateForm()
 
-    await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: /Agregar profesional/ }).length).toBeGreaterThan(0)
-    })
-
-    fireEvent.click(screen.getAllByRole('button', { name: /Agregar profesional/ })[0])
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Nombre para mostrar')).toBeDefined()
-    })
-
-    fireEvent.change(screen.getByLabelText('Nombre para mostrar'), { target: { value: '' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('El nombre debe tener al menos 2 caracteres.')).toBeDefined()
-    })
+    expect(screen.queryByLabelText('Nombre para mostrar')).toBeNull()
+    expect(screen.getByText(/usa el nombre de esa cuenta/)).toBeDefined()
   })
 
-  it('shows validation error on create form for too-short display name', async () => {
+  it('creates the professional from the chosen account, without sending a name', async () => {
     mockListAdminStaffMembers.mockResolvedValue([])
+    mockAdminCreateStaffMember.mockResolvedValue({ ...mockStaffMember, profileUserId: 'u-1', displayName: 'Ana García' })
     renderAdminStaffPage()
-
-    await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: /Agregar profesional/ }).length).toBeGreaterThan(0)
-    })
-
-    fireEvent.click(screen.getAllByRole('button', { name: /Agregar profesional/ })[0])
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Nombre para mostrar')).toBeDefined()
-    })
-
-    fireEvent.change(screen.getByLabelText('Nombre para mostrar'), { target: { value: 'A' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('El nombre debe tener al menos 2 caracteres.')).toBeDefined()
-    })
-  })
-
-  it('shows validation error on edit form for too-short display name', async () => {
-    mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
-    renderAdminStaffPage()
-
-    await waitFor(() => {
-      expect(screen.getByText('Bruno')).toBeDefined()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cambiar nombre' }))
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Nombre para mostrar')).toBeDefined()
-    })
-
-    fireEvent.change(screen.getByLabelText('Nombre para mostrar'), { target: { value: 'X' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('El nombre debe tener al menos 2 caracteres.')).toBeDefined()
-    })
-  })
-
-  it('calls adminCreateStaffMember with correct arguments', async () => {
-    mockListAdminStaffMembers.mockResolvedValue([])
-    mockAdminCreateStaffMember.mockResolvedValue({
-      ...mockStaffMember,
-      profileUserId: 'u-1',
-      displayName: 'Ana Staff',
-      fullName: 'Ana García',
-    })
-    renderAdminStaffPage()
-
-    await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: /Agregar profesional/ }).length).toBeGreaterThan(0)
-    })
-
-    fireEvent.click(screen.getAllByRole('button', { name: /Agregar profesional/ })[0])
-
-    await waitFor(() => {
-      expect(screen.getByLabelText('Usuario vinculado')).toBeDefined()
-    })
+    await openCreateForm()
 
     fireEvent.change(screen.getByLabelText('Usuario vinculado'), { target: { value: 'u-1' } })
-    fireEvent.change(screen.getByLabelText('Nombre para mostrar'), { target: { value: 'Ana Staff' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
-    await waitFor(() => {
-      expect(mockAdminCreateStaffMember).toHaveBeenCalledWith('u-1', 'Ana Staff')
-    })
+    await waitFor(() => expect(mockAdminCreateStaffMember).toHaveBeenCalledWith('u-1'))
+    expect(await screen.findByText('Profesional creado correctamente.')).toBeDefined()
+  })
+
+  it('asks to choose an account before saving (edge case)', async () => {
+    mockListAdminStaffMembers.mockResolvedValue([])
+    renderAdminStaffPage()
+    await openCreateForm()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByText('Seleccioná un usuario para vincular al profesional.')).toBeDefined()
+    expect(mockAdminCreateStaffMember).not.toHaveBeenCalled()
+  })
+
+  it('shows a clear error when the account already is a professional (edge case)', async () => {
+    mockListAdminStaffMembers.mockResolvedValue([])
+    mockAdminCreateStaffMember.mockRejectedValue(new Error('duplicate key value'))
+    renderAdminStaffPage()
+    await openCreateForm()
+
+    fireEvent.change(screen.getByLabelText('Usuario vinculado'), { target: { value: 'u-1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByText('Ya existe un profesional vinculado a ese usuario.')).toBeDefined()
   })
 
   it('calls adminSetStaffActive with false to deactivate', async () => {
@@ -235,44 +186,13 @@ describe('AdminStaffPage', () => {
       expect(mockAdminSetStaffActive).toHaveBeenCalledWith('sm-1', true)
     })
   })
-  describe('Edit button', () => {
-    it('opens the edit form with the professional name and scrolls it into view', async () => {
-      const scrollIntoView = vi.fn()
-      Element.prototype.scrollIntoView = scrollIntoView
+  describe('No separate display name', () => {
+    it('cards have no "Cambiar nombre": the name comes from the account (edge case)', async () => {
       mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
       renderAdminStaffPage()
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Cambiar nombre' }))
-
-      expect(await screen.findByRole('heading', { name: 'Editar profesional' })).toBeDefined()
-      expect((screen.getByLabelText(/Nombre para mostrar/i) as HTMLInputElement).value).toBe('Bruno')
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled())
-    })
-
-    it('does not crash when scrollIntoView is unavailable (edge case)', async () => {
-      // @ts-expect-error simulate an environment without scrollIntoView
-      Element.prototype.scrollIntoView = undefined
-      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
-      renderAdminStaffPage()
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Cambiar nombre' }))
-
-      expect(await screen.findByRole('heading', { name: 'Editar profesional' })).toBeDefined()
-    })
-
-    it('can switch to editing another professional while the form is open (edge case)', async () => {
-      const second = { ...mockStaffMember, id: 'sm-2', displayName: 'Carla', profileUserId: 'u-3' }
-      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember, second])
-      renderAdminStaffPage()
-
-      const buttons = await screen.findAllByRole('button', { name: 'Cambiar nombre' })
-      fireEvent.click(buttons[0])
-      await screen.findByRole('heading', { name: 'Editar profesional' })
-      fireEvent.click(screen.getAllByRole('button', { name: 'Cambiar nombre' })[1])
-
-      await waitFor(() =>
-        expect((screen.getByLabelText(/Nombre para mostrar/i) as HTMLInputElement).value).toBe('Carla'),
-      )
+      await screen.findByText('Bruno')
+      expect(screen.queryByRole('button', { name: 'Cambiar nombre' })).toBeNull()
+      expect(screen.queryByRole('heading', { name: 'Editar profesional' })).toBeNull()
     })
   })
   describe('Editar roles button', () => {
@@ -289,12 +209,11 @@ describe('AdminStaffPage', () => {
       )
     }
 
-    it('the card has Cambiar nombre and Editar roles instead of an ambiguous Editar', async () => {
+    it('the card has Editar roles instead of an ambiguous Editar', async () => {
       mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
       renderAdminStaffPage()
 
-      expect(await screen.findByRole('button', { name: 'Cambiar nombre' })).toBeDefined()
-      expect(screen.getByRole('button', { name: 'Editar roles' })).toBeDefined()
+      expect(await screen.findByRole('button', { name: 'Editar roles' })).toBeDefined()
       expect(screen.queryByRole('button', { name: 'Editar' })).toBeNull()
     })
 
@@ -311,18 +230,8 @@ describe('AdminStaffPage', () => {
       mockListAdminStaffMembers.mockResolvedValue([{ ...mockStaffMember, profileUserId: null }])
       renderAdminStaffPage()
 
-      expect(await screen.findByRole('button', { name: 'Cambiar nombre' })).toBeDefined()
+      await screen.findByText('Bruno')
       expect(screen.queryByRole('button', { name: 'Editar roles' })).toBeNull()
-    })
-
-    it('the edit form only changes the name, with no role hint (edge case)', async () => {
-      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
-      renderAdminStaffPage()
-
-      fireEvent.click(await screen.findByRole('button', { name: 'Cambiar nombre' }))
-
-      expect(await screen.findByRole('heading', { name: 'Editar profesional' })).toBeDefined()
-      expect(screen.queryByText(/Para cambiar el rol de esta persona/)).toBeNull()
     })
 
     it('the footer note still links to Usuarios y roles', async () => {
@@ -398,35 +307,9 @@ describe('AdminStaffPage', () => {
       mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
       renderAdminStaffPage()
       await screen.findByText('Bruno')
-      for (const name of ['Disponibilidad', 'Servicios', 'Cambiar nombre', 'Editar roles', 'Desactivar']) {
+      for (const name of ['Disponibilidad', 'Servicios', 'Editar roles', 'Desactivar']) {
         expect(screen.getByRole('button', { name })).toBeInTheDocument()
       }
-    })
-
-    it('fills the display name with the selected account name', async () => {
-      mockListAdminStaffMembers.mockResolvedValue([])
-      renderAdminStaffPage()
-      fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
-      fireEvent.change(await screen.findByLabelText(/Usuario vinculado/), { target: { value: 'u-1' } })
-      expect((screen.getByLabelText('Nombre para mostrar') as HTMLInputElement).value).toBe('Ana García')
-    })
-
-    it('does not overwrite a name the admin already typed (edge case)', async () => {
-      mockListAdminStaffMembers.mockResolvedValue([])
-      renderAdminStaffPage()
-      fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
-      fireEvent.change(screen.getByLabelText('Nombre para mostrar'), { target: { value: 'Anita' } })
-      fireEvent.change(await screen.findByLabelText(/Usuario vinculado/), { target: { value: 'u-1' } })
-      expect((screen.getByLabelText('Nombre para mostrar') as HTMLInputElement).value).toBe('Anita')
-    })
-
-    it('an account without a name leaves the field empty (edge case)', async () => {
-      mockListAdminUsers.mockResolvedValue([{ ...mockUsers[0], name: '' }])
-      mockListAdminStaffMembers.mockResolvedValue([])
-      renderAdminStaffPage()
-      fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
-      fireEvent.change(await screen.findByLabelText(/Usuario vinculado/), { target: { value: 'u-1' } })
-      expect((screen.getByLabelText('Nombre para mostrar') as HTMLInputElement).value).toBe('')
     })
   })
 })

@@ -96,7 +96,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const devOverride = getDevRoleOverride()
       if (devOverride) {
         console.warn(`[DEV] Role override active: "${devOverride}"`)
-        setRoles([devOverride])
+        // Keep the real roles (so "Cambiar modo" still shows) and just start in the overridden one
+        setRoles([...new Set([...fetchedRoles, devOverride])])
         setActiveRoleState(devOverride)
         return
       }

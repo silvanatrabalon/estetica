@@ -244,4 +244,27 @@ describe('BookingConfirmationPage', () => {
       expect(await screen.findByRole('link', { name: 'Reservar de nuevo' })).toHaveAttribute('href', '/booking')
     })
   })
+
+  describe('appointment booked for someone else', () => {
+    it('admin or staff see who it is for and who is notified, not "you"', async () => {
+      mockGetAppointment.mockResolvedValue({ ...mockDetail, customerUserId: 'someone-else', customerName: 'Rosa Gómez' })
+      renderPage()
+      expect(await screen.findByText(/Turno reservado para Rosa Gómez/)).toBeInTheDocument()
+      expect(screen.getByText(/si la persona tiene email/)).toBeInTheDocument()
+      expect(screen.queryByText(/Te enviamos un email con la confirmación/)).toBeNull()
+    })
+
+    it('works for a person without an account, with no name known (edge case)', async () => {
+      mockGetAppointment.mockResolvedValue({ ...mockDetail, customerUserId: null, customerName: '' })
+      renderPage()
+      expect(await screen.findByText(/Turno reservado\./)).toBeInTheDocument()
+    })
+
+    it('a cancelled appointment still shows no email promise (edge case)', async () => {
+      mockGetAppointment.mockResolvedValue({ ...mockDetail, customerUserId: 'someone-else', status: 'cancelled' })
+      renderPage()
+      await screen.findByText('Este turno fue cancelado')
+      expect(screen.queryByText(/Turno reservado/)).toBeNull()
+    })
+  })
 })

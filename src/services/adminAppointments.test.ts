@@ -204,6 +204,18 @@ describe('adminListAppointments', () => {
   })
 })
 
+describe('adminListAppointments professional filter', () => {
+  beforeEach(() => mockRpc.mockReset())
+
+  it('sends the professional id, or null for everyone', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    await adminListAppointments({ staffMemberId: 'sm-1' }, 1, 50)
+    expect(mockRpc).toHaveBeenLastCalledWith('admin_list_appointments', expect.objectContaining({ p_staff_member_id: 'sm-1' }))
+    await adminListAppointments({}, 1, 50)
+    expect(mockRpc).toHaveBeenLastCalledWith('admin_list_appointments', expect.objectContaining({ p_staff_member_id: null }))
+  })
+})
+
 describe('admin appointment edit services', () => {
   beforeEach(() => mockRpc.mockReset())
 

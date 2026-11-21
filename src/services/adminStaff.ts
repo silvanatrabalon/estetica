@@ -47,9 +47,13 @@ export async function listAdminStaffMembers(): Promise<AdminStaffMember[]> {
   return ((data ?? []) as AdminStaffMemberRow[]).map(toAdminStaffMember)
 }
 
+/**
+ * Creates a professional linked to an account. The professional takes the account's name;
+ * `displayName` is only a last resort for accounts that have no name at all.
+ */
 export async function adminCreateStaffMember(
   profileUserId: string,
-  displayName: string,
+  displayName = '',
 ): Promise<AdminStaffMember> {
   const supabase = initSupabase()
   const { data, error } = await supabase.rpc('admin_create_staff_member', {

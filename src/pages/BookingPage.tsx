@@ -1,12 +1,21 @@
 import { resolveBookingTexts } from '../lib/brand'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useUser } from '../hooks/useUser'
+import { useBookingClients } from '../hooks/useBookingClients'
+import {
+  DEFAULT_TARGET,
+  canUseCoupon,
+  targetToBookingParams,
+  validateBookingTarget,
+  type BookingTarget,
+} from '../lib/bookingTarget'
 import { useActiveServices } from '../hooks/useActiveServices'
 import { useAvailableSlots } from '../hooks/useAvailableSlots'
 import { formatPriceARS } from '../lib/formatPrice'
 import { formatSlotTime, toLocalDateKey } from '../lib/formatSlotTime'
 import { deriveGridTimes } from '../lib/businessHours'
-import { BookingCalendar, BookingSlotDayView } from '../components/booking'
+import { BookingCalendar, BookingForWhom, BookingSlotDayView } from '../components/booking'
 import { getBusinessSettings } from '../services/businessSettings'
 import { getLandingConfig } from '../services/landing'
 import { createAppointment, isConflictError } from '../services/appointments'
@@ -27,6 +36,12 @@ function addDays(date: Date, days: number): string {
 
 export function BookingPage() {
   const navigate = useNavigate()
+  const { activeRole } = useUser()
+  // Admin and staff can book for a client; clients only ever book for themselves
+  const canChooseTarget = activeRole === 'admin' || activeRole === 'staff'
+  const [target, setTarget] = useState<BookingTarget>(DEFAULT_TARGET)
+  const [targetError, setTargetError] = useState<string | null>(null)
+  const bookingClients = useBookingClients(canChooseTarget)
   const [step, setStep] = useState<Step>(1)
   const [selectedService, setSelectedService] = useState<Service | null>(null)
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -94,6 +109,13 @@ export function BookingPage() {
     setStep(2)
   }
 
+  function handleTargetChange(next: BookingTarget) {
+    setTarget(next)
+    setTargetError(null)
+    // A coupon belongs to the person booking for themselves
+    if (!canUseCoupon(next)) clearCoupon()
+  }
+
   function clearCoupon() {
     setAppliedCoupon(null)
     setCouponInput('')
@@ -149,6 +171,11 @@ export function BookingPage() {
 
   async function handleConfirm() {
     if (!selectedService || !selectedSlot) return
+    const invalidTarget = canChooseTarget ? validateBookingTarget(target) : null
+    if (invalidTarget) {
+      setTargetError(invalidTarget)
+      return
+    }
     setBookingLoading(true)
     setBookingError(null)
     try {
@@ -156,6 +183,7 @@ export function BookingPage() {
         serviceId: selectedService.id,
         startsAt: selectedSlot.starts_at,
         couponCode: appliedCoupon?.code,
+        ...(canChooseTarget ? targetToBookingParams(target) : {}),
       })
       navigate(`/booking/confirmation/${appointment.id}`)
     } catch (err: unknown) {
@@ -414,7 +442,19 @@ export function BookingPage() {
             )}
           </div>
 
-          {/* Coupon */}
+          {canChooseTarget && (
+            <BookingForWhom
+              value={target}
+              onChange={handleTargetChange}
+              clients={bookingClients.clients}
+              loading={bookingClients.loading}
+              error={bookingClients.error}
+              validationError={targetError}
+            />
+          )}
+
+          {/* Coupon: only for the person booking for themselves */}
+          {canUseCoupon(target) && (
           <div className="mb-4 rounded-3xl border border-shell-border bg-white p-4">
             {appliedCoupon ? (
               <div className="flex items-center justify-between gap-3">
@@ -462,9 +502,12 @@ export function BookingPage() {
               </>
             )}
           </div>
+          )}
 
           <p className="mb-6 rounded-2xl bg-[var(--color-lilac)] px-4 py-3 text-sm text-shell-text">
-            Al confirmar, te enviamos un email con los datos de tu reserva.
+            {target.kind === 'me'
+              ? 'Al confirmar, te enviamos un email con los datos de tu reserva.'
+              : 'Al confirmar, avisamos por email a la persona (si tiene email) y al profesional.'}
           </p>
 
           {bookingError && (

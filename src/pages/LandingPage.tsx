@@ -520,11 +520,6 @@ export function LandingPage() {
   const isAuthenticated = !!user
   const isCustomer = activeRole === 'customer'
 
-  // Redirect admin/staff to their home
-  if (!authLoading && (activeRole === 'admin' || activeRole === 'staff')) {
-    return <Navigate to={resolveRoleHomePath(activeRole)} replace />
-  }
-
   // Load the social links the admin chose to show (failures just hide the section)
   useEffect(() => {
     let cancelled = false
@@ -690,6 +685,12 @@ export function LandingPage() {
   const todayStr = new Date().toLocaleDateString('en-CA')
   const todayClosure = upcomingClosures.find((c) => c.closureDate === todayStr) ?? null
   const futureClosures = upcomingClosures.filter((c) => c.closureDate > todayStr)
+
+  // Redirect admin/staff to their home. This must come after every hook: the role can change
+  // while the page is mounted, and returning earlier would change the number of hooks.
+  if (!authLoading && (activeRole === 'admin' || activeRole === 'staff')) {
+    return <Navigate to={resolveRoleHomePath(activeRole)} replace />
+  }
 
   if (authLoading || loadingConfig) {
     return <RouteLoadingState />

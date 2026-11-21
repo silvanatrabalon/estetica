@@ -4,6 +4,7 @@ import { cn } from '../lib/cn'
 import { PERIOD_OPTIONS, getPeriodRange, type AppointmentPeriod } from '../lib/appointmentPeriods'
 import { formatSlotDateTime } from '../lib/formatSlotTime'
 import { getBusinessSettings } from '../services/businessSettings'
+import { listAdminStaffMembers, type AdminStaffMember } from '../services/adminStaff'
 import {
   adminListAppointments,
   type AdminAppointmentFilters,
@@ -121,6 +122,16 @@ export function AdminAppointmentsPage() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<AdminAppointmentPage>({ rows: [], totalCount: 0 })
   const [orgTimezone, setOrgTimezone] = useState('UTC')
+  const [selectedStaff, setSelectedStaff] = useState<string>('')
+  const [professionals, setProfessionals] = useState<AdminStaffMember[]>([])
+
+  useEffect(() => {
+    listAdminStaffMembers()
+      .then(setProfessionals)
+      .catch(() => {
+        // The professional filter is simply hidden if this fails
+      })
+  }, [])
 
   useEffect(() => {
     getBusinessSettings()
@@ -137,6 +148,7 @@ export function AdminAppointmentsPage() {
 
     const activeFilters: AdminAppointmentFilters = {
       statuses: selectedStatus ? [selectedStatus] : undefined,
+      staffMemberId: selectedStaff || undefined,
       ...getPeriodRange(period),
     }
 
@@ -155,10 +167,15 @@ export function AdminAppointmentsPage() {
     return () => {
       cancelled = true
     }
-  }, [period, selectedStatus, page])
+  }, [period, selectedStatus, selectedStaff, page])
 
   function handleStatusChange(value: string) {
     setSelectedStatus(value)
+    setPage(1)
+  }
+
+  function handleStaffChange(value: string) {
+    setSelectedStaff(value)
     setPage(1)
   }
 
@@ -201,6 +218,28 @@ export function AdminAppointmentsPage() {
             </span>
           )}
         </FilterMenu>
+        {professionals.length > 0 && (
+          <FilterMenu
+            label="Filtrar por profesional"
+            options={[
+              { value: '', label: 'Todos los profesionales' },
+              ...professionals.map((p) => ({ value: p.id, label: p.displayName })),
+            ]}
+            value={selectedStaff}
+            onSelect={handleStaffChange}
+            active={selectedStaff !== ''}
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 21c0-4 3.5-6 8-6s8 2 8 6" />
+            </svg>
+            {selectedStaff !== '' && (
+              <span className="max-w-[7rem] truncate text-xs text-brand-primary">
+                {professionals.find((p) => p.id === selectedStaff)?.displayName}
+              </span>
+            )}
+          </FilterMenu>
+        )}
       </div>
 
       {/* Loading */}
