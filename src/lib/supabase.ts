@@ -6,6 +6,19 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { parseEnv } from './env'
 
+/**
+ * Headers sent with every request. When VITE_NOTIFICATIONS_ENABLED is the string
+ * 'false' (local testing against a shared database), `x-skip-notifications` tells
+ * the database trigger not to send notification emails for this request.
+ */
+export function buildClientHeaders(notificationsEnabled?: string): Record<string, string> {
+  const headers: Record<string, string> = { 'x-client-info': 'estetica-app/1.0' }
+  if (notificationsEnabled?.trim().toLowerCase() === 'false') {
+    headers['x-skip-notifications'] = 'true'
+  }
+  return headers
+}
+
 let supabaseClient: SupabaseClient | null = null
 
 /**
@@ -32,9 +45,7 @@ export function initSupabase(): SupabaseClient {
         flowType: 'pkce',
       },
       global: {
-        headers: {
-          'x-client-info': 'estetica-app/1.0',
-        },
+        headers: buildClientHeaders(import.meta.env.VITE_NOTIFICATIONS_ENABLED),
       },
     }
   )

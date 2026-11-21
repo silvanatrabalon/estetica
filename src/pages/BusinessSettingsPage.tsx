@@ -5,11 +5,13 @@ import {
   getBusinessSettings,
   saveBusinessClosure,
   saveBusinessSettings,
+  saveNotificationSettings,
   updateBookingPolicy,
   type BusinessClosureRecord,
   type BusinessHoursRecord,
 } from '../services/businessSettings'
 import { adminDeleteAllAppointments } from '../services/adminAppointments'
+import { validateNotificationEmail } from '../lib/businessSettings'
 import type { BusinessClosureType, BusinessHoursInput } from '../lib/businessSettings'
 import { commonCopy } from '../lib/uiCopy'
 import { useUser } from '../hooks/useUser'
@@ -184,8 +186,6 @@ export function BusinessSettingsPage() {
         primaryColor,
         bookingHeaderText,
         bookingSubtitleText,
-        notificationEmail,
-        notificationsEnabled,
         weeklyHours: toHoursInput(weeklyHours),
       })
 
@@ -261,10 +261,17 @@ export function BusinessSettingsPage() {
       return
     }
 
+    const notificationEmailError = validateNotificationEmail(notificationEmail)
+    if (notificationEmailError) {
+      setBookingPolicyError(notificationEmailError)
+      return
+    }
+
     setIsSavingPolicy(true)
 
     try {
       await updateBookingPolicy(bookingMinNoticeMinutes, bookingMaxHorizonDays)
+      await saveNotificationSettings({ notificationEmail, notificationsEnabled })
       setSuccessMessage('Política de reservas actualizada.')
     } catch {
       setBookingPolicyError('No se pudo guardar la configuración.')
@@ -465,40 +472,6 @@ export function BusinessSettingsPage() {
                   placeholder="Ej: Elegí el servicio y horario"
                 />
               </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-3">
-            <h3 className="font-semibold text-gray-900 text-sm">Notificaciones</h3>
-            <label className="flex items-start gap-2.5 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={notificationsEnabled}
-                onChange={(e) => setNotificationsEnabled(e.target.checked)}
-              />
-              <span>
-                Enviar notificaciones por email
-                <span className="block text-xs text-gray-400">
-                  Desactivalo mientras hacés pruebas para que no se envíen emails reales a clientes.
-                </span>
-              </span>
-            </label>
-            <div>
-              <label htmlFor="business-notification-email" className="mb-1.5 block text-xs font-medium text-gray-600">
-                Email para notificaciones del negocio
-              </label>
-              <input
-                id="business-notification-email"
-                className={fieldCls}
-                type="email"
-                value={notificationEmail}
-                onChange={(e) => setNotificationEmail(e.target.value)}
-                placeholder="negocio@ejemplo.com"
-              />
-              <p className="mt-1.5 text-xs text-gray-400">
-                Recibirás una copia de cada turno confirmado, cancelado y reprogramado. Es opcional.
-              </p>
             </div>
           </div>
 
@@ -758,6 +731,40 @@ export function BusinessSettingsPage() {
                 value={bookingMaxHorizonDays}
                 onChange={(e) => setBookingMaxHorizonDays(Number(e.target.value))}
               />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm space-y-3">
+            <h3 className="font-semibold text-gray-900 text-sm">Notificaciones</h3>
+            <label className="flex items-start gap-2.5 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={notificationsEnabled}
+                onChange={(e) => setNotificationsEnabled(e.target.checked)}
+              />
+              <span>
+                Enviar notificaciones por email
+                <span className="block text-xs text-gray-400">
+                  Desactivalo mientras hacés pruebas para que no se envíen emails reales a clientes.
+                </span>
+              </span>
+            </label>
+            <div>
+              <label htmlFor="business-notification-email" className="mb-1.5 block text-xs font-medium text-gray-600">
+                Email para notificaciones del negocio
+              </label>
+              <input
+                id="business-notification-email"
+                className={fieldCls}
+                type="email"
+                value={notificationEmail}
+                onChange={(e) => setNotificationEmail(e.target.value)}
+                placeholder="negocio@ejemplo.com"
+              />
+              <p className="mt-1.5 text-xs text-gray-400">
+                Recibirás una copia de cada turno confirmado, cancelado y reprogramado. Es opcional.
+              </p>
             </div>
           </div>
 

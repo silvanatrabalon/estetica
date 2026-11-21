@@ -300,8 +300,6 @@ export async function saveBusinessSettings(input: {
   primaryColor: string
   bookingHeaderText: string
   bookingSubtitleText: string
-  notificationEmail?: string
-  notificationsEnabled?: boolean
   weeklyHours: BusinessHoursInput[]
 }): Promise<BusinessSettingsRecord> {
   const identityValidation = validateBusinessIdentity({
@@ -312,11 +310,6 @@ export async function saveBusinessSettings(input: {
 
   if (!identityValidation.valid) {
     throw new Error(Object.values(identityValidation.errors)[0] ?? 'La configuracion del negocio es invalida.')
-  }
-
-  const notificationEmailError = validateNotificationEmail(input.notificationEmail ?? '')
-  if (notificationEmailError) {
-    throw new Error(notificationEmailError)
   }
 
   for (const hour of input.weeklyHours) {
@@ -339,8 +332,6 @@ export async function saveBusinessSettings(input: {
       brand_primary_color: normalizeBusinessColor(input.primaryColor),
       booking_header_text: normalizeBusinessText(input.bookingHeaderText),
       booking_subtitle_text: normalizeBusinessText(input.bookingSubtitleText),
-      notification_email: normalizeBusinessText(input.notificationEmail ?? '')?.toLowerCase() ?? null,
-      ...(input.notificationsEnabled === undefined ? {} : { notifications_enabled: input.notificationsEnabled }),
       updated_at: now,
     })
     .eq('id', organization.id)
@@ -366,6 +357,32 @@ export async function saveBusinessSettings(input: {
   }
 
   return getBusinessSettings()
+}
+
+export async function saveNotificationSettings(input: {
+  notificationEmail: string
+  notificationsEnabled: boolean
+}): Promise<void> {
+  const notificationEmailError = validateNotificationEmail(input.notificationEmail)
+  if (notificationEmailError) {
+    throw new Error(notificationEmailError)
+  }
+
+  const organization = await resolveSingletonOrganization()
+  const supabase = initSupabase()
+
+  const { error } = await supabase
+    .from('organizations')
+    .update({
+      notification_email: normalizeBusinessText(input.notificationEmail)?.toLowerCase() ?? null,
+      notifications_enabled: input.notificationsEnabled,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', organization.id)
+
+  if (error) {
+    throw error
+  }
 }
 
 export async function saveBusinessClosure(input: BusinessClosureInput & { id?: string }): Promise<BusinessClosureRecord> {

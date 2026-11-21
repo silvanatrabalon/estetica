@@ -7,6 +7,7 @@ import { mockSessions } from '../hooks/__test-utils__/fixtures'
 
 const mockGetBusinessSettings = vi.fn()
 const mockSaveBusinessSettings = vi.fn()
+const mockSaveNotificationSettings = vi.fn()
 const mockSaveBusinessClosure = vi.fn()
 const mockDeleteBusinessClosure = vi.fn()
 const mockUpdateBookingPolicy = vi.fn()
@@ -14,6 +15,7 @@ const mockUpdateBookingPolicy = vi.fn()
 vi.mock('../services/businessSettings', () => ({
   getBusinessSettings: (...args: unknown[]) => mockGetBusinessSettings(...args),
   saveBusinessSettings: (...args: unknown[]) => mockSaveBusinessSettings(...args),
+  saveNotificationSettings: (...args: unknown[]) => mockSaveNotificationSettings(...args),
   saveBusinessClosure: (...args: unknown[]) => mockSaveBusinessClosure(...args),
   deleteBusinessClosure: (...args: unknown[]) => mockDeleteBusinessClosure(...args),
   updateBookingPolicy: (...args: unknown[]) => mockUpdateBookingPolicy(...args),
@@ -138,12 +140,18 @@ describe('BusinessSettingsPage', () => {
     })
   })
 
-  describe('Notification email field', () => {
+  describe('Notification settings (Política tab)', () => {
+    async function openPolicyTab() {
+      const tab = await screen.findByRole('button', { name: /Política/ })
+      fireEvent.click(tab)
+    }
+
     it('shows the stored notification email', async () => {
       mockGetBusinessSettings.mockResolvedValue(
         createSettingsResponse({ notificationEmail: 'inbox@negocio.com' }),
       )
       renderBusinessSettingsPage()
+      await openPolicyTab()
 
       const input = await screen.findByLabelText('Email para notificaciones del negocio')
       expect((input as HTMLInputElement).value).toBe('inbox@negocio.com')
@@ -151,46 +159,46 @@ describe('BusinessSettingsPage', () => {
 
     it('renders empty when no notification email is configured (edge case)', async () => {
       renderBusinessSettingsPage()
+      await openPolicyTab()
 
       const input = await screen.findByLabelText('Email para notificaciones del negocio')
       expect((input as HTMLInputElement).value).toBe('')
     })
 
-    it('sends the notification email when saving business settings', async () => {
-      mockSaveBusinessSettings.mockResolvedValue(createSettingsResponse())
+    it('is not part of the Identidad form anymore', async () => {
       renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
 
-      const input = await screen.findByLabelText('Email para notificaciones del negocio')
-      fireEvent.change(input, { target: { value: 'nuevo@negocio.com' } })
-      fireEvent.submit(input.closest('form')!)
-
-      await waitFor(() => {
-        expect(mockSaveBusinessSettings).toHaveBeenCalledWith(
-          expect.objectContaining({ notificationEmail: 'nuevo@negocio.com' }),
-        )
-      })
+      const identityForm = screen.getByLabelText('Nombre del negocio').closest('form')!
+      expect(identityForm.contains(screen.getByLabelText('Email para notificaciones del negocio'))).toBe(false)
     })
 
-    it('shows notifications enabled by default and sends the toggle value when saving', async () => {
-      mockSaveBusinessSettings.mockResolvedValue(createSettingsResponse())
+    it('saves notification email and toggle together with the policy', async () => {
+      mockUpdateBookingPolicy.mockResolvedValue(undefined)
+      mockSaveNotificationSettings.mockResolvedValue(undefined)
       renderBusinessSettingsPage()
+      await openPolicyTab()
 
       const toggle = (await screen.findByLabelText(/Enviar notificaciones por email/)) as HTMLInputElement
       expect(toggle.checked).toBe(true)
-
       fireEvent.click(toggle)
-      fireEvent.submit(toggle.closest('form')!)
+      fireEvent.change(screen.getByLabelText('Email para notificaciones del negocio'), {
+        target: { value: 'nuevo@negocio.com' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar política' }))
 
       await waitFor(() => {
-        expect(mockSaveBusinessSettings).toHaveBeenCalledWith(
-          expect.objectContaining({ notificationsEnabled: false }),
-        )
+        expect(mockSaveNotificationSettings).toHaveBeenCalledWith({
+          notificationEmail: 'nuevo@negocio.com',
+          notificationsEnabled: false,
+        })
       })
     })
 
     it('reflects notifications disabled from the stored settings (edge case)', async () => {
       mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ notificationsEnabled: false }))
       renderBusinessSettingsPage()
+      await openPolicyTab()
 
       const toggle = (await screen.findByLabelText(/Enviar notificaciones por email/)) as HTMLInputElement
       expect(toggle.checked).toBe(false)
@@ -200,18 +208,34 @@ describe('BusinessSettingsPage', () => {
       mockGetBusinessSettings.mockResolvedValue(
         createSettingsResponse({ notificationEmail: 'inbox@negocio.com' }),
       )
-      mockSaveBusinessSettings.mockResolvedValue(createSettingsResponse())
+      mockUpdateBookingPolicy.mockResolvedValue(undefined)
+      mockSaveNotificationSettings.mockResolvedValue(undefined)
       renderBusinessSettingsPage()
+      await openPolicyTab()
 
-      const input = await screen.findByLabelText('Email para notificaciones del negocio')
-      fireEvent.change(input, { target: { value: '' } })
-      fireEvent.submit(input.closest('form')!)
+      fireEvent.change(await screen.findByLabelText('Email para notificaciones del negocio'), {
+        target: { value: '' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar política' }))
 
       await waitFor(() => {
-        expect(mockSaveBusinessSettings).toHaveBeenCalledWith(
+        expect(mockSaveNotificationSettings).toHaveBeenCalledWith(
           expect.objectContaining({ notificationEmail: '' }),
         )
       })
+    })
+
+    it('rejects an invalid email without saving anything (edge case)', async () => {
+      renderBusinessSettingsPage()
+      await openPolicyTab()
+
+      const input = await screen.findByLabelText('Email para notificaciones del negocio')
+      fireEvent.change(input, { target: { value: 'no-es-un-email' } })
+      fireEvent.submit(input.closest('form')!)
+
+      expect(await screen.findByText('Ingresá un email válido para las notificaciones.')).toBeDefined()
+      expect(mockUpdateBookingPolicy).not.toHaveBeenCalled()
+      expect(mockSaveNotificationSettings).not.toHaveBeenCalled()
     })
   })
 

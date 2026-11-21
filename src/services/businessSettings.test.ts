@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { saveBusinessSettings } from './businessSettings'
+import { saveNotificationSettings } from './businessSettings'
 
 const mockInitSupabase = vi.fn()
 
@@ -7,17 +7,7 @@ vi.mock('../lib/supabase', () => ({
   initSupabase: () => mockInitSupabase(),
 }))
 
-const validInput = {
-  name: 'Salon Centro',
-  timezone: 'America/Argentina/Buenos_Aires',
-  logoUrl: '',
-  primaryColor: '',
-  bookingHeaderText: '',
-  bookingSubtitleText: '',
-  weeklyHours: [],
-}
-
-describe('saveBusinessSettings — notification email validation', () => {
+describe('saveNotificationSettings — validation', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -25,9 +15,9 @@ describe('saveBusinessSettings — notification email validation', () => {
   it.each([['sin-arroba'], ['a@b'], ['a b@c.com']])(
     'rejects invalid notification email %s before touching the database',
     async (notificationEmail) => {
-      await expect(saveBusinessSettings({ ...validInput, notificationEmail })).rejects.toThrow(
-        'Ingresá un email válido para las notificaciones.',
-      )
+      await expect(
+        saveNotificationSettings({ notificationEmail, notificationsEnabled: true }),
+      ).rejects.toThrow('Ingresá un email válido para las notificaciones.')
       expect(mockInitSupabase).not.toHaveBeenCalled()
     },
   )
