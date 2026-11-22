@@ -314,7 +314,7 @@ export function UserEditModal({ userId, onClose, onChanged, onDeleted }: UserEdi
               <section className="space-y-2 rounded-xl border border-red-200 bg-red-50/40 p-3">
                 <h3 className="text-sm font-semibold text-red-700">Eliminar usuario</h3>
                 <p className="text-xs text-shell-subtleText">
-                  Elimina la cuenta y su acceso de forma permanente. Para solo impedir que entre, desactivalo desde la lista.
+                  Elimina la cuenta y su acceso de forma permanente. Para quitarle permisos, sacale el rol arriba.
                 </p>
                 <button
                   type="button"

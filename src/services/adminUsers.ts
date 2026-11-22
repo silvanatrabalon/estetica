@@ -122,20 +122,6 @@ export async function adminUpdateUserRole(userId: string, role: AdminManagedRole
   return data as AdminUserRoleRow
 }
 
-export async function adminSetUserActive(userId: string, isActive: boolean): Promise<AdminUserRoleRow> {
-  const supabase = initSupabase()
-  const { data, error } = await supabase.rpc('admin_set_user_active', {
-    target_user_id: userId,
-    make_active: isActive,
-  })
-
-  if (error) {
-    throw error
-  }
-
-  return data as AdminUserRoleRow
-}
-
 export async function adminUpdateUserProfile(
   userId: string,
   input: { name: string; phone: string },

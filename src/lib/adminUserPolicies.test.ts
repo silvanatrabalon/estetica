@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  isLastActiveAdminDeactivation,
   isLastActiveAdminRoleDemotion,
   isSelfDemotion,
 } from './adminUserPolicies'
@@ -40,26 +39,6 @@ describe('adminUserPolicies', () => {
         nextRoles: ['staff'],
         isActive: true,
         activeAdminCount: 2,
-      }),
-    ).toBe(false)
-  })
-
-  it('detects last-active-admin deactivation', () => {
-    expect(
-      isLastActiveAdminDeactivation({
-        roles: ['admin'],
-        isActive: true,
-        nextIsActive: false,
-        activeAdminCount: 1,
-      }),
-    ).toBe(true)
-
-    expect(
-      isLastActiveAdminDeactivation({
-        roles: ['admin'],
-        isActive: true,
-        nextIsActive: false,
-        activeAdminCount: 3,
       }),
     ).toBe(false)
   })

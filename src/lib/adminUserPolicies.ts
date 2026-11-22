@@ -25,17 +25,3 @@ export function isLastActiveAdminRoleDemotion(params: {
     params.activeAdminCount <= 1
   )
 }
-
-export function isLastActiveAdminDeactivation(params: {
-  roles: AppRole[]
-  isActive: boolean
-  nextIsActive: boolean
-  activeAdminCount: number
-}): boolean {
-  return (
-    params.roles.includes('admin') &&
-    params.isActive &&
-    !params.nextIsActive &&
-    params.activeAdminCount <= 1
-  )
-}

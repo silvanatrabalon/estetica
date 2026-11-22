@@ -31,6 +31,7 @@ export function LinkAccountModal({
 }: LinkAccountModalProps) {
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState('')
+  const [listOpen, setListOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
   const isOpen = staffName !== null
 
@@ -38,17 +39,21 @@ export function LinkAccountModal({
     if (isOpen) {
       setQuery('')
       setSelectedId('')
+      setListOpen(false)
       searchRef.current?.focus()
     }
   }, [isOpen, staffName])
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isSaving) onCancel()
+      if (e.key !== 'Escape' || isSaving) return
+      // First Escape closes the drop-down, the next one the pop-up
+      if (listOpen) setListOpen(false)
+      else onCancel()
     }
     if (isOpen) document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [isOpen, isSaving, onCancel])
+  }, [isOpen, isSaving, onCancel, listOpen])
 
   // If the chosen account stops being available (someone else took it), the choice is dropped
   useEffect(() => {
@@ -64,6 +69,9 @@ export function LinkAccountModal({
   }, [accounts, query])
 
   if (!isOpen) return null
+
+  const selected = accounts.find((a) => a.userId === selectedId) ?? null
+  const label = (a: AdminManagedUser) => a.name || a.email || 'Usuario sin nombre'
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4">
@@ -83,75 +91,113 @@ export function LinkAccountModal({
         </div>
 
         <div className="space-y-3 overflow-y-auto p-4">
-          <input
-            ref={searchRef}
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por nombre o email..."
-            aria-label="Buscar cuenta"
-            autoComplete="off"
-            className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text placeholder:text-shell-subtleText focus:border-brand-primary focus:outline-none"
-          />
+          <div className="relative">
+            <input
+              ref={searchRef}
+              type="search"
+              role="combobox"
+              aria-expanded={listOpen}
+              aria-controls="link-account-list"
+              aria-autocomplete="list"
+              value={listOpen ? query : selected ? label(selected) : query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                setListOpen(true)
+              }}
+              onFocus={() => {
+                setQuery('')
+                setListOpen(true)
+              }}
+              onClick={() => setListOpen(true)}
+              placeholder="Buscar por nombre o email..."
+              aria-label="Buscar cuenta"
+              autoComplete="off"
+              className="w-full rounded-lg border border-shell-border bg-white py-2 pl-3 pr-9 text-sm text-shell-text placeholder:text-shell-subtleText focus:border-brand-primary focus:outline-none"
+            />
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={listOpen ? 'Cerrar la lista de cuentas' : 'Abrir la lista de cuentas'}
+              onClick={() => {
+                setListOpen((open) => !open)
+                if (!listOpen) searchRef.current?.focus()
+              }}
+              className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-shell-subtleText"
+            >
+              <span aria-hidden="true" className={cn('text-xs transition-transform', listOpen && 'rotate-180')}>▾</span>
+            </button>
+          </div>
 
           {accounts.length > 0 && accounts.every((a) => linkedUserIds.includes(a.userId)) && (
             <p className="rounded-lg bg-shell-muted px-3 py-3 text-sm text-shell-subtleText">
               No hay cuentas disponibles: todas ya están vinculadas a un profesional.
             </p>
           )}
-          {accounts.length === 0 ? (
-            <p className="rounded-lg bg-shell-muted px-3 py-3 text-sm text-shell-subtleText">
-              No hay cuentas para vincular.
-            </p>
-          ) : matches.length === 0 ? (
-            <p className="rounded-lg bg-shell-muted px-3 py-3 text-sm text-shell-subtleText">
-              No encontramos cuentas con ese criterio.
-            </p>
-          ) : (
-            <ul role="listbox" aria-label="Cuentas disponibles" className="max-h-60 divide-y divide-shell-border overflow-y-auto rounded-lg border border-shell-border">
-              {matches.map((account) => {
-                const selected = account.userId === selectedId
-                const taken = linkedUserIds.includes(account.userId)
-                return (
-                  <li
-                    key={account.userId}
-                    role="option"
-                    aria-selected={selected}
-                    aria-disabled={taken || undefined}
-                    tabIndex={taken ? -1 : 0}
-                    onClick={() => {
-                      if (!taken) setSelectedId(account.userId)
-                    }}
-                    onKeyDown={(e) => {
-                      if (!taken && (e.key === 'Enter' || e.key === ' ')) {
-                        e.preventDefault()
-                        setSelectedId(account.userId)
-                      }
-                    }}
-                    className={cn(
-                      'flex items-center justify-between gap-2 px-3 py-2 text-sm',
-                      taken ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
-                      selected ? 'bg-[var(--color-lilac)]/60' : !taken && 'hover:bg-shell-muted',
-                    )}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold text-shell-text">{account.name || 'Usuario sin nombre'}</span>
-                      <span className="block truncate text-xs text-shell-subtleText">
-                        {[account.email, account.roles.map(roleLabel).join(', ')].filter(Boolean).join(' · ')}
+
+          {listOpen &&
+            (accounts.length === 0 ? (
+              <p className="rounded-lg bg-shell-muted px-3 py-3 text-sm text-shell-subtleText">
+                No hay cuentas para vincular.
+              </p>
+            ) : matches.length === 0 ? (
+              <p className="rounded-lg bg-shell-muted px-3 py-3 text-sm text-shell-subtleText">
+                No encontramos cuentas con ese criterio.
+              </p>
+            ) : (
+              <ul
+                id="link-account-list"
+                role="listbox"
+                aria-label="Cuentas disponibles"
+                className="max-h-40 divide-y divide-shell-border overflow-y-auto overscroll-contain rounded-lg border border-shell-border shadow-sm"
+              >
+                {matches.map((account) => {
+                  const isSelected = account.userId === selectedId
+                  const taken = linkedUserIds.includes(account.userId)
+                  const choose = () => {
+                    if (taken) return
+                    setSelectedId(account.userId)
+                    setListOpen(false)
+                    setQuery('')
+                  }
+                  return (
+                    <li
+                      key={account.userId}
+                      role="option"
+                      aria-selected={isSelected}
+                      aria-disabled={taken || undefined}
+                      tabIndex={taken ? -1 : 0}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={choose}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          choose()
+                        }
+                      }}
+                      className={cn(
+                        'flex items-center justify-between gap-2 px-3 py-2 text-sm',
+                        taken ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+                        isSelected ? 'bg-[var(--color-lilac)]/60' : !taken && 'hover:bg-shell-muted',
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-semibold text-shell-text">{account.name || 'Usuario sin nombre'}</span>
+                        <span className="block truncate text-xs text-shell-subtleText">
+                          {[account.email, account.roles.map(roleLabel).join(', ')].filter(Boolean).join(' · ')}
+                        </span>
                       </span>
-                    </span>
-                    {taken ? (
-                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                        Ya es profesional
-                      </span>
-                    ) : (
-                      selected && <span aria-hidden="true">✓</span>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+                      {taken ? (
+                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                          Ya es profesional
+                        </span>
+                      ) : (
+                        isSelected && <span aria-hidden="true">✓</span>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            ))}
 
           {error && (
             <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

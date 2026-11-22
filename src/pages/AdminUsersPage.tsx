@@ -2,12 +2,10 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { commonCopy } from '../lib/uiCopy'
 import { roleLabel } from '../lib/adminUsersView'
-import { isLastActiveAdminDeactivation } from '../lib/adminUserPolicies'
 import {
   adminDeleteUserInvitation,
   adminInviteUser,
   adminListUserInvitations,
-  adminSetUserActive,
   listAdminUsers,
   type AdminManagedRole,
   type AdminManagedUser,
@@ -27,7 +25,7 @@ import { FilterMenu } from '../components/FilterMenu'
 
 type RoleFilter = 'all' | AdminManagedRole
 /** 'noaccount': people that have no account yet (invited, professionals and clients loaded by name). */
-type StatusFilter = 'all' | 'active' | 'inactive' | 'noaccount'
+type AccountFilter = 'all' | 'withaccount' | 'noaccount'
 
 const ROLE_FILTERS: { value: RoleFilter; label: string }[] = [
   { value: 'all', label: 'Todos' },
@@ -36,10 +34,9 @@ const ROLE_FILTERS: { value: RoleFilter; label: string }[] = [
   { value: 'customer', label: 'Clientes' },
 ]
 
-const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'Todos' },
-  { value: 'active', label: 'Activos' },
-  { value: 'inactive', label: 'Inactivos' },
+const ACCOUNT_FILTERS: { value: AccountFilter; label: string }[] = [
+  { value: 'all', label: 'Todas' },
+  { value: 'withaccount', label: 'Con cuenta' },
   { value: 'noaccount', label: 'Sin cuenta' },
 ]
 
@@ -56,14 +53,13 @@ export function AdminUsersPage() {
   }
   const [users, setUsers] = useState<AdminManagedUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [busyUserId, setBusyUserId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(
     (location.state as { notice?: string } | null)?.notice ?? null,
   )
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [accountFilter, setAccountFilter] = useState<AccountFilter>('all')
   const [loadFailed, setLoadFailed] = useState(false)
   // People without account: professionals (they can be linked) and clients loaded by name
   const [staffNoAccount, setStaffNoAccount] = useState<AdminStaffMember[]>([])
@@ -100,11 +96,6 @@ export function AdminUsersPage() {
   ) => setConfirmState({ isOpen: true, title, message, onConfirm, ...labels })
   const closeConfirm = () => setConfirmState((prev) => ({ ...prev, isOpen: false }))
 
-  const activeAdminCount = useMemo(
-    () => users.filter((u) => u.roles.includes('admin') && u.isActive).length,
-    [users],
-  )
-
   // People without account: invited by email (any role, admin included), professionals and clients loaded by name
   const roleCounts = useMemo(
     () => ({
@@ -127,20 +118,18 @@ export function AdminUsersPage() {
   const q = searchQuery.trim().toLowerCase()
   const matches = (...texts: Array<string | null | undefined>) =>
     !q || texts.some((t) => (t ?? '').toLowerCase().includes(q))
-  // People without account have no active/inactive state: they show with "Todos" and "Sin cuenta" only
-  const showNoAccount = statusFilter === 'all' || statusFilter === 'noaccount'
+  // "Con cuenta" leaves out the people that have no account yet
+  const showNoAccount = accountFilter !== 'withaccount'
 
   const filteredUsers = useMemo(
     () =>
       users.filter((u) => {
-        if (statusFilter === 'noaccount') return false
+        if (accountFilter === 'noaccount') return false
         if (roleFilter !== 'all' && !u.roles.includes(roleFilter)) return false
-        if (statusFilter === 'active' && !u.isActive) return false
-        if (statusFilter === 'inactive' && u.isActive) return false
         return matches(u.name, u.email)
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [users, searchQuery, roleFilter, statusFilter],
+    [users, searchQuery, roleFilter, accountFilter],
   )
   const visibleInvitations = showNoAccount
     ? invitations.filter((i) => (roleFilter === 'all' || i.roles.includes(roleFilter)) && matches(i.name, i.email))
@@ -153,7 +142,7 @@ export function AdminUsersPage() {
     showNoAccount && (roleFilter === 'all' || roleFilter === 'customer')
       ? clientsNoAccount.filter((c) => matches(c.name, c.email, c.phone))
       : []
-  // How many people without account the chosen role has (shown in the Estado menu)
+  // How many people without account the chosen role has (shown in the Cuenta menu)
   const noAccountCount =
     invitations.filter((i) => roleFilter === 'all' || i.roles.includes(roleFilter)).length +
     (roleFilter === 'all' || roleFilter === 'staff' ? staffNoAccount.length : 0) +
@@ -188,48 +177,6 @@ export function AdminUsersPage() {
   useEffect(() => {
     void loadData()
   }, [])
-
-  const handleActivationToggle = (user: AdminManagedUser) => {
-    const nextState = !user.isActive
-
-    if (
-      isLastActiveAdminDeactivation({
-        roles: user.roles,
-        isActive: user.isActive,
-        nextIsActive: nextState,
-        activeAdminCount,
-      })
-    ) {
-      setErrorMessage('No podés desactivar al último administrador activo.')
-      return
-    }
-
-    showConfirm(
-      nextState ? 'Reactivar usuario' : 'Desactivar usuario',
-      nextState ? '¿Confirmás reactivar este usuario?' : '¿Confirmás desactivar este usuario?',
-      async () => {
-        closeConfirm()
-        setSuccessMessage(null)
-        setErrorMessage(null)
-        setBusyUserId(user.userId)
-        try {
-          const updated = await adminSetUserActive(user.userId, nextState)
-          setUsers((current) =>
-            current.map((item) =>
-              item.userId === updated.user_id ? { ...item, isActive: updated.is_active } : item,
-            ),
-          )
-          setSuccessMessage(
-            updated.is_active ? 'Usuario reactivado correctamente.' : 'Usuario desactivado correctamente.',
-          )
-        } catch {
-          setErrorMessage('No pudimos cambiar el estado del usuario. Verificá permisos o restricciones de seguridad.')
-        } finally {
-          setBusyUserId(null)
-        }
-      },
-    )
-  }
 
   // The pop-up always starts from what the server says right now, not from what this page loaded earlier
   const openLinkPopup = (member: AdminStaffMember) => {
@@ -353,7 +300,7 @@ export function AdminUsersPage() {
         <h2 className="font-heading text-xl font-semibold text-shell-text sm:text-2xl">Usuarios y roles</h2>
         {/* The explanation only where there is room; on phones it pushed the list far down */}
         <p className="mt-1 hidden text-sm text-shell-subtleText sm:block">
-          Quién tiene cuenta y si está activa. Para cambiar los roles o los datos de alguien, usá “Editar roles”.
+          Quién tiene cuenta y qué roles tiene. Para cambiar los roles o los datos de alguien, usá “Editar roles”.
         </p>
       </div>
 
@@ -518,19 +465,19 @@ export function AdminUsersPage() {
             <span aria-hidden="true" className="text-xs text-shell-subtleText">▾</span>
           </FilterMenu>
           <FilterMenu
-            label="Filtrar por estado"
-            options={STATUS_FILTERS.map((f) => ({
+            label="Filtrar por cuenta"
+            options={ACCOUNT_FILTERS.map((f) => ({
               value: f.value,
               label: f.value === 'noaccount' ? `${f.label} (${noAccountCount})` : f.label,
             }))}
-            value={statusFilter}
-            onSelect={(value) => setStatusFilter(value as StatusFilter)}
-            active={statusFilter !== 'all'}
+            value={accountFilter}
+            onSelect={(value) => setAccountFilter(value as AccountFilter)}
+            active={accountFilter !== 'all'}
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M3 5h18l-7 8v6l-4 2v-8L3 5z" />
             </svg>
-            {statusFilter === 'all' ? 'Estado' : STATUS_FILTERS.find((f) => f.value === statusFilter)?.label}
+            {accountFilter === 'all' ? 'Cuenta' : ACCOUNT_FILTERS.find((f) => f.value === accountFilter)?.label}
             <span aria-hidden="true" className="text-xs text-shell-subtleText">▾</span>
           </FilterMenu>
         </div>
@@ -552,14 +499,6 @@ export function AdminUsersPage() {
                   <p className="truncate text-xs text-shell-subtleText">{user.email ?? user.userId}</p>
                   <p className="mt-0.5 text-xs text-shell-subtleText">{user.roles.map(roleLabel).join(', ')}</p>
                 </div>
-                <span
-                  className={[
-                    'shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold',
-                    user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-700',
-                  ].join(' ')}
-                >
-                  {user.isActive ? 'Activo' : 'Inactivo'}
-                </span>
               </div>
 
               <div className="mt-2 flex items-center gap-4 text-xs font-semibold">
@@ -570,18 +509,6 @@ export function AdminUsersPage() {
                   className="text-brand-primary hover:underline"
                 >
                   Editar roles
-                </button>
-                <button
-                  type="button"
-                  disabled={busyUserId === user.userId}
-                  onClick={() => handleActivationToggle(user)}
-                  aria-label={`${user.isActive ? 'Desactivar' : 'Reactivar'} a ${user.name || user.email || 'usuario'}`}
-                  className={[
-                    'hover:underline disabled:opacity-60',
-                    user.isActive ? 'text-red-500' : 'text-teal-700',
-                  ].join(' ')}
-                >
-                  {user.isActive ? 'Desactivar' : 'Reactivar'}
                 </button>
               </div>
             </li>

@@ -70,3 +70,9 @@ La ventana de vincular cuenta SHALL listar todas las cuentas, administradores in
 
 ### Requirement: Agregar usuario en una ventana
 "Agregar usuario" SHALL abrirse como una ventana emergente (modal) sobre Usuarios y roles, en celular y en desktop: en el celular sube desde abajo como una hoja y en pantallas más grandes aparece centrada, con el email ya enfocado. Se cierra con "Cancelar", con Escape o sola al guardar bien. Los errores (rol faltante, invitación repetida, email que ya tiene cuenta con su enlace "Ir a Editar roles de esa cuenta") se muestran dentro de la ventana, no detrás.
+
+### Requirement: Filtro "Cuenta" en lugar de "Estado"
+El segundo desplegable de Usuarios y roles SHALL llamarse **Cuenta** y tener Todas, Con cuenta y Sin cuenta (con su cantidad, que sigue al rol elegido). "Con cuenta" deja afuera a las invitaciones, los profesionales sin cuenta y los clientes sin cuenta; "Sin cuenta" muestra solo a esas personas. Ya no hay Activos ni Inactivos. Esto reemplaza lo dicho antes sobre el desplegable Estado.
+
+### Requirement: La lista de cuentas al vincular es un desplegable con altura limitada
+En la ventana de vincular cuenta, el buscador SHALL ser un desplegable (combobox): la lista se abre al enfocar, hacer clic, escribir o tocar la flecha; al elegir una cuenta se cierra y su nombre queda en el cuadro; se puede volver a abrir y la elección se conserva. La lista muestra unas tres filas y a partir de la cuarta se desplaza (no crece sin límite). Escape cierra primero el desplegable y, con otro Escape, la ventana.

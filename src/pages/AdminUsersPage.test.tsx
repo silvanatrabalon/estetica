@@ -6,14 +6,12 @@ import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
 import { mockSessions } from '../hooks/__test-utils__/fixtures'
 
 const mockListAdminUsers = vi.fn()
-const mockAdminSetUserActive = vi.fn()
 const mockListInvitations = vi.fn()
 const mockInviteUser = vi.fn()
 const mockDeleteInvitation = vi.fn()
 
 vi.mock('../services/adminUsers', () => ({
   listAdminUsers: (...args: unknown[]) => mockListAdminUsers(...args),
-  adminSetUserActive: (...args: unknown[]) => mockAdminSetUserActive(...args),
   adminListUserInvitations: (...args: unknown[]) => mockListInvitations(...args),
   adminInviteUser: (...args: unknown[]) => mockInviteUser(...args),
   adminDeleteUserInvitation: (...args: unknown[]) => mockDeleteInvitation(...args),
@@ -40,8 +38,8 @@ function pickRole(label: RegExp | string) {
   fireEvent.click(screen.getByRole('menuitemradio', { name: label }))
 }
 
-function pickStatus(label: RegExp | string) {
-  fireEvent.click(screen.getByRole('button', { name: 'Filtrar por estado' }))
+function pickAccount(label: RegExp | string) {
+  fireEvent.click(screen.getByRole('button', { name: 'Filtrar por cuenta' }))
   fireEvent.click(screen.getByRole('menuitemradio', { name: label }))
 }
 
@@ -126,51 +124,14 @@ describe('AdminUsersPage (simple directory)', () => {
     expect(screen.getByRole('button', { name: 'Editar roles de Admin' })).toBeInTheDocument()
   })
 
-  it('deactivates a user after confirmation', async () => {
-    mockListAdminUsers.mockResolvedValue([ana, admin])
-    mockAdminSetUserActive.mockResolvedValue({ user_id: 'u-1', role: 'customer', is_active: false })
-    renderPage()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar a Ana' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
-
-    await waitFor(() => expect(mockAdminSetUserActive).toHaveBeenCalledWith('u-1', false))
-    expect(await screen.findByText('Usuario desactivado correctamente.')).toBeDefined()
-    expect(screen.getByRole('button', { name: 'Reactivar a Ana' })).toBeDefined()
-  })
-
-  it('reactivates an inactive user (edge case)', async () => {
-    mockListAdminUsers.mockResolvedValue([{ ...ana, isActive: false }, admin])
-    mockAdminSetUserActive.mockResolvedValue({ user_id: 'u-1', role: 'customer', is_active: true })
-    renderPage()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Reactivar a Ana' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
-
-    await waitFor(() => expect(mockAdminSetUserActive).toHaveBeenCalledWith('u-1', true))
-    expect(await screen.findByText('Usuario reactivado correctamente.')).toBeDefined()
-  })
-
-  it('blocks deactivating the last active admin (edge case)', async () => {
+  it('has no Desactivar/Reactivar and no Activo/Inactivo: taking a role away is enough', async () => {
     mockListAdminUsers.mockResolvedValue([ana, admin])
     renderPage()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar a Admin' }))
-
-    expect(await screen.findByText('No podés desactivar al último administrador activo.')).toBeDefined()
-    expect(screen.queryByRole('button', { name: 'Confirmar' })).toBeNull()
-    expect(mockAdminSetUserActive).not.toHaveBeenCalled()
-  })
-
-  it('shows an error when the status change fails (edge case)', async () => {
-    mockListAdminUsers.mockResolvedValue([ana, admin])
-    mockAdminSetUserActive.mockRejectedValue(new Error('x'))
-    renderPage()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Desactivar a Ana' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
-
-    expect(await screen.findByText(/No pudimos cambiar el estado del usuario/)).toBeDefined()
+    await screen.findByText('Ana')
+    expect(screen.queryByRole('button', { name: /Desactivar|Reactivar/ })).toBeNull()
+    expect(screen.queryByText('Activo')).toBeNull()
+    expect(screen.queryByText('Inactivo')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Editar roles de Ana' })).toBeInTheDocument()
   })
 
   it('filters by name or email and says when nothing matches (edge case)', async () => {
@@ -249,25 +210,31 @@ describe('AdminUsersPage (simple directory)', () => {
       expect(screen.queryByText('Admin')).toBeNull()
     })
 
-    it('filters by status', async () => {
-      mockListAdminUsers.mockResolvedValue([ana, inactive])
+    it('filters by account: with account / without account', async () => {
+      mockListAdminUsers.mockResolvedValue([ana])
+      mockListInvitations.mockResolvedValue([])
+      mockListStaff.mockResolvedValue([{ id: 'sm-1', profileUserId: null, displayName: 'Lucía', inviteEmail: null }])
       renderPage()
       await screen.findByText('Ana')
-      pickStatus('Inactivos')
-      expect(screen.getByText('Inés')).toBeDefined()
-      expect(screen.queryByText('Ana')).toBeNull()
-      pickStatus('Activos')
+      await screen.findByText('Lucía')
+      pickAccount('Con cuenta')
       expect(screen.getByText('Ana')).toBeDefined()
-      expect(screen.queryByText('Inés')).toBeNull()
+      expect(screen.queryByText('Lucía')).toBeNull()
+      pickAccount(/^Sin cuenta/)
+      expect(screen.getByText('Lucía')).toBeDefined()
+      expect(screen.queryByText('Ana')).toBeNull()
+      pickAccount('Todas')
+      expect(screen.getByText('Ana')).toBeDefined()
+      expect(screen.getByText('Lucía')).toBeDefined()
     })
 
-    it('combines search, role and status, and says when nothing matches (edge case)', async () => {
+    it('combines search, role and account, and says when nothing matches (edge case)', async () => {
       mockListAdminUsers.mockResolvedValue([ana, admin, staffUser, inactive])
       renderPage()
       await screen.findByText('Ana')
       pickRole(/^Clientes/)
-      pickStatus('Inactivos')
-      fireEvent.change(screen.getByLabelText('Buscar usuarios'), { target: { value: 'sofia' } })
+      pickAccount('Con cuenta')
+      fireEvent.change(screen.getByLabelText('Buscar usuarios'), { target: { value: 'zzz' } })
       expect(screen.getByText('No se encontraron usuarios con ese criterio.')).toBeDefined()
     })
   })
@@ -393,20 +360,20 @@ describe('AdminUsersPage — compact on phones', () => {
   it('the long explanation is hidden on phones and shown on larger screens', async () => {
     renderPage()
     await screen.findByText('Ana')
-    expect(screen.getByText(/Quién tiene cuenta y si está activa/).className).toContain('hidden')
-    expect(screen.getByText(/Quién tiene cuenta y si está activa/).className).toContain('sm:block')
+    expect(screen.getByText(/Quién tiene cuenta y qué roles tiene/).className).toContain('hidden')
+    expect(screen.getByText(/Quién tiene cuenta y qué roles tiene/).className).toContain('sm:block')
   })
 
   it('the filters are two drop-downs in one row instead of rows of chips', async () => {
     renderPage()
     await screen.findByText('Ana')
     const role = screen.getByRole('button', { name: 'Filtrar por rol' })
-    const status = screen.getByRole('button', { name: 'Filtrar por estado' })
+    const status = screen.getByRole('button', { name: 'Filtrar por cuenta' })
     expect(role.parentElement?.parentElement).toBe(status.parentElement?.parentElement)
     expect(role).toHaveAttribute('aria-haspopup', 'menu')
     expect(screen.queryByRole('group', { name: 'Filtrar por rol' })).toBeNull()
     expect(role.textContent).toContain('Todos')
-    expect(status.textContent).toContain('Estado')
+    expect(status.textContent).toContain('Cuenta')
   })
 
   it('the buttons show what is chosen and are highlighted only when filtering (edge case)', async () => {
@@ -418,8 +385,8 @@ describe('AdminUsersPage — compact on phones', () => {
     pickRole(/^Administradores/)
     expect(screen.getByRole('button', { name: 'Filtrar por rol' }).textContent).toContain('Administradores')
     expect(screen.getByRole('button', { name: 'Filtrar por rol' }).className).toContain('border-brand-primary')
-    pickStatus('Inactivos')
-    expect(screen.getByRole('button', { name: 'Filtrar por estado' }).textContent).toContain('Inactivos')
+    pickAccount('Con cuenta')
+    expect(screen.getByRole('button', { name: 'Filtrar por cuenta' }).textContent).toContain('Con cuenta')
   })
 
   it('the button disappears while the form is open, leaving the search alone (edge case)', async () => {
@@ -510,7 +477,7 @@ describe('AdminUsersPage — people without account are part of the list', () =>
 
   it('"Sin cuenta" shows only the people without account, including invitations', async () => {
     await open()
-    pickStatus(/^Sin cuenta/)
+    pickAccount(/^Sin cuenta/)
     for (const text of ['Jefa Nueva', 'Lucía Fernández', 'Camila Torres', 'Rosa Gómez']) {
       expect(screen.getByText(text)).toBeInTheDocument()
     }
@@ -521,7 +488,7 @@ describe('AdminUsersPage — people without account are part of the list', () =>
 
   it('"Sin cuenta" can be combined with a role: Staff + Sin cuenta, Clientes + Sin cuenta, Administradores + Sin cuenta', async () => {
     await open()
-    pickStatus(/^Sin cuenta/)
+    pickAccount(/^Sin cuenta/)
     pickRole(/^Staff/)
     expect(screen.getByText('Lucía Fernández')).toBeInTheDocument()
     expect(screen.getByText('Camila Torres')).toBeInTheDocument()
@@ -543,17 +510,17 @@ describe('AdminUsersPage — people without account are part of the list', () =>
 
   it('the Sin cuenta count in Estado follows the chosen role (edge case)', async () => {
     await open()
-    fireEvent.click(screen.getByRole('button', { name: 'Filtrar por estado' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Filtrar por cuenta' }))
     expect(screen.getByRole('menuitemradio', { name: 'Sin cuenta (4)' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Filtrar por estado' })) // close
+    fireEvent.click(screen.getByRole('button', { name: 'Filtrar por cuenta' })) // close
     pickRole(/^Staff/)
-    fireEvent.click(screen.getByRole('button', { name: 'Filtrar por estado' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Filtrar por cuenta' }))
     expect(screen.getByRole('menuitemradio', { name: 'Sin cuenta (2)' })).toBeInTheDocument()
   })
 
-  it('a status filter leaves out the people without account, since they have no status (edge case)', async () => {
+  it('"Con cuenta" leaves out the people without account (edge case)', async () => {
     await open()
-    pickStatus('Activos')
+    pickAccount('Con cuenta')
     expect(screen.getByText('Ana')).toBeInTheDocument()
     for (const text of ['Jefa Nueva', 'Lucía Fernández', 'Rosa Gómez']) {
       expect(screen.queryByText(text)).toBeNull()
@@ -588,7 +555,7 @@ describe('AdminUsersPage — people without account are part of the list', () =>
     expect(await screen.findByText('Ana')).toBeInTheDocument()
     openRoleMenu()
     expect(screen.getByRole('menuitemradio', { name: 'Todos (1)' })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Filtrar por estado' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Filtrar por cuenta' }))
     expect(screen.getByRole('menuitemradio', { name: 'Sin cuenta (0)' })).toBeInTheDocument()
   })
 
@@ -630,6 +597,48 @@ describe('AdminUsersPage — link an account in a pop-up', () => {
     expect(screen.getByLabelText('Buscar cuenta')).toBeInTheDocument()
     expect(screen.getByRole('option', { name: /Maxi Insfran/ })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: /Ana/ })).toBeInTheDocument()
+  })
+
+  it('the list is a drop-down: open on start, closes when an account is chosen and shows it in the box', async () => {
+    await openPopup()
+    const box = screen.getByLabelText('Buscar cuenta')
+    expect(box).toHaveAttribute('role', 'combobox')
+    expect(box).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(screen.getByRole('option', { name: /Maxi Insfran/ }))
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(box).toHaveAttribute('aria-expanded', 'false')
+    expect((box as HTMLInputElement).value).toBe('Maxi Insfran')
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
+  })
+
+  it('it can be opened again with the box or the arrow, and typing opens it (edge case)', async () => {
+    await openPopup()
+    fireEvent.click(screen.getByRole('option', { name: /Maxi Insfran/ }))
+    const arrow = screen.getByRole('button', { name: 'Abrir la lista de cuentas' })
+    fireEvent.click(arrow)
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar la lista de cuentas' }))
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Buscar cuenta'), { target: { value: 'ana' } })
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Ana/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Maxi Insfran/ })).toBeNull()
+  })
+
+  it('the chosen account stays chosen while the drop-down is closed and reopened (edge case)', async () => {
+    await openPopup()
+    fireEvent.click(screen.getByRole('option', { name: /Maxi Insfran/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Abrir la lista de cuentas' }))
+    expect(screen.getByRole('option', { name: /Maxi Insfran/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled()
+  })
+
+  it('the list scrolls when there are many accounts (edge case)', async () => {
+    await openPopup()
+    const list = screen.getByRole('listbox')
+    expect(list.className).toContain('overflow-y-auto')
+    expect(list.className).toContain('max-h-40') // about three rows: from the fourth on, it scrolls
+    expect(list.className).toContain('overscroll-contain')
   })
 
   it('shows the accounts that already belong to a professional, marked and not selectable (edge case)', async () => {
@@ -729,6 +738,8 @@ describe('AdminUsersPage — link an account in a pop-up', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(screen.queryByRole('dialog', { name: /Vincular una cuenta/ })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Vincular cuenta a Lucía Fernández' }))
+    fireEvent.keyDown(document, { key: 'Escape' }) // closes the drop-down first
+    expect(screen.getByRole('dialog', { name: /Vincular una cuenta/ })).toBeInTheDocument()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog', { name: /Vincular una cuenta/ })).toBeNull()
     expect(mockLinkStaff).not.toHaveBeenCalled()
@@ -762,10 +773,11 @@ describe('AdminUsersPage — link an account in a pop-up', () => {
     mockLinkedIds.mockResolvedValue(['u-maxi']) // what the server knows now
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Esa cuenta ya tiene un profesional.')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled())
+    fireEvent.click(screen.getByLabelText('Buscar cuenta')) // open the drop-down again
     await waitFor(() =>
       expect(screen.getByRole('option', { name: /Maxi Insfran/ })).toHaveAttribute('aria-disabled', 'true'),
     )
-    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
   })
 
   it('works when the list of linked accounts cannot be loaded, using the professionals it has (edge case)', async () => {
