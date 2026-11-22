@@ -12,6 +12,7 @@ import {
   type CouponImageInput,
 } from './couponImage'
 
+const mark = { viewBox: '0 0 100 60', width: 100, height: 60, inner: '<path id="sbmark" d="M0 0"/>' }
 const base: CouponImageInput = {
   theme: 'base',
   code: 'VERANO20',
@@ -104,8 +105,8 @@ describe('story format', () => {
   })
 
   it('keeps the logo and the texts out of the top and bottom strips Instagram covers (edge case)', () => {
-    const svg = buildCouponSvg({ ...base, logoDataUrl: 'data:image/png;base64,AAAA' })
-    const ys = [...svg.matchAll(/<(?:text|image)[^>]* y="([\d.]+)"/g)].map((m) => Number(m[1]))
+    const svg = buildCouponSvg({ ...base, logoMark: mark })
+    const ys = [...svg.matchAll(/<(?:text|svg)[^>]* y="([\d.]+)"/g)].map((m) => Number(m[1]))
     expect(ys.length).toBeGreaterThan(5)
     for (const y of ys) {
       expect(y).toBeGreaterThanOrEqual(250)
@@ -115,24 +116,43 @@ describe('story format', () => {
 })
 
 describe('logo', () => {
-  const logo = 'data:image/png;base64,AAAA'
-
-  it('puts the logo in a circle above the ticket when there is one', () => {
-    const svg = buildCouponSvg({ ...base, logoDataUrl: logo })
+  it('draws the SB mark above the ticket when there is one', () => {
+    const svg = buildCouponSvg({ ...base, logoMark: mark })
     expect(parse(svg).querySelector('parsererror')).toBeNull()
-    expect(svg).toContain(`href="${logo}"`)
-    expect(svg).toContain('clip-path="url(#logoClip)"')
+    expect(svg).toContain('id="sbmark"')
+    expect(svg).toContain('viewBox="0 0 100 60"')
   })
 
-  it('has no logo markup without one (edge case)', () => {
-    for (const logoDataUrl of [undefined, null, '']) {
-      expect(buildCouponSvg({ ...base, logoDataUrl })).not.toContain('<image')
+  it('is white on dark styles and the dark text color on light ones, in every style', () => {
+    const colors = new Set<string>()
+    for (const t of COUPON_THEMES) {
+      const svg = buildCouponSvg({ ...base, theme: t.id, logoMark: mark })
+      const color = /<svg x="[\d.]+" y="[\d.]+" width="250" height="[\d.]+" viewBox="0 0 100 60" fill="([^"]+)"/.exec(svg)?.[1]
+      expect(color, t.id).toBeTruthy()
+      colors.add(color!)
+    }
+    expect(colors.has('#ffffff')).toBe(true)
+    expect(colors.size).toBeGreaterThan(1)
+  })
+
+  it('is never the same color as the background it sits on, in any style (edge case)', () => {
+    for (const t of COUPON_THEMES) {
+      const svg = buildCouponSvg({ ...base, theme: t.id, logoMark: mark })
+      const color = /<svg x="[\d.]+" y="[\d.]+" width="250"[^>]* fill="([^"]+)"/.exec(svg)?.[1]?.toLowerCase()
+      expect(color, t.id).not.toBe(t.swatch[0].toLowerCase())
     }
   })
 
-  it('escapes the logo URL so it cannot break the SVG (edge case)', () => {
-    const svg = buildCouponSvg({ ...base, logoDataUrl: 'data:image/png;base64,A"B<C' })
-    expect(parse(svg).querySelector('parsererror')).toBeNull()
+  it('on Black Friday, with its light background, the mark is dark and not white', () => {
+    const svg = buildCouponSvg({ ...base, theme: 'black-friday', logoMark: mark })
+    const color = /<svg x="[\d.]+" y="[\d.]+" width="250"[^>]* fill="([^"]+)"/.exec(svg)?.[1]
+    expect(color).toBe('#1c1c1f')
+  })
+
+  it('has no logo markup without one (edge case)', () => {
+    for (const logoMark of [undefined, null]) {
+      expect(buildCouponSvg({ ...base, logoMark })).not.toContain('sbmark')
+    }
   })
 })
 

@@ -1,3 +1,4 @@
+import { brandMarkHeight, brandMarkSvg, type BrandMark } from './brandMark'
 import { clip, escapeXml } from './couponImage'
 
 export const GIFT_CARD_WIDTH = 1600
@@ -28,7 +29,8 @@ export interface GiftCardInput {
   /** Optional, already formatted: "Válida hasta el 31 dic 2026". */
   validity: string
   businessName: string
-  logoDataUrl?: string | null
+  /** The SB mark (see brandMark.ts), drawn in the color of the style. Without it the card has no logo. */
+  logoMark?: BrandMark | null
 }
 
 const THEMES: GiftCardTheme[] = [
@@ -100,12 +102,10 @@ export function buildGiftCardSvg(input: GiftCardInput): string {
   const sender = clip(input.sender.trim(), 30)
   const messageLines = wrapText(input.message, 58, 2)
 
-  const logo = input.logoDataUrl
-    ? `<defs><clipPath id="gcLogo"><circle cx="175" cy="150" r="62"/></clipPath></defs>
-<circle cx="175" cy="150" r="66" fill="#ffffff" stroke="${t.accent}" stroke-width="4"/>
-<image href="${escapeXml(input.logoDataUrl)}" x="113" y="88" width="124" height="124" preserveAspectRatio="xMidYMid slice" clip-path="url(#gcLogo)"/>`
-    : ''
-  const businessX = input.logoDataUrl ? 265 : 110
+  const MARK_WIDTH = 190
+  const markHeight = input.logoMark ? brandMarkHeight(input.logoMark, MARK_WIDTH) : 0
+  const logo = input.logoMark ? brandMarkSvg(input.logoMark, { x: 104, y: 150 - markHeight / 2, width: MARK_WIDTH, color: t.accent }) : ''
+  const businessX = input.logoMark ? 104 + MARK_WIDTH + 36 : 110
 
   // Vertical layout: each block starts where the previous one ends, so nothing overlaps
   let y = 330
@@ -138,7 +138,7 @@ export function buildGiftCardSvg(input: GiftCardInput): string {
 <rect width="${W}" height="${H}" filter="url(#paper)"/>
 ${bow(1340, 270, t)}
 ${logo}
-<text x="${businessX}" y="${input.logoDataUrl ? 165 : 150}" font-size="38" letter-spacing="3" fill="${t.accent}" font-family="${serif}">${escapeXml(clip(input.businessName.toUpperCase(), 26))}</text>
+<text x="${businessX}" y="${input.logoMark ? 165 : 150}" font-size="38" letter-spacing="3" fill="${t.accent}" font-family="${serif}">${escapeXml(clip(input.businessName.toUpperCase(), 26))}</text>
 ${parts.join('\n')}
 ${input.validity ? `<text x="110" y="${H - 60}" font-size="28" letter-spacing="2" fill="${t.subtle}" font-family="${serif}">${escapeXml(clip(input.validity, 60))}</text>` : ''}
 <rect x="22" y="22" width="${W - 44}" height="${H - 44}" fill="none" stroke="${t.accent}" stroke-width="3" opacity="0.35"/>

@@ -135,4 +135,26 @@ describe('TodayAgenda', () => {
       expect(screen.queryAllByRole('link')).toHaveLength(0)
     })
   })
+
+  describe('client perspective', () => {
+    it('shows the service as the headline and the professional below, not the client name', () => {
+      renderAgenda({ perspective: 'customer' })
+      const card = screen.getByLabelText('Turnos de hoy')
+      expect(within(card).getByText('Semi permanentes')).toBeInTheDocument()
+      expect(within(card).getByText('con Sil')).toBeInTheDocument()
+      expect(within(card).queryByText('Camila Ríos')).toBeNull()
+    })
+
+    it('shows the given content instead of the standard empty text (edge case)', () => {
+      renderAgenda({ items: [], featured: [], perspective: 'customer', emptyContent: <p>Tu próximo turno</p> })
+      expect(screen.getByText('Tu próximo turno')).toBeInTheDocument()
+      expect(screen.queryByText('Hoy no tenés turnos.')).toBeNull()
+    })
+
+    it('the given content is not used when there are appointments to show (edge case)', () => {
+      renderAgenda({ perspective: 'customer', emptyContent: <p>Tu próximo turno</p> })
+      expect(screen.queryByText('Tu próximo turno')).toBeNull()
+    })
+  })
 })
+

@@ -4,15 +4,19 @@ import { CouponImageModal } from './CouponImageModal'
 
 const mockPng = vi.fn()
 const mockDownload = vi.fn()
-const mockLoadLogo = vi.fn()
+const mockLoadMark = vi.fn()
+const MARK = { viewBox: '0 0 100 60', width: 100, height: 60, inner: '<path id="sbmark" d="M0 0"/>' }
 vi.mock('../../lib/couponImage', async () => {
   const actual = await vi.importActual<typeof import('../../lib/couponImage')>('../../lib/couponImage')
   return {
     ...actual,
     svgToPngBlob: (...a: unknown[]) => mockPng(...a),
     downloadBlob: (...a: unknown[]) => mockDownload(...a),
-    loadImageAsDataUrl: (...a: unknown[]) => mockLoadLogo(...a),
   }
+})
+vi.mock('../../lib/brandMark', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/brandMark')>('../../lib/brandMark')
+  return { ...actual, loadBrandMark: (...a: unknown[]) => mockLoadMark(...a) }
 })
 
 const coupon = {
@@ -34,7 +38,7 @@ describe('CouponImageModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockPng.mockResolvedValue(new Blob(['png']))
-    mockLoadLogo.mockResolvedValue('data:image/png;base64,LOGO')
+    mockLoadMark.mockResolvedValue(MARK)
   })
 
   it('renders nothing when closed or without a coupon (edge case)', () => {
@@ -56,22 +60,21 @@ describe('CouponImageModal', () => {
     expect(decodeURIComponent(img.src)).toContain('VERANO20')
   })
 
-  it('uses the business logo in the image (loaded from its URL)', async () => {
-    open({ logoUrl: 'https://x.test/logo.png' })
-    await waitFor(() => expect(decodeURIComponent((screen.getByRole('img') as HTMLImageElement).src)).toContain('data:image/png;base64,LOGO'))
-    expect(mockLoadLogo).toHaveBeenCalledWith('https://x.test/logo.png')
+  it('draws the SB mark in the image', async () => {
+    open()
+    await waitFor(() => expect(decodeURIComponent((screen.getByRole('img') as HTMLImageElement).src)).toContain('id="sbmark"'))
   })
 
-  it('goes without the logo when there is none or it cannot be loaded (edge case)', async () => {
+  it('goes without the logo when the file cannot be read (edge case)', async () => {
+    mockLoadMark.mockResolvedValue(null)
     open()
-    expect(mockLoadLogo).not.toHaveBeenCalled()
-    expect(decodeURIComponent((screen.getByRole('img') as HTMLImageElement).src)).not.toContain('<image')
-    mockLoadLogo.mockResolvedValue(null)
-    open({ logoUrl: 'https://x.test/blocked.png' })
-    await waitFor(() => expect(mockLoadLogo).toHaveBeenCalled())
-    for (const img of screen.getAllByRole('img')) {
-      expect(decodeURIComponent((img as HTMLImageElement).src)).not.toContain('<image')
-    }
+    await waitFor(() => expect(mockLoadMark).toHaveBeenCalled())
+    expect(decodeURIComponent((screen.getByRole('img') as HTMLImageElement).src)).not.toContain('sbmark')
+  })
+
+  it('does not load the mark while closed (edge case)', () => {
+    render(<CouponImageModal isOpen={false} coupon={coupon} onClose={vi.fn()} />)
+    expect(mockLoadMark).not.toHaveBeenCalled()
   })
 
   it('changing the theme changes the preview', () => {

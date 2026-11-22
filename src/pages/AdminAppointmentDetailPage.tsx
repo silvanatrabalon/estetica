@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Select } from '../components/Select'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { DetailPopup } from '../components/appointments/DetailPopup'
 import { formatPriceARS } from '../lib/formatPrice'
 import { formatSlotDateTime } from '../lib/formatSlotTime'
 import {
@@ -31,31 +32,6 @@ interface AppointmentDetailPageProps {
   mode?: 'admin' | 'staff'
   /** Called after the appointment was edited or cancelled, so the list behind can refresh. */
   onChanged?: () => void
-}
-
-/** The pop-up frame: bottom sheet on phones, centered from sm up. Escape, X or a click outside closes it. */
-function DetailPopup({ onClose, children }: { onClose: () => void; children: ReactNode }) {
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKey)
-    return () => document.removeEventListener('keydown', handleKey)
-  }, [onClose])
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Detalle del turno"
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[92dvh] w-full max-w-lg space-y-4 overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
-      >
-        {children}
-      </div>
-    </div>
-  )
 }
 
 export function AdminAppointmentDetailPage({ mode = 'admin', onChanged }: AppointmentDetailPageProps) {

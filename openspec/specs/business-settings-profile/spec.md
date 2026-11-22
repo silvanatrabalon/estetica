@@ -159,3 +159,7 @@ La sección Horarios de Negocio SHALL aclarar, en un aviso visible arriba, que l
 
 ### Requirement: Cierres con "Agregar cierre" y ventana para agregar y editar
 La pestaña Cierres de Negocio SHALL mostrar el título y la explicación de los cierres con un botón "+ Agregar cierre", y la lista de cierres programados debajo; el formulario ya no está en la pantalla. "Agregar cierre" abre una ventana emergente con el formulario vacío y "Editar" de cada cierre abre la misma ventana con ese cierre cargado (hoja desde abajo en el celular, tarjeta centrada en pantallas más grandes). Se cierra con "Cancelar", con Escape o sola al guardar bien; si falla, el error se muestra dentro de la ventana y queda abierta. Abrir "Agregar" nunca arrastra datos de una edición anterior.
+
+### Requirement: Dirección del local
+Negocio → General SHALL tener un campo **Dirección del local** (hasta 200 caracteres, opcional). Se guarda con el resto de General (sin tocar las otras secciones, y el aviso de cambios sin guardar también lo cuenta) y se muestra en la sección Contacto de la página pública, con un link a Google Maps. Sin dirección, no se muestra nada.
+

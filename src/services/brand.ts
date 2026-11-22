@@ -47,20 +47,21 @@ export async function getBrandSettings(): Promise<BrandSettings> {
 export interface PublicIdentity {
   name: string | null
   logoUrl: string | null
+  address: string | null
 }
 
-/** Name and logo for the public page (organizations are readable by everyone). Never throws: the page works without them. */
+/** Name, logo and address for the public page (organizations are readable by everyone). Never throws: the page works without them. */
 export async function getPublicIdentity(): Promise<PublicIdentity> {
   try {
     const { data } = await initSupabase()
       .from('organizations')
-      .select('name, logo_url')
+      .select('name, logo_url, address')
       .order('created_at', { ascending: true })
       .limit(1)
-      .maybeSingle<{ name: string | null; logo_url: string | null }>()
-    return { name: clean(data?.name), logoUrl: clean(data?.logo_url) }
+      .maybeSingle<{ name: string | null; logo_url: string | null; address: string | null }>()
+    return { name: clean(data?.name), logoUrl: clean(data?.logo_url), address: clean(data?.address) }
   } catch {
-    return { name: null, logoUrl: null }
+    return { name: null, logoUrl: null, address: null }
   }
 }
 

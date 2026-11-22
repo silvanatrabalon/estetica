@@ -66,7 +66,7 @@ function AppContent() {
           </Route>
 
           <Route element={<RoleGuard allowedRoles={['customer']} />}>
-            <Route path="/appointments" element={<AppointmentsPage />} />
+            <Route path="/appointments/:id?" element={<AppointmentsPage />} />
           </Route>
 
           <Route element={<RoleGuard allowedRoles={['customer', 'staff', 'admin']} />}>

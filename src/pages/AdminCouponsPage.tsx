@@ -119,13 +119,11 @@ export function AdminCouponsPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [imageCoupon, setImageCoupon] = useState<AdminCoupon | null>(null)
   const [businessName, setBusinessName] = useState('')
-  const [logoUrl, setLogoUrl] = useState<string | null>(null)
 
   useEffect(() => {
     getBusinessSettings()
       .then((settings) => {
         setBusinessName(settings.name)
-        setLogoUrl(settings.logoUrl)
       })
       .catch(() => {
         // The image just goes without the business name
@@ -404,7 +402,6 @@ export function AdminCouponsPage() {
 
       <CouponImageModal
         isOpen={imageCoupon !== null}
-        logoUrl={logoUrl}
         coupon={
           imageCoupon
             ? {

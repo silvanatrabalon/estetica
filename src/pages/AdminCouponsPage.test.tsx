@@ -15,8 +15,16 @@ vi.mock('../services/adminCoupons', () => ({
   adminDeleteCoupon: (...a: unknown[]) => mockDelete(...a),
 }))
 vi.mock('../services/businessSettings', () => ({
-  getBusinessSettings: () => Promise.resolve({ name: 'Estética So Beauty', logoUrl: 'data:image/png;base64,LOGO' }),
+  getBusinessSettings: () => Promise.resolve({ name: 'Estética So Beauty' }),
 }))
+vi.mock('../lib/brandMark', async () => {
+  const actual = await vi.importActual<typeof import('../lib/brandMark')>('../lib/brandMark')
+  return {
+    ...actual,
+    loadBrandMark: () =>
+      Promise.resolve({ viewBox: '0 0 100 60', width: 100, height: 60, inner: '<path id="sbmark" d="M0 0"/>' }),
+  }
+})
 vi.mock('../services/adminCategories', () => ({
   adminListCategories: (...a: unknown[]) => mockCategories(...a),
 }))
@@ -108,7 +116,7 @@ describe('AdminCouponsPage', () => {
     expect(preview).toContain('Categoría Uñas')
     expect(preview).toContain('Válido del')
     await waitFor(() => expect(decodeURIComponent((screen.getByRole('img') as HTMLImageElement).src)).toContain('Estética So Beauty'))
-    await waitFor(() => expect(decodeURIComponent((screen.getByRole('img') as HTMLImageElement).src)).toContain('<image'))
+    await waitFor(() => expect(decodeURIComponent((screen.getByRole('img') as HTMLImageElement).src)).toContain('id="sbmark"'))
     fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
     expect(screen.queryByRole('dialog', { name: 'Imagen del cupón VERANO10' })).toBeNull()
   })

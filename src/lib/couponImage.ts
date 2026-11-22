@@ -1,3 +1,5 @@
+import { brandMarkSvg, type BrandMark } from './brandMark'
+import { readableTextOn } from './landingStyle'
 import type { DiscountType } from './coupons'
 
 export const COUPON_IMAGE_WIDTH = 1080
@@ -40,8 +42,8 @@ export interface CouponImageInput {
   /** "Válido del 1 jun 2026 al 31 dic 2026". */
   validity: string
   businessName: string
-  /** The business logo as a data: URL (an external URL would block the PNG export). */
-  logoDataUrl?: string | null
+  /** The SB mark (see brandMark.ts). It is drawn in white, or in the dark text color of the style on a light background. */
+  logoMark?: BrandMark | null
 }
 
 // ── Little shapes used by the decorations ─────────────────────────────────────
@@ -302,11 +304,20 @@ export function buildCouponSvg(input: CouponImageInput): string {
     `A36 36 0 0 0 ${x + w} ${notchY + 36} V${y + h - 40} Q${x + w} ${y + h} ${x + w - 40} ${y + h} ` +
     `H${x + 40} Q${x} ${y + h} ${x} ${y + h - 40} V${notchY + 36} A36 36 0 0 0 ${x} ${notchY - 36} V${y + 40} Q${x} ${y} ${x + 40} ${y} Z`
 
-  // Logo in a white circle above the ticket (only when there is one)
-  const logo = input.logoDataUrl
-    ? `<defs><clipPath id="logoClip"><circle cx="${W / 2}" cy="335" r="80"/></clipPath></defs>
-<circle cx="${W / 2}" cy="335" r="90" fill="#ffffff"/>
-<image href="${escapeXml(input.logoDataUrl)}" x="${W / 2 - 80}" y="255" width="160" height="160" preserveAspectRatio="xMidYMid slice" clip-path="url(#logoClip)"/>`
+  // The SB mark above the ticket (only when it could be loaded): white on a dark background, the dark text color of the style on a light one
+  const MARK_WIDTH = 250
+  // Black Friday has a light background but white text (its ticket is dark): there the mark goes dark too
+  const onDark = readableTextOn(t.bgFrom) === '#ffffff'
+  const inkIsLight = readableTextOn(t.ink) !== '#ffffff'
+  const markColor = onDark ? '#ffffff' : inkIsLight ? '#1c1c1f' : t.ink
+  const logo = input.logoMark
+    ? brandMarkSvg(input.logoMark, {
+        x: W / 2 - MARK_WIDTH / 2,
+        // Top at 265: inside the area Instagram does not cover, and the bottom (about 440) stays above the ticket
+        y: 265,
+        width: MARK_WIDTH,
+        color: markColor,
+      })
     : ''
 
   const font = "'Helvetica Neue', Helvetica, Arial, sans-serif"

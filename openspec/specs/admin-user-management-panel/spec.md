@@ -96,11 +96,11 @@ The admin menu entry and the page title MUST read "Usuarios y roles". The page M
 
 #### Scenario: Directory stays simple
 - **WHEN** an admin views the directory
-- **THEN** each row shows name, email, roles and status, plus "Editar roles" and "Desactivar"/"Reactivar", and nothing else is editable inline
+- **THEN** each row shows name, email, roles and status, plus "Editar roles" and, except on the row of the person using the app, "Eliminar" (with a confirmation that says their upcoming turns are cancelled), and nothing else is editable inline
 
 #### Scenario: Editar roles opens the user's screen
 - **WHEN** an admin presses "Editar roles" on a user
-- **THEN** the app opens `/admin/users/:userId` for that user with Roles, Datos and Eliminar usuario
+- **THEN** the app opens `/admin/users/:userId` for that user with Roles and Datos (deleting is not part of that pop-up)
 
 #### Scenario: Role changes keep their protections
 - **WHEN** an admin changes a role on the per-user screen

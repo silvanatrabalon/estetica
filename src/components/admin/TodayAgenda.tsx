@@ -22,6 +22,10 @@ interface TodayAgendaProps {
   headerRight?: ReactNode
   /** Hide "con {professional}" (the professional looking at their own agenda). */
   hideStaffName?: boolean
+  /** Whose agenda it is: a professional sees who is coming; a client sees which service and with whom. */
+  perspective?: 'professional' | 'customer'
+  /** Replaces the text of the empty state (a client sees their next appointment instead). */
+  emptyContent?: ReactNode
 }
 
 /** Cards for what is on now or next. The day's total is a separate counter card on the dashboard. */
@@ -36,7 +40,10 @@ export function TodayAgenda({
   subtitle,
   headerRight,
   hideStaffName = false,
+  perspective = 'professional',
+  emptyContent,
 }: TodayAgendaProps) {
+  const isCustomer = perspective === 'customer'
   const header = (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
@@ -102,14 +109,19 @@ export function TodayAgenda({
                     {untilLabel(card.startsAt, now)}
                   </span>
                 </div>
-                <p className="mt-2 text-lg font-extrabold leading-snug text-shell-text">{nameOf(card.id, card.customerName)}</p>
+                <p className="mt-2 text-lg font-extrabold leading-snug text-shell-text">
+                  {nameOf(card.id, isCustomer ? card.serviceName : card.customerName)}
+                </p>
                 <p className="text-sm text-shell-subtleText">
-                  {card.serviceName}
-                  {hideStaffName ? '' : ` · con ${card.staffDisplayName}`}
+                  {isCustomer
+                    ? `con ${card.staffDisplayName}`
+                    : `${card.serviceName}${hideStaffName ? '' : ` · con ${card.staffDisplayName}`}`}
                 </p>
               </div>
             ))}
           </div>
+        ) : emptyContent ? (
+          <div className="rounded-3xl bg-shell-muted p-5 text-shell-text">{emptyContent}</div>
         ) : (
           <div className="rounded-3xl bg-shell-muted p-5 text-shell-text">
             <p className="text-lg font-bold">

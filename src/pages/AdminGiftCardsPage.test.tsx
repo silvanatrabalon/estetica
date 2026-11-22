@@ -6,7 +6,8 @@ const mockServices = vi.fn()
 const mockSettings = vi.fn()
 const mockPng = vi.fn()
 const mockDownload = vi.fn()
-const mockLoadLogo = vi.fn()
+const mockLoadMark = vi.fn()
+const MARK = { viewBox: '0 0 100 60', width: 100, height: 60, inner: '<path id="sbmark" d="M0 0"/>' }
 
 vi.mock('../services/adminServices', () => ({ listServices: (...a: unknown[]) => mockServices(...a) }))
 vi.mock('../services/businessSettings', () => ({ getBusinessSettings: (...a: unknown[]) => mockSettings(...a) }))
@@ -16,8 +17,11 @@ vi.mock('../lib/couponImage', async () => {
     ...actual,
     svgToPngBlob: (...a: unknown[]) => mockPng(...a),
     downloadBlob: (...a: unknown[]) => mockDownload(...a),
-    loadImageAsDataUrl: (...a: unknown[]) => mockLoadLogo(...a),
   }
+})
+vi.mock('../lib/brandMark', async () => {
+  const actual = await vi.importActual<typeof import('../lib/brandMark')>('../lib/brandMark')
+  return { ...actual, loadBrandMark: (...a: unknown[]) => mockLoadMark(...a) }
 })
 
 const svc = (id: string, name: string, isActive = true) => ({ id, name, isActive })
@@ -33,8 +37,8 @@ describe('AdminGiftCardsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockServices.mockResolvedValue([svc('s1', 'Limpieza facial'), svc('s2', 'Masaje'), svc('s3', 'Viejo', false)])
-    mockSettings.mockResolvedValue({ name: 'Estética So Beauty', logoUrl: 'https://x.test/logo.png' })
-    mockLoadLogo.mockResolvedValue('data:image/png;base64,LOGO')
+    mockSettings.mockResolvedValue({ name: 'Estética So Beauty' })
+    mockLoadMark.mockResolvedValue(MARK)
     mockPng.mockResolvedValue(new Blob(['png']))
   })
 
@@ -50,14 +54,14 @@ describe('AdminGiftCardsPage', () => {
     await waitFor(() => expect(mockServices).toHaveBeenCalled())
   })
 
-  it('updates the preview as the data is typed, with the business name and logo', async () => {
+  it('updates the preview as the data is typed, with the business name and the SB mark', async () => {
     render(<AdminGiftCardsPage />)
     fireEvent.change(screen.getByLabelText('Para'), { target: { value: 'Ana Pérez' } })
     fireEvent.change(screen.getByLabelText(/De parte de/), { target: { value: 'Silvana' } })
     fireEvent.change(screen.getByLabelText(/Mensaje/), { target: { value: 'Feliz cumple' } })
     await pickService('Masaje')
     await waitFor(() => expect(preview()).toContain('Estética So Beauty'.toUpperCase()))
-    await waitFor(() => expect(preview()).toContain('data:image/png;base64,LOGO'))
+    await waitFor(() => expect(preview()).toContain('id="sbmark"'))
     for (const text of ['Ana Pérez', 'Silvana', 'Feliz cumple', 'Masaje', 'GIFT CARD']) expect(preview()).toContain(text)
   })
 

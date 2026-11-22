@@ -300,3 +300,27 @@ export async function adminDeleteUserInvitation(id: string): Promise<void> {
     throw new Error(translateInviteError(error.message))
   }
 }
+
+/** Reads the reason out of an Edge Function error: the function answers `{ error: "…" }` with the problem. */
+async function edgeFunctionMessage(error: unknown, fallback: string): Promise<string> {
+  const context = (error as { context?: unknown } | null)?.context
+  if (context instanceof Response) {
+    try {
+      const body = (await context.clone().json()) as { error?: unknown }
+      if (typeof body.error === 'string' && body.error.trim() !== '') return body.error
+    } catch {
+      // The answer was not JSON: the generic text is used
+    }
+    return fallback
+  }
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
+/**
+ * Deletes the account of a user and its access (the Edge Function cancels their upcoming turns first).
+ * Their past turns stay, without the client's name.
+ */
+export async function adminDeleteUser(userId: string): Promise<void> {
+  const { error } = await initSupabase().functions.invoke('admin-delete-user', { body: { userId } })
+  if (error) throw new Error(await edgeFunctionMessage(error, 'Ocurrió un error al eliminar el usuario.'))
+}

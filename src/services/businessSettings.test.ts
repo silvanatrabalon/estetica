@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { saveNotificationSettings } from './businessSettings'
+import { saveBusinessSettings, saveNotificationSettings } from './businessSettings'
 
 const mockInitSupabase = vi.fn()
 
@@ -22,3 +22,20 @@ describe('saveNotificationSettings — validation', () => {
     },
   )
 })
+
+describe('saveBusinessSettings — address', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('rejects an address over 200 characters before touching the database (edge case)', async () => {
+    await expect(
+      saveBusinessSettings({
+        name: 'Salon',
+        timezone: 'America/Argentina/Buenos_Aires',
+        address: 'a'.repeat(201),
+        weeklyHours: [],
+      }),
+    ).rejects.toThrow('La dirección no puede superar los 200 caracteres.')
+    expect(mockInitSupabase).not.toHaveBeenCalled()
+  })
+})
+

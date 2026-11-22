@@ -13,7 +13,6 @@ import {
 } from '../../services/adminUsers'
 import { useUser } from '../../hooks/useUser'
 import { ConfirmModal } from '../ConfirmModal'
-import { initSupabase } from '../../lib/supabase'
 
 type LoadState = 'loading' | 'ready' | 'not-found' | 'error'
 
@@ -22,12 +21,10 @@ interface UserEditModalProps {
   onClose: () => void
   /** Something about the user changed (roles or data): the list behind should refresh. */
   onChanged: () => void
-  /** The user was deleted. */
-  onDeleted: () => void
 }
 
-/** Pop-up with one user: roles, personal data and the delete action. Opened from "Editar roles". */
-export function UserEditModal({ userId, onClose, onChanged, onDeleted }: UserEditModalProps) {
+/** Pop-up with one user: roles and personal data. Opened from "Editar roles". */
+export function UserEditModal({ userId, onClose, onChanged }: UserEditModalProps) {
   const { user: currentUser } = useUser()
 
   const [users, setUsers] = useState<AdminManagedUser[]>([])
@@ -39,8 +36,6 @@ export function UserEditModal({ userId, onClose, onChanged, onDeleted }: UserEdi
   const [isSavingRole, setIsSavingRole] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean
     title: string
@@ -82,8 +77,8 @@ export function UserEditModal({ userId, onClose, onChanged, onDeleted }: UserEdi
     }
   }, [target])
 
-  const busy = isSavingProfile || isSavingRole || isDeleting
-  const nested = confirmState.isOpen || deleteOpen
+  const busy = isSavingProfile || isSavingRole
+  const nested = confirmState.isOpen
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !busy && !nested) onClose()
@@ -180,25 +175,6 @@ export function UserEditModal({ userId, onClose, onChanged, onDeleted }: UserEdi
         }
       },
     )
-  }
-
-  const handleDelete = async () => {
-    if (!target) return
-    setIsDeleting(true)
-    setErrorMessage(null)
-    try {
-      const { error } = await initSupabase().functions.invoke('admin-delete-user', {
-        body: { userId: target.userId },
-      })
-      if (error) throw error
-      setDeleteOpen(false)
-      onDeleted()
-    } catch (err) {
-      setDeleteOpen(false)
-      setErrorMessage(err instanceof Error ? err.message : 'Ocurrió un error al eliminar el usuario.')
-    } finally {
-      setIsDeleting(false)
-    }
   }
 
   const closeButton = (
@@ -310,20 +286,6 @@ export function UserEditModal({ userId, onClose, onChanged, onDeleted }: UserEdi
                   </button>
                 </div>
               </form>
-
-              <section className="space-y-2 rounded-xl border border-red-200 bg-red-50/40 p-3">
-                <h3 className="text-sm font-semibold text-red-700">Eliminar usuario</h3>
-                <p className="text-xs text-shell-subtleText">
-                  Elimina la cuenta y su acceso de forma permanente. Para quitarle permisos, sacale el rol arriba.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setDeleteOpen(true)}
-                  className="rounded-lg border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50"
-                >
-                  Eliminar usuario
-                </button>
-              </section>
             </>
           )}
         </div>
@@ -335,17 +297,6 @@ export function UserEditModal({ userId, onClose, onChanged, onDeleted }: UserEdi
         message={confirmState.message}
         onConfirm={confirmState.onConfirm}
         onCancel={closeConfirm}
-      />
-
-      <ConfirmModal
-        isOpen={deleteOpen}
-        title="Eliminar usuario"
-        message="Esta acción eliminará permanentemente al usuario y su acceso. Sus turnos pasados quedarán sin nombre de cliente."
-        confirmLabel={isDeleting ? 'Eliminando…' : 'Eliminar'}
-        cancelLabel="Cancelar"
-        destructive
-        onConfirm={() => void handleDelete()}
-        onCancel={() => setDeleteOpen(false)}
       />
     </div>
   )

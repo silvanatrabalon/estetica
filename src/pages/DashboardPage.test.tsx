@@ -8,6 +8,9 @@ vi.mock('../hooks/useUser', () => ({ useUser: () => mockUseUser() }))
 vi.mock('../components/staff/StaffDashboard', () => ({
   StaffDashboard: () => <div>Resumen de staff</div>,
 }))
+vi.mock('../components/customer/CustomerDashboard', () => ({
+  CustomerDashboard: () => <div>Resumen de cliente</div>,
+}))
 
 function renderPage() {
   return render(
@@ -22,32 +25,26 @@ describe('DashboardPage', () => {
     mockUseUser.mockReturnValue({ profile: { name: 'Sil' }, activeRole: 'staff' })
     renderPage()
     expect(screen.getByText('Resumen de staff')).toBeInTheDocument()
-    expect(screen.queryByText('Reservar turno')).toBeNull()
+    expect(screen.queryByText('Resumen de cliente')).toBeNull()
   })
 
-  it('keeps the customer shortcuts for customers', () => {
+  it('shows the client summary, in the same layout, when the active role is customer', () => {
     mockUseUser.mockReturnValue({ profile: { name: 'Ana' }, activeRole: 'customer' })
     renderPage()
-    expect(screen.getByText('Reservar turno')).toBeInTheDocument()
+    expect(screen.getByText('Resumen de cliente')).toBeInTheDocument()
     expect(screen.queryByText('Resumen de staff')).toBeNull()
   })
 
-  it('a staff member who is also a customer sees the customer view when acting as customer (edge case)', () => {
+  it('a staff member who is also a customer sees the client view when acting as customer (edge case)', () => {
     mockUseUser.mockReturnValue({ profile: { name: 'Sil' }, activeRole: 'customer' })
     renderPage()
-    expect(screen.getByText('Mis turnos')).toBeInTheDocument()
+    expect(screen.getByText('Resumen de cliente')).toBeInTheDocument()
   })
 
-  it('does not show a "Mi perfil" shortcut (it lives in the account menu) (edge case)', () => {
+  it('does not show the old shortcut cards nor a link to the site (edge case)', () => {
     mockUseUser.mockReturnValue({ profile: { name: 'Ana' }, activeRole: 'customer' })
     renderPage()
     expect(screen.queryByText('Mi perfil')).toBeNull()
-  })
-
-  it('links to the public site with a friendly label', () => {
-    mockUseUser.mockReturnValue({ profile: { name: 'Ana' }, activeRole: 'customer' })
-    renderPage()
-    expect(screen.getByRole('link', { name: /Ir al sitio web/ })).toHaveAttribute('href', '/')
-    expect(screen.queryByText(/página principal/i)).toBeNull()
+    expect(screen.queryByRole('link', { name: /Ir al sitio web/ })).toBeNull()
   })
 })

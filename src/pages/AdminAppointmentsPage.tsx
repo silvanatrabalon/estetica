@@ -5,6 +5,7 @@ import { cn } from '../lib/cn'
 import { FilterMenu } from '../components/FilterMenu'
 import { PERIOD_OPTIONS, getPeriodRange, isAscendingPeriod, type AppointmentPeriod } from '../lib/appointmentPeriods'
 import { formatSlotDateTime } from '../lib/formatSlotTime'
+import { STATUS_CARD, STATUS_LABELS } from '../lib/appointmentStatus'
 import { getBusinessSettings } from '../services/businessSettings'
 import { listAdminStaffMembers, type AdminStaffMember } from '../services/adminStaff'
 import {
@@ -16,20 +17,6 @@ import {
 } from '../services/adminAppointments'
 
 const PAGE_SIZE = 50
-
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  confirmed: 'Confirmado',
-  cancelled: 'Cancelado',
-  completed: 'Completado',
-}
-
-const STATUS_CARD: Record<string, string> = {
-  pending: 'border-amber-200 border-l-amber-400 bg-amber-50',
-  confirmed: 'border-emerald-200 border-l-emerald-500 bg-emerald-50',
-  cancelled: 'border-red-200 border-l-red-400 bg-red-50',
-  completed: 'border-slate-200 border-l-slate-400 bg-slate-100',
-}
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos los estados' },

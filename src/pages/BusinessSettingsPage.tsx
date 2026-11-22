@@ -15,7 +15,7 @@ import {
   type BusinessHoursRecord,
 } from '../services/businessSettings'
 import { adminDeleteAllAppointments } from '../services/adminAppointments'
-import { validateNotificationEmail } from '../lib/businessSettings'
+import { ADDRESS_MAX, validateNotificationEmail } from '../lib/businessSettings'
 import type { BusinessClosureType, BusinessHoursInput } from '../lib/businessSettings'
 import { commonCopy } from '../lib/uiCopy'
 import { useUser } from '../hooks/useUser'
@@ -115,7 +115,8 @@ export function BusinessSettingsPage() {
   const [weeklyHours, setWeeklyHours] = useState<BusinessHoursRecord[]>([])
   const [closures, setClosures] = useState<BusinessClosureRecord[]>([])
   // What is stored in the database: used to tell which tab has unsaved edits
-  const [savedGeneral, setSavedGeneral] = useState({ name: '', timezone: 'UTC' })
+  const [address, setAddress] = useState('')
+  const [savedGeneral, setSavedGeneral] = useState({ name: '', timezone: 'UTC', address: '' })
   const [savedHours, setSavedHours] = useState<BusinessHoursRecord[]>([])
   const [savedPolicy, setSavedPolicy] = useState<PolicySnapshot>({ minNotice: 60, maxHorizon: 60, email: '', enabled: true })
   const [closureDraft, setClosureDraft] = useState<ClosureDraft>(emptyClosureDraft())
@@ -179,6 +180,7 @@ export function BusinessSettingsPage() {
     setOrganizationId(data.organizationId)
     setName(data.name)
     setTimezone(data.timezone)
+    setAddress(data.address ?? '')
     setNotificationEmail(data.notificationEmail ?? '')
     setNotificationsEnabled(data.notificationsEnabled ?? true)
     setBookingMinNoticeMinutes(data.bookingMinNoticeMinutes)
@@ -187,7 +189,7 @@ export function BusinessSettingsPage() {
     setSplitShiftsState(data.splitShifts)
     setClosures(data.closures)
     setMissingReadiness(data.readiness.missing)
-    setSavedGeneral({ name: data.name, timezone: data.timezone })
+    setSavedGeneral({ name: data.name, timezone: data.timezone, address: data.address ?? '' })
     setSavedHours(data.weeklyHours)
     setSavedPolicy({
       minNotice: data.bookingMinNoticeMinutes,
@@ -312,6 +314,7 @@ export function BusinessSettingsPage() {
       const updated = await saveBusinessSettings({
         name: section === 'general' ? name : savedGeneral.name,
         timezone: section === 'general' ? timezone : savedGeneral.timezone,
+        address: section === 'general' ? address : savedGeneral.address,
         weeklyHours: toHoursInput(section === 'hours' ? weeklyHours : savedHours),
       })
 
@@ -320,7 +323,8 @@ export function BusinessSettingsPage() {
       if (section === 'general') {
         setName(updated.name)
         setTimezone(updated.timezone)
-        setSavedGeneral({ name: updated.name, timezone: updated.timezone })
+        setAddress(updated.address ?? '')
+        setSavedGeneral({ name: updated.name, timezone: updated.timezone, address: updated.address ?? '' })
         setSuccessMessage('Datos del negocio guardados.')
       } else {
         setWeeklyHours(updated.weeklyHours)
@@ -344,7 +348,8 @@ export function BusinessSettingsPage() {
     void saveSection('hours')
   }
 
-  const generalDirty = name !== savedGeneral.name || timezone !== savedGeneral.timezone
+  const generalDirty =
+    name !== savedGeneral.name || timezone !== savedGeneral.timezone || address !== savedGeneral.address
   const hoursDirty = !sameHours(weeklyHours, savedHours)
   const policyDirty =
     bookingMinNoticeMinutes !== savedPolicy.minNotice ||
@@ -369,6 +374,7 @@ export function BusinessSettingsPage() {
     if (tab === 'identity') {
       setName(savedGeneral.name)
       setTimezone(savedGeneral.timezone)
+      setAddress(savedGeneral.address)
     } else if (tab === 'hours') {
       setWeeklyHours(savedHours)
     } else if (tab === 'policy') {
@@ -687,6 +693,21 @@ export function BusinessSettingsPage() {
                   <option value="America/Lima">Lima (PET)</option>
                   <option value="UTC">UTC</option>
                 </Select>
+              </div>
+
+              <div>
+                <label htmlFor="business-address" className="mb-1.5 block text-sm font-medium text-gray-700">Dirección del local</label>
+                <input
+                  id="business-address"
+                  className={fieldCls}
+                  type="text"
+                  maxLength={ADDRESS_MAX + 20}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Ej: Av. Corrientes 1234, Buenos Aires"
+                  autoComplete="street-address"
+                />
+                <p className="mt-1 text-xs text-gray-500">Aparece en el sitio web, en Contacto, con un link al mapa.</p>
               </div>
             </div>
           </div>

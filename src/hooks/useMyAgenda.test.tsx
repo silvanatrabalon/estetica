@@ -3,8 +3,10 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { useMyAgenda } from './useMyAgenda'
 
 const mockList = vi.fn()
+const mockListCustomer = vi.fn()
 vi.mock('../services/appointments', () => ({
   listMyStaffAppointments: (...a: unknown[]) => mockList(...a),
+  listMyCustomerAppointments: (...a: unknown[]) => mockListCustomer(...a),
 }))
 
 const apt = (id: string, start: string, end: string, status = 'confirmed', customerName: string | null = 'Ana') => ({
@@ -70,4 +72,35 @@ describe('useMyAgenda', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.error).toMatch(/No pudimos cargar tus turnos/)
   })
+
+  describe('as a client', () => {
+    it('reads the appointments the person booked, not the ones where they are the professional', async () => {
+      mockListCustomer.mockResolvedValue([apt('a', '2026-11-21T13:30:00Z', '2026-11-21T14:30:00Z')])
+      const { result } = renderHook(() => useMyAgenda('customer'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(mockListCustomer).toHaveBeenCalled()
+      expect(mockList).not.toHaveBeenCalled()
+      expect(result.current.items.map((i) => i.id)).toEqual(['a'])
+    })
+
+    it('the next appointment is the closest one still to come that is not cancelled or done (edge case)', async () => {
+      mockListCustomer.mockResolvedValue([
+        apt('past', '2026-11-20T13:00:00Z', '2026-11-20T14:00:00Z'),
+        apt('cancelled', '2026-11-22T13:00:00Z', '2026-11-22T14:00:00Z', 'cancelled'),
+        apt('later', '2026-12-05T13:00:00Z', '2026-12-05T14:00:00Z', 'pending'),
+        apt('soon', '2026-11-24T13:00:00Z', '2026-11-24T14:00:00Z', 'confirmed'),
+      ])
+      const { result } = renderHook(() => useMyAgenda('customer'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.nextAppointment?.id).toBe('soon')
+    })
+
+    it('has no next appointment when none is to come (edge case)', async () => {
+      mockListCustomer.mockResolvedValue([apt('past', '2026-11-20T13:00:00Z', '2026-11-20T14:00:00Z', 'completed')])
+      const { result } = renderHook(() => useMyAgenda('customer'))
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      expect(result.current.nextAppointment).toBeNull()
+    })
+  })
 })
+

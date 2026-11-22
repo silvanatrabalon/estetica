@@ -40,6 +40,8 @@ export interface BusinessSettingsRecord {
   slug: string
   timezone: string
   logoUrl: string | null
+  /** Where the shop is. Shown in the website footer. */
+  address: string | null
   primaryColor: string | null
   bookingHeaderText: string | null
   bookingSubtitleText: string | null
@@ -63,6 +65,7 @@ interface OrganizationRow {
   slug: string
   timezone: string
   logo_url: string | null
+  address: string | null
   brand_primary_color: string | null
   booking_header_text: string | null
   booking_subtitle_text: string | null
@@ -101,6 +104,7 @@ const ORGANIZATION_SELECT = [
   'slug',
   'timezone',
   'logo_url',
+  'address',
   'brand_primary_color',
   'booking_header_text',
   'booking_subtitle_text',
@@ -166,6 +170,7 @@ function toBusinessSettingsRecord(
     slug: organization.slug,
     timezone: organization.timezone,
     logoUrl: organization.logo_url,
+    address: organization.address ?? null,
     primaryColor: organization.brand_primary_color,
     bookingHeaderText: organization.booking_header_text,
     bookingSubtitleText: organization.booking_subtitle_text,
@@ -314,6 +319,8 @@ export async function saveBusinessSettings(input: {
   // Branding fields are optional: only the ones provided are written, so saving the
   // business rules never overwrites what was set in Apariencia.
   logoUrl?: string
+  /** Only written when provided, like the branding fields. */
+  address?: string
   primaryColor?: string
   bookingHeaderText?: string
   bookingSubtitleText?: string
@@ -323,6 +330,7 @@ export async function saveBusinessSettings(input: {
     name: input.name,
     timezone: input.timezone,
     primaryColor: input.primaryColor === undefined ? undefined : normalizeBusinessColor(input.primaryColor),
+    address: input.address,
   })
 
   if (!identityValidation.valid) {
@@ -346,6 +354,7 @@ export async function saveBusinessSettings(input: {
       name: normalizeBusinessName(input.name),
       timezone: input.timezone.trim(),
       ...(input.logoUrl === undefined ? {} : { logo_url: normalizeBusinessText(input.logoUrl) }),
+      ...(input.address === undefined ? {} : { address: normalizeBusinessText(input.address) }),
       ...(input.primaryColor === undefined
         ? {}
         : { brand_primary_color: normalizeBusinessColor(input.primaryColor) }),

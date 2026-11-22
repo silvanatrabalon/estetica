@@ -92,7 +92,7 @@ describe('LandingPage — services carousel and links', () => {
     mockConfig.mockResolvedValue(baseConfig)
     mockPromos.mockResolvedValue([])
     mockSocial.mockResolvedValue([])
-    mockIdentity.mockResolvedValue({ name: 'Estética So Beauty', logoUrl: 'https://cdn/logo.svg' })
+    mockIdentity.mockResolvedValue({ name: 'Estética So Beauty', logoUrl: 'https://cdn/logo.svg', address: null })
     mockUseUser.mockReturnValue({ user: { id: 'u' }, activeRole: 'customer', isLoading: false })
   })
 
@@ -179,7 +179,7 @@ describe('LandingPage — design', () => {
     mockConfig.mockResolvedValue({ ...baseConfig, heroTitle: 'Donde la *belleza* se vuelve arte', showHours: true, aboutText: 'Mi historia' })
     mockPromos.mockResolvedValue([])
     mockSocial.mockResolvedValue([])
-    mockIdentity.mockResolvedValue({ name: 'Estética So Beauty', logoUrl: 'https://cdn/logo.svg' })
+    mockIdentity.mockResolvedValue({ name: 'Estética So Beauty', logoUrl: 'https://cdn/logo.svg', address: null })
     mockUseUser.mockReturnValue({ user: null, activeRole: null, isLoading: false })
   })
 
@@ -251,11 +251,34 @@ describe('LandingPage — design', () => {
   })
 
   it('still loads without name nor logo (edge case)', async () => {
-    mockIdentity.mockResolvedValue({ name: null, logoUrl: null })
+    mockIdentity.mockResolvedValue({ name: null, logoUrl: null, address: null })
     renderLanding()
     const nav = await screen.findByRole('navigation', { name: 'Principal' })
     expect(nav.querySelector('img')).toBeNull()
     expect(within(nav).getByRole('link', { name: 'Reservar' })).toBeInTheDocument()
+  })
+
+  it('the footer shows the address with a link to the map', async () => {
+    mockIdentity.mockResolvedValue({ name: 'N', logoUrl: null, address: 'Av. Corrientes 1234, CABA' })
+    renderLanding()
+    const link = await screen.findByRole('link', { name: /Ver en el mapa: Av\. Corrientes 1234, CABA/ })
+    expect(link).toHaveTextContent('Av. Corrientes 1234, CABA')
+    const href = link.getAttribute('href') as string
+    expect(href).toContain('google.com/maps/search')
+    expect(decodeURIComponent(href)).toContain('Av. Corrientes 1234, CABA')
+  })
+
+  it('without an address the footer has no map link (edge case)', async () => {
+    renderLanding()
+    await screen.findByRole('navigation', { name: 'Principal' })
+    expect(screen.queryByRole('link', { name: /Ver en el mapa/ })).toBeNull()
+  })
+
+  it('an address with odd characters is escaped in the link (edge case)', async () => {
+    mockIdentity.mockResolvedValue({ name: 'N', logoUrl: null, address: 'Calle 1 & 2 #3?' })
+    renderLanding()
+    const link = await screen.findByRole('link', { name: /Ver en el mapa/ })
+    expect(link.getAttribute('href')).toContain('query=Calle%201%20%26%202%20%233%3F')
   })
 })
 

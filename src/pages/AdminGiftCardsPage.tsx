@@ -3,7 +3,8 @@ import { cn } from '../lib/cn'
 import { Listbox } from '../components/Listbox'
 import { listServices, type Service } from '../services/adminServices'
 import { getBusinessSettings } from '../services/businessSettings'
-import { downloadBlob, loadImageAsDataUrl, svgToPngBlob } from '../lib/couponImage'
+import { downloadBlob, svgToPngBlob } from '../lib/couponImage'
+import { loadBrandMark, type BrandMark } from '../lib/brandMark'
 import {
   GIFT_CARD_HEIGHT,
   GIFT_CARD_THEMES,
@@ -29,7 +30,7 @@ const fieldCls =
 export function AdminGiftCardsPage() {
   const [services, setServices] = useState<Service[]>([])
   const [businessName, setBusinessName] = useState('')
-  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null)
+  const [logoMark, setLogoMark] = useState<BrandMark | null>(null)
 
   const [recipient, setRecipient] = useState('')
   const [sender, setSender] = useState('')
@@ -53,11 +54,12 @@ export function AdminGiftCardsPage() {
     getBusinessSettings()
       .then((settings) => {
         setBusinessName(settings.name)
-        if (settings.logoUrl) void loadImageAsDataUrl(settings.logoUrl).then(setLogoDataUrl)
       })
       .catch(() => {
-        // The card goes without name and logo
+        // The card goes without the business name
       })
+    // The SB mark; the card goes without it if the file cannot be read
+    void loadBrandMark().then(setLogoMark)
   }, [])
 
   const selectedService = services.find((s) => s.id === serviceId)
@@ -76,9 +78,9 @@ export function AdminGiftCardsPage() {
         message,
         validity: giftValidityText(validUntil),
         businessName,
-        logoDataUrl,
+        logoMark,
       }),
-    [theme, recipient, sender, kind, selectedService, amountCents, message, validUntil, businessName, logoDataUrl],
+    [theme, recipient, sender, kind, selectedService, amountCents, message, validUntil, businessName, logoMark],
   )
   const previewSrc = useMemo(() => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, [svg])
 

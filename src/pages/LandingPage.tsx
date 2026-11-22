@@ -516,9 +516,10 @@ function HoursSection({ showHours, hours }: HoursSectionProps) {
 
 interface ContactFooterProps {
   socialLinks: SocialLink[]
+  address: string | null
 }
 
-function ContactFooter({ socialLinks }: ContactFooterProps) {
+function ContactFooter({ socialLinks, address }: ContactFooterProps) {
   return (
     <footer
       className="py-16 px-6"
@@ -529,6 +530,21 @@ function ContactFooter({ socialLinks }: ContactFooterProps) {
         <div className="w-10 h-px bg-white/40 mx-auto mb-8" />
         <h2 className="lp-display text-3xl font-semibold text-white mb-1">Contacto</h2>
         <p className="text-white/65 text-sm mb-8">Estamos para vos</p>
+        {address && (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Ver en el mapa: ${address}`}
+            className="mb-8 inline-flex items-start gap-2 text-sm text-white/90 underline-offset-4 hover:underline"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
+              <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z" />
+              <circle cx="12" cy="10" r="2.5" />
+            </svg>
+            <span>{address}</span>
+          </a>
+        )}
         <SocialLinksList links={socialLinks} />
         <div className="w-10 h-px bg-white/25 mx-auto mb-6" />
         <p className="text-xs text-white/50">
@@ -563,7 +579,7 @@ export function LandingPage() {
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([])
   const [promotions, setPromotions] = useState<PublicCoupon[]>([])
   const [publicPromos, setPublicPromos] = useState<PublicPromo[]>([])
-  const [identity, setIdentity] = useState<PublicIdentity>({ name: null, logoUrl: null })
+  const [identity, setIdentity] = useState<PublicIdentity>({ name: null, logoUrl: null, address: null })
 
   const isAuthenticated = !!user
   const isCustomer = activeRole === 'customer'
@@ -813,7 +829,7 @@ export function LandingPage() {
       <AboutSection aboutText={effectiveConfig.aboutText} />
       <HoursSection showHours={effectiveConfig.showHours} hours={hours} />
       <UpcomingClosuresSection closures={futureClosures} />
-      <ContactFooter socialLinks={socialLinks} />
+      <ContactFooter socialLinks={socialLinks} address={identity.address} />
       <WhatsAppButton links={socialLinks} />
     </div>
   )

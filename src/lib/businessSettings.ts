@@ -73,15 +73,19 @@ function compareTimes(left: string, right: string): number {
   return left.localeCompare(right)
 }
 
+/** Longest address the database accepts. */
+export const ADDRESS_MAX = 200
+
 export function validateBusinessIdentity(input: {
   name: string
   timezone: string
   primaryColor?: string | null
+  address?: string | null
 }): {
   valid: boolean
-  errors: { name?: string; timezone?: string; primaryColor?: string }
+  errors: { name?: string; timezone?: string; primaryColor?: string; address?: string }
 } {
-  const errors: { name?: string; timezone?: string; primaryColor?: string } = {}
+  const errors: { name?: string; timezone?: string; primaryColor?: string; address?: string } = {}
 
   if (normalizeBusinessName(input.name).length < 2) {
     errors.name = 'El nombre del negocio debe tener al menos 2 caracteres.'
@@ -93,6 +97,10 @@ export function validateBusinessIdentity(input: {
 
   if (input.primaryColor && !isValidHexColor(input.primaryColor)) {
     errors.primaryColor = 'Usá un color hexadecimal válido.'
+  }
+
+  if ((input.address ?? '').trim().length > ADDRESS_MAX) {
+    errors.address = `La dirección no puede superar los ${ADDRESS_MAX} caracteres.`
   }
 
   return {

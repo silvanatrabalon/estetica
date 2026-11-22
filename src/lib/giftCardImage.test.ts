@@ -51,17 +51,27 @@ describe('buildGiftCardSvg', () => {
   })
 
   it('without sender, message, validity or logo those parts are left out (edge case)', () => {
-    const svg = buildGiftCardSvg({ ...base, sender: '  ', message: '', validity: '', logoDataUrl: null })
+    const svg = buildGiftCardSvg({ ...base, sender: '  ', message: '', validity: '', logoMark: null })
     expect(svg).not.toContain('De parte de')
     expect(svg).not.toContain('Feliz')
     expect(svg).not.toContain('Válida')
-    expect(svg).not.toContain('<image')
+    expect(svg).not.toContain('sbmark')
     expect(parse(svg).querySelector('parsererror')).toBeNull()
   })
 
-  it('puts the logo when there is one', () => {
-    const svg = buildGiftCardSvg({ ...base, logoDataUrl: 'data:image/png;base64,AAAA' })
-    expect(svg).toContain('href="data:image/png;base64,AAAA"')
+  it('draws the SB mark in the accent color of each style, and moves the name next to it', () => {
+    const mark = { viewBox: '0 0 100 60', width: 100, height: 60, inner: '<path id="sbmark" d="M0 0"/>' }
+    const accents: Record<string, string> = { rosa: '#c9505f', dorado: '#b0883a', lila: '#7a4fb0' }
+    for (const [theme, accent] of Object.entries(accents)) {
+      const svg = buildGiftCardSvg({ ...base, theme: theme as 'rosa', logoMark: mark })
+      expect(parse(svg).querySelector('parsererror')).toBeNull()
+      expect(svg).toContain('id="sbmark"')
+      expect(svg).toContain(`fill="${accent}">`)
+    }
+    const withMark = buildGiftCardSvg({ ...base, logoMark: mark })
+    const without = buildGiftCardSvg({ ...base })
+    expect(withMark).toMatch(/<text x="330" y="165"/)
+    expect(without).toMatch(/<text x="110" y="150"/)
   })
 
   it('escapes special characters so the SVG stays valid (edge case)', () => {

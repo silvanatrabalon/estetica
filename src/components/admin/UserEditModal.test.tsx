@@ -9,16 +9,12 @@ const mockListAdminUsers = vi.fn()
 const mockUpdateProfile = vi.fn()
 const mockAssignRole = vi.fn()
 const mockRevokeRole = vi.fn()
-const mockInvoke = vi.fn()
 
 vi.mock('../../services/adminUsers', () => ({
   listAdminUsers: (...a: unknown[]) => mockListAdminUsers(...a),
   adminUpdateUserProfile: (...a: unknown[]) => mockUpdateProfile(...a),
   adminAssignUserRole: (...a: unknown[]) => mockAssignRole(...a),
   adminRevokeUserRole: (...a: unknown[]) => mockRevokeRole(...a),
-}))
-vi.mock('../../lib/supabase', () => ({
-  initSupabase: () => ({ functions: { invoke: (...a: unknown[]) => mockInvoke(...a) } }),
 }))
 
 const adminId = mockSessions.authenticatedAdmin.user.id
@@ -47,15 +43,14 @@ const admin = {
 function renderModal(userId: string) {
   const onClose = vi.fn()
   const onChanged = vi.fn()
-  const onDeleted = vi.fn()
   render(
     <MemoryRouter>
       <TestUserProvider user={mockSessions.authenticatedAdmin.user} roles={['admin']} activeRole="admin" isLoading={false}>
-        <UserEditModal userId={userId} onClose={onClose} onChanged={onChanged} onDeleted={onDeleted} />
+        <UserEditModal userId={userId} onClose={onClose} onChanged={onChanged} />
       </TestUserProvider>
     </MemoryRouter>,
   )
-  return { onClose, onChanged, onDeleted }
+  return { onClose, onChanged }
 }
 
 describe('UserEditModal', () => {
@@ -86,18 +81,19 @@ describe('UserEditModal', () => {
     for (const text of ['Último acceso', 'Alta', 'Estado']) {
       expect(screen.queryByText(text)).toBeNull()
     }
-    // what is left: roles, name, phone, save and the delete block
+    // what is left: roles, name, phone and save (deleting a user is an action of the list, not of this pop-up)
     expect(screen.getByLabelText('Nombre')).toBeInTheDocument()
     expect(screen.getByLabelText(/Teléfono/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Guardar perfil de usuario' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Eliminar usuario' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Eliminar usuario' })).toBeNull()
+    expect(screen.queryByText('Eliminar usuario')).toBeNull()
   })
 
-  it('keeps the delete block reachable on phones: dynamic height and room for the bottom bar (edge case)', async () => {
+  it('keeps the save button reachable on phones: dynamic height and room for the bottom bar (edge case)', async () => {
     renderModal('u-1')
     const dialog = await screen.findByRole('dialog', { name: 'Ana' })
     expect(dialog.className).toContain('max-h-[92dvh]')
-    const body = screen.getByRole('button', { name: 'Eliminar usuario' }).closest('div.overflow-y-auto')!
+    const body = screen.getByRole('button', { name: 'Guardar perfil de usuario' }).closest('div.overflow-y-auto')!
     expect(body.className).toContain('safe-area-inset-bottom')
     expect(body.className).toContain('overflow-y-auto')
   })
@@ -184,30 +180,6 @@ describe('UserEditModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar perfil de usuario' }))
 
     expect(mockUpdateProfile).not.toHaveBeenCalled()
-  })
-
-  it('deletes the user after confirmation and tells the page', async () => {
-    mockInvoke.mockResolvedValue({ error: null })
-    const { onDeleted } = renderModal('u-1')
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar usuario' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
-
-    await waitFor(() =>
-      expect(mockInvoke).toHaveBeenCalledWith('admin-delete-user', { body: { userId: 'u-1' } }),
-    )
-    await waitFor(() => expect(onDeleted).toHaveBeenCalled())
-  })
-
-  it('stays open and shows the error when deleting fails (edge case)', async () => {
-    mockInvoke.mockResolvedValue({ error: new Error('No se pudo eliminar') })
-    const { onDeleted } = renderModal('u-1')
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar usuario' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
-
-    expect(await screen.findByText('No se pudo eliminar')).toBeDefined()
-    expect(onDeleted).not.toHaveBeenCalled()
   })
 
   it('says so when the user does not exist (edge case)', async () => {

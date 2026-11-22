@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { listMyStaffAppointments, type AppointmentSummary } from '../services/appointments'
+import { listMyCustomerAppointments, listMyStaffAppointments, type AppointmentSummary } from '../services/appointments'
 import { pickFeaturedAppointments, todayAgendaItems, type AgendaItem } from '../lib/todayAgenda'
 import { computeStaffStats, type StaffStats } from '../lib/staffStats'
 
@@ -17,8 +17,11 @@ function toAgendaItem(apt: AppointmentSummary): AgendaItem {
   }
 }
 
-/** The logged-in professional's own appointments: today's agenda, what is on now or next, and counters. */
-export function useMyAgenda() {
+/**
+ * The logged-in person's own appointments: today's agenda, what is on now or next, and counters.
+ * `staff` (default): the ones where they are the professional. `customer`: the ones they booked as a client.
+ */
+export function useMyAgenda(scope: 'staff' | 'customer' = 'staff') {
   const [appointments, setAppointments] = useState<AppointmentSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -26,7 +29,7 @@ export function useMyAgenda() {
 
   useEffect(() => {
     let cancelled = false
-    listMyStaffAppointments()
+    ;(scope === 'customer' ? listMyCustomerAppointments() : listMyStaffAppointments())
       .then((data) => {
         if (!cancelled) setAppointments(data)
       })
@@ -39,7 +42,7 @@ export function useMyAgenda() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [scope])
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000)
@@ -57,5 +60,14 @@ export function useMyAgenda() {
     [appointments, timezone, now],
   )
 
-  return { items, featured, timezone, now, stats, loading, error }
+  // The next one to come, in any day: what a client sees when nothing is left today
+  const nextAppointment = useMemo(
+    () =>
+      appointments
+        .filter((a) => (a.status === 'pending' || a.status === 'confirmed') && new Date(a.startsAt) > now)
+        .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0] ?? null,
+    [appointments, now],
+  )
+
+  return { items, featured, timezone, now, stats, nextAppointment, loading, error }
 }

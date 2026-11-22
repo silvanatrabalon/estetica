@@ -49,6 +49,7 @@ Los datos generales y las reglas con las que funciona todo el sistema. Tiene cin
 ### General
 - **Nombre del negocio:** el que aparece en la barra superior y en los mensajes a clientes.
 - **Zona horaria:** define a qué hora se muestran y se calculan los turnos. Elegí la de tu ciudad.
+- **Dirección del local:** opcional. Aparece en el sitio web, en la sección **Contacto**, con un link que abre el mapa. Si la dejás vacía, no se muestra nada.
 
 ### Horarios
 Los **horarios de atención del negocio**, día por día de la semana.
@@ -72,9 +73,22 @@ Para los días en que el negocio **no atiende o atiende distinto**: feriados, va
 Las reglas de reserva para tus clientes:
 - **Anticipación mínima para reservar:** cuánto antes del turno tiene que reservar la persona. Con 2 horas, no se puede reservar un turno que empieza en 1 hora.
 - **Cuántos días hacia adelante se puede reservar:** hasta qué fecha, contando desde hoy (entre 1 y 365 días).
-- **Notificaciones por email:**
-  - **Enviar notificaciones por email:** activado, se avisa a clientes y profesionales de cada reserva o cancelación. Desactivalo mientras hacés pruebas para no mandar emails reales.
-  - **Email para notificaciones del negocio:** a dónde te llegan los avisos a vos.
+- **Notificaciones por email:** el sistema manda emails solo, en tres momentos:
+  - cuando se **crea** un turno (confirmación),
+  - cuando se **cancela**,
+  - cuando se **reprograma** (cambia de día u hora).
+
+  No se manda email cuando cambiás el servicio o el profesional desde **Editar**, ni cuando un turno pasa a completado.
+
+  **Quién recibe cada email.** Por cada una de esas interacciones salen **hasta 3 emails**, uno a cada uno (nadie ve las direcciones de los otros):
+  1. **El cliente** (si tiene email).
+  2. **El profesional del turno** (el email de su cuenta, o el que cargaste al invitarlo si todavía no tiene cuenta).
+  3. **El negocio**, al **Email para notificaciones del negocio** (el tuyo, como administrador).
+
+  Si dos de esas direcciones son la **misma persona**, recibe **un solo email** (por ejemplo, si vos sos también la profesional de ese turno, o si cargás un turno a tu propio nombre). Si el turno es de **otra** profesional, vos recibís el aviso del negocio igual, siempre que hayas completado ese email.
+- **Enviar notificaciones por email:** el interruptor general. Destildado, **no sale ningún email** (ni al cliente, ni al profesional, ni a vos), pero los turnos se siguen creando normalmente. Dejalo destildado mientras hacés pruebas para no mandar emails reales a clientes.
+- **Email para notificaciones del negocio:** a dónde te llegan los avisos a vos. **Si lo dejás vacío, no recibís avisos como administrador** (solo los recibiría quien sea el profesional o el cliente del turno).
+- **Límite diario:** el envío usa un servicio gratuito con un tope de **300 emails por día**. Como cada interacción puede usar hasta 3, alcanza para unas **100 reservas, cancelaciones o reprogramaciones por día**. Si se supera el tope, los emails que sobran no salen ese día (se retoma al día siguiente), pero los turnos **no se ven afectados**: se crean igual, solo falta el aviso.
 
 ### Historial
 Una zona delicada. Permite **eliminar todo el historial de reservas**.
@@ -114,7 +128,10 @@ En la fila de cada persona, tocá **Editar roles**. En el popup marcás o desmar
 ### Vincular cuenta
 Cuando un profesional se cargó **sin cuenta**, aparece en esta lista con **Vincular cuenta**. Elegís la cuenta correspondiente de un desplegable y queda asociada. Las cuentas que ya pertenecen a otro profesional aparecen **deshabilitadas**, para evitar duplicados.
 
-> No hay botón de "desactivar" para usuarios: quitar acceso se hace sacando los roles desde **Editar roles**.
+### Eliminar
+En la fila de cada persona, junto a **Editar roles**, está **Eliminar**. Pide confirmación y, al aceptar, **borra la cuenta y su acceso para siempre**, cancela sus turnos próximos y deja sus turnos pasados sin el nombre del cliente. No aparece en tu propia fila, para que no te quedes sin acceso.
+
+> Para quitar permisos sin borrar a nadie, sacale los roles desde **Editar roles**. No hay botón de "desactivar" para usuarios.
 
 ---
 
@@ -151,6 +168,17 @@ Define **cuándo atiende** el profesional. Tiene dos pestañas.
 - Tiene que estar **dentro del horario del negocio**.
 - Se guarda con **Guardar horario**. Si salís sin guardar, el sistema avisa.
 - **Puede editar su horario:** si lo desmarcás, el profesional ve su horario pero solo vos podés cambiarlo.
+
+**Permitir o no que el profesional configure su disponibilidad**
+
+Arriba de cada pestaña hay un interruptor. Vos decidís cuánto puede tocar el profesional por su cuenta (desde su rol de staff, en **Mi horario**):
+
+| Interruptor | Si está tildado | Si lo destildás |
+|---|---|---|
+| **Puede editar su horario** (pestaña Horario semanal) | El profesional cambia su propio horario semanal. | Ve su horario, pero no lo puede modificar: le aparece el aviso "Tu administrador define tus horarios". Solo vos lo cambiás. |
+| **Puede cargar sus días libres** (pestaña Días libres y especiales) | El profesional agrega y quita sus propios días libres y horarios especiales. | Ve sus días, pero no puede agregar ni quitar ninguno: le aparece "Tu administrador carga tus días libres". |
+
+Los dos interruptores son independientes: podés dejarle cambiar los días libres pero no el horario semanal, o al revés. Vos, como administrador, siempre podés editar todo.
 
 **Días libres y especiales**
 - Muestra la lista de días con excepciones (vacaciones, un día de estudio, un horario reducido).
@@ -213,7 +241,9 @@ La barra de arriba muestra **1 Servicio → 2 Fecha → 3 Horario → 4 Confirma
 3. **Horario:** los horarios libres del día. Elegí uno y **Siguiente**.
 4. **Confirmar:** revisá servicio, fecha y hora, duración y precio, y **Confirmar reserva**.
 
-El sistema **asigna solo al profesional** que esté libre en ese horario.
+**Cómo se asigna el profesional.** Vos no elegís con quién: el sistema asigna el turno **al primer profesional que, en ese horario, hace ese servicio, trabaja y está libre**. Si hay varios libres a la vez, gana **el que se cargó primero en Profesionales** (el más antiguo). No es un sorteo ni se reparte parejo entre todos. Un horario figura como disponible si **al menos uno** está libre; si ninguno lo está, no aparece.
+
+Después podés **cambiar el profesional** del turno: **Turnos** → abrir el turno → **Editar** (ver la sección *Turnos*).
 
 ### Para quién es la reserva
 En el último paso elegís:
@@ -247,7 +277,7 @@ Cada tarjeta muestra al cliente, el estado (con un color), el servicio, el profe
 Tocá un turno y se abre su **detalle** en un popup:
 - **Cliente, estado, fecha y hora, servicio, profesional, duración, precio.** Y email, teléfono y nota si los hay.
 - **Reprogramar:** te lleva a elegir otro día y horario para ese mismo turno.
-- **Editar:** cambiar el **servicio** o el **profesional** (no la fecha: para eso es Reprogramar).
+- **Editar:** cambiar el **servicio** o el **profesional** (no la fecha: para eso es Reprogramar). Es la forma de **reasignar** un turno a otro profesional distinto del que eligió el sistema; en el desplegable aparecen solo los profesionales que hacen ese servicio.
 - **Cancelar:** pide confirmación y le avisa por email al cliente y al profesional. Un turno cancelado libera el horario.
 - Un turno **completado** (que ya pasó) **también se puede editar**, reprogramar o cancelar.
 
@@ -296,7 +326,7 @@ Descuentos que el cliente **carga con un código** al reservar.
 
 ### Acciones
 - **Copiar código:** el ícono de copiar junto al código.
-- **Descargar imagen:** genera una imagen del cupón para compartir en redes (historias de Instagram, etc.), con distintos **estilos** (Base, Navidad, Año nuevo, Black Friday, Cyber Monday, Día de la madre, Día de la mujer) y tu logo.
+- **Descargar imagen:** genera una imagen del cupón para compartir en redes (historias de Instagram, etc.), con distintos **estilos** (Base, Navidad, Año nuevo, Black Friday, Cyber Monday, Día de la madre, Día de la mujer) y el logo SB del negocio, que se pinta del color que mejor se lee en cada estilo.
 - **Editar.**
 - **Desactivar / Activar.**
 - **Eliminar:** un cupón que ya se usó conviene **desactivarlo** para no perder el historial.
@@ -343,7 +373,7 @@ Para armar una **tarjeta de regalo** como imagen y mandarla.
 5. **Estilo:** **Rosa**, **Dorado** o **Lila**.
 6. Mirás la **vista previa** y tocás **Descargar imagen**.
 
-Se descarga como una imagen que podés mandar por WhatsApp o imprimir. La gift card **no se guarda en el sistema**: es solo la imagen.
+Lleva el logo SB del negocio en el color del estilo elegido. Se descarga como una imagen que podés mandar por WhatsApp o imprimir. La gift card **no se guarda en el sistema**: es solo la imagen.
 
 ---
 
@@ -361,12 +391,14 @@ Todo lo que ven tus clientes: tu **logo** y tu **página pública**. Es una sola
 ### Sección principal
 La primera parte de la página pública: un **título** y un **subtítulo** grandes. Si los dejás vacíos, se usan textos predeterminados.
 
+**Truco del título:** una palabra va en **cursiva y en tu color principal**. Marcala entre asteriscos, por ejemplo `Donde la *belleza* se vuelve arte`. Si no ponés asteriscos, la cursiva se aplica a la última palabra.
+
 ### Sobre nosotros
 Un texto libre para contar la historia de tu espacio.
 
 ### Diseño
 - **Color principal** (portada y botones) y **color secundario** (fondo de tarjetas y detalles). Se eligen con el selector de color o escribiendo el código.
-- **Tipografía:** la letra de la página, con una vista previa.
+- **Tipografía:** la letra del **texto de la página** (párrafos, menú, botones), con una vista previa. Los **títulos grandes** (el de la portada, Nuestros servicios, Promociones, etc.) siempre usan una letra con serifa elegante (Cormorant Garamond), que no cambia con esta opción.
 
 ### Horarios
 Tildá si querés **mostrar los horarios de atención** en la página pública (toma los de **Negocio → Horarios**).
@@ -394,7 +426,7 @@ Es la página que **ve cualquier persona que entre al sitio, aunque no tenga cue
 4. **Sobre nosotros.**
 5. **Horarios** (si lo activaste).
 6. **Próximos cierres.**
-7. **Contacto y redes.**
+7. **Contacto:** la **dirección del local** (con un link al mapa, si la cargaste en Negocio → General) y las redes.
 
 ---
 
@@ -408,6 +440,12 @@ La **promo** se aplica sola sobre servicios elegidos. El **cupón** lo escribe e
 
 **Cargué un turno por teléfono. ¿Cómo lo hago?**
 **Reservar turno** → elegís servicio, fecha y horario → en el último paso, **Para un cliente** u **Otra persona**.
+
+**¿Con qué profesional queda un turno nuevo?**
+Con el primer profesional libre que hace ese servicio (el que se cargó primero). Si querés otro, abrí el turno en **Turnos** y usá **Editar**.
+
+**No me llegan los emails de los turnos.**
+Revisá, en **Negocio → Política**, que **Enviar notificaciones por email** esté tildado y que **Email para notificaciones del negocio** esté completo. Y recordá el tope de 300 emails por día.
 
 **Un cliente quiere cambiar su turno.**
 **Turnos** → buscá al cliente → abrí el turno → **Reprogramar**.

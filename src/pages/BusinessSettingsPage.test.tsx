@@ -31,6 +31,7 @@ function createSettingsResponse(overrides?: Partial<Awaited<ReturnType<typeof mo
     slug: 'negocio-principal',
     timezone: 'America/Argentina/Buenos_Aires',
     logoUrl: null,
+    address: null,
     primaryColor: '#123ABC',
     bookingHeaderText: 'Reserva tu turno',
     bookingSubtitleText: 'Atencion personalizada',
@@ -270,6 +271,39 @@ describe('BusinessSettingsPage', () => {
       expect(payload.name).toBe('Salon Norte')
       expect(payload.weeklyHours.find((h: { dayOfWeek: number }) => h.dayOfWeek === 1).opensAt).toBe('09:00')
       expect((screen.getByLabelText('Lunes: hora de inicio') as HTMLInputElement).value).toBe('08:30')
+    })
+
+    it('saves the address of the shop with the General data and shows it afterwards', async () => {
+      mockSaveBusinessSettings.mockResolvedValue(saved({ address: 'Av. Corrientes 1234' }))
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+      expect((screen.getByLabelText('Dirección del local') as HTMLInputElement).value).toBe('')
+
+      fireEvent.change(screen.getByLabelText('Dirección del local'), { target: { value: 'Av. Corrientes 1234' } })
+      expect(screen.getByText('Hay cambios sin guardar')).toBeDefined()
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar datos del negocio' }))
+
+      await waitFor(() =>
+        expect(mockSaveBusinessSettings).toHaveBeenCalledWith(expect.objectContaining({ address: 'Av. Corrientes 1234' })),
+      )
+      await waitFor(() => expect(screen.queryByText('Hay cambios sin guardar')).toBeNull())
+      expect((screen.getByLabelText('Dirección del local') as HTMLInputElement).value).toBe('Av. Corrientes 1234')
+    })
+
+    it('loads the saved address, and saving the hours keeps it and ignores an unsaved edit of it (edge case)', async () => {
+      mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ address: 'Calle Falsa 123' }))
+      mockSaveBusinessSettings.mockResolvedValue(saved({ address: 'Calle Falsa 123' }))
+      renderBusinessSettingsPage()
+      await screen.findByDisplayValue('Salon Centro')
+      expect((screen.getByLabelText('Dirección del local') as HTMLInputElement).value).toBe('Calle Falsa 123')
+
+      fireEvent.change(screen.getByLabelText('Dirección del local'), { target: { value: 'Sin guardar 9' } })
+      fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
+      fireEvent.change(screen.getByLabelText('Lunes: hora de inicio'), { target: { value: '08:30' } })
+      fireEvent.click(screen.getByRole('button', { name: /Guardar horarios/ }))
+
+      await waitFor(() => expect(mockSaveBusinessSettings).toHaveBeenCalled())
+      expect(mockSaveBusinessSettings.mock.calls[0][0].address).toBe('Calle Falsa 123')
     })
 
     it('shows "Hay cambios sin guardar" and marks the tab, then clears both after saving', async () => {

@@ -73,17 +73,26 @@ describe('getPublicIdentity', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('returns the name and the logo, trimmed', async () => {
-    mockClient({ name: ' Estética So Beauty ', logo_url: ' https://x/logo.svg ' })
-    expect(await getPublicIdentity()).toEqual({ name: 'Estética So Beauty', logoUrl: 'https://x/logo.svg' })
+    mockClient({ name: ' Estética So Beauty ', logo_url: ' https://x/logo.svg ', address: ' Av. Corrientes 1234 ' })
+    expect(await getPublicIdentity()).toEqual({
+      name: 'Estética So Beauty',
+      logoUrl: 'https://x/logo.svg',
+      address: 'Av. Corrientes 1234',
+    })
+  })
+
+  it('a blank address is null (edge case)', async () => {
+    mockClient({ name: 'N', logo_url: null, address: '   ' })
+    expect((await getPublicIdentity()).address).toBeNull()
   })
 
   it('returns nulls when there is no organization or the lookup fails (edge cases)', async () => {
     mockClient(null)
-    expect(await getPublicIdentity()).toEqual({ name: null, logoUrl: null })
+    expect(await getPublicIdentity()).toEqual({ name: null, logoUrl: null, address: null })
     mockInitSupabase.mockImplementation(() => {
       throw new Error('down')
     })
-    expect(await getPublicIdentity()).toEqual({ name: null, logoUrl: null })
+    expect(await getPublicIdentity()).toEqual({ name: null, logoUrl: null, address: null })
   })
 })
 

@@ -3,7 +3,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  // x-skip-notifications: the app adds it to every request while notifications are off in local development
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-skip-notifications',
 }
 
 Deno.serve(async (req: Request) => {

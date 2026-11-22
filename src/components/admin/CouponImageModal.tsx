@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '../../lib/cn'
+import { loadBrandMark, type BrandMark } from '../../lib/brandMark'
 import {
   COUPON_THEMES,
   buildCouponSvg,
   couponFileName,
   downloadBlob,
-  loadImageAsDataUrl,
   svgToPngBlob,
   type CouponImageInput,
   type CouponThemeId,
@@ -13,33 +13,31 @@ import {
 
 interface CouponImageModalProps {
   isOpen: boolean
-  /** Everything but the theme (picked here) and the logo (loaded here from `logoUrl`). */
-  coupon: Omit<CouponImageInput, 'theme' | 'logoDataUrl'> | null
-  /** The business logo; the image goes without it if it cannot be loaded. */
-  logoUrl?: string | null
+  /** Everything but the theme (picked here) and the logo mark (loaded here from /public). */
+  coupon: Omit<CouponImageInput, 'theme' | 'logoMark'> | null
   onClose: () => void
 }
 
 /** Pick a theme, see the coupon as an image and download it (PNG to share). */
-export function CouponImageModal({ isOpen, coupon, logoUrl, onClose }: CouponImageModalProps) {
+export function CouponImageModal({ isOpen, coupon, onClose }: CouponImageModalProps) {
   const [theme, setTheme] = useState<CouponThemeId>('base')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
-  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null)
+  const [logoMark, setLogoMark] = useState<BrandMark | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    setLogoDataUrl(null)
-    if (isOpen && logoUrl) {
-      void loadImageAsDataUrl(logoUrl).then((data) => {
-        if (!cancelled) setLogoDataUrl(data)
+    if (isOpen) {
+      // The image goes without a logo if the file cannot be read
+      void loadBrandMark().then((mark) => {
+        if (!cancelled) setLogoMark(mark)
       })
     }
     return () => {
       cancelled = true
     }
-  }, [isOpen, logoUrl])
+  }, [isOpen])
 
   useEffect(() => {
     if (isOpen) {
@@ -56,7 +54,7 @@ export function CouponImageModal({ isOpen, coupon, logoUrl, onClose }: CouponIma
     return () => document.removeEventListener('keydown', handleKey)
   }, [isOpen, onClose])
 
-  const svg = useMemo(() => (coupon ? buildCouponSvg({ ...coupon, theme, logoDataUrl }) : ''), [coupon, theme, logoDataUrl])
+  const svg = useMemo(() => (coupon ? buildCouponSvg({ ...coupon, theme, logoMark }) : ''), [coupon, theme, logoMark])
   const previewSrc = useMemo(() => (svg ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}` : ''), [svg])
 
   if (!isOpen || !coupon) return null

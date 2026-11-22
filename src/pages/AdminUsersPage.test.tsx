@@ -5,6 +5,7 @@ import { AdminUsersPage } from './AdminUsersPage'
 import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
 import { mockSessions } from '../hooks/__test-utils__/fixtures'
 
+const mockDeleteUser = vi.fn()
 const mockListAdminUsers = vi.fn()
 const mockListInvitations = vi.fn()
 const mockInviteUser = vi.fn()
@@ -15,6 +16,7 @@ vi.mock('../services/adminUsers', () => ({
   adminListUserInvitations: (...args: unknown[]) => mockListInvitations(...args),
   adminInviteUser: (...args: unknown[]) => mockInviteUser(...args),
   adminDeleteUserInvitation: (...args: unknown[]) => mockDeleteInvitation(...args),
+  adminDeleteUser: (...args: unknown[]) => mockDeleteUser(...args),
 }))
 
 const mockListStaff = vi.fn()
@@ -114,6 +116,49 @@ describe('AdminUsersPage (simple directory)', () => {
     expect(screen.queryByText('Roles asignados')).toBeNull()
     expect(screen.queryByRole('button', { name: /Guardar perfil/ })).toBeNull()
     expect(screen.queryByLabelText(/Eliminar usuario/)).toBeNull()
+  })
+
+  describe('deleting a user', () => {
+    it('each row has an Eliminar action, except the one of the person using the app (edge case)', async () => {
+      mockListAdminUsers.mockResolvedValue([ana, admin])
+      renderPage()
+      await screen.findByText('Ana')
+      expect(screen.getByRole('button', { name: 'Eliminar a Ana' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Eliminar a Admin' })).toBeNull()
+    })
+
+    it('asks first, says what happens and does not delete when cancelled (edge case)', async () => {
+      mockListAdminUsers.mockResolvedValue([ana])
+      renderPage()
+      await screen.findByText('Ana')
+      fireEvent.click(screen.getByRole('button', { name: 'Eliminar a Ana' }))
+      expect(screen.getByText(/se cancelan sus turnos próximos/)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+      expect(mockDeleteUser).not.toHaveBeenCalled()
+    })
+
+    it('deletes after confirming, shows the message and reloads the list', async () => {
+      mockDeleteUser.mockResolvedValue(undefined)
+      mockListAdminUsers.mockResolvedValueOnce([ana]).mockResolvedValue([])
+      renderPage()
+      await screen.findByText('Ana')
+      fireEvent.click(screen.getByRole('button', { name: 'Eliminar a Ana' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
+      await waitFor(() => expect(mockDeleteUser).toHaveBeenCalledWith('u-1'))
+      expect(await screen.findByText('Usuario eliminado correctamente.')).toBeInTheDocument()
+      await waitFor(() => expect(screen.queryByText('Ana')).toBeNull())
+    })
+
+    it('shows the error and keeps the user when deleting fails (edge case)', async () => {
+      mockDeleteUser.mockRejectedValue(new Error('No se pudo eliminar'))
+      mockListAdminUsers.mockResolvedValue([ana])
+      renderPage()
+      await screen.findByText('Ana')
+      fireEvent.click(screen.getByRole('button', { name: 'Eliminar a Ana' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
+      expect(await screen.findByText('No se pudo eliminar')).toBeInTheDocument()
+      expect(screen.getByText('Ana')).toBeInTheDocument()
+    })
   })
 
   it('each row has its own "Editar roles" button', async () => {

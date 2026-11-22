@@ -39,6 +39,14 @@ describe('business settings helpers', () => {
     ).toBe(false)
   })
 
+  it('validates the address length: 200 is fine, 201 is not, empty and missing are fine (edge cases)', () => {
+    const base = { name: 'Salon', timezone: 'America/Argentina/Buenos_Aires' }
+    expect(validateBusinessIdentity({ ...base, address: 'a'.repeat(200) }).valid).toBe(true)
+    expect(validateBusinessIdentity({ ...base, address: 'a'.repeat(201) }).errors.address).toMatch(/200/)
+    expect(validateBusinessIdentity({ ...base, address: '   ' }).valid).toBe(true)
+    expect(validateBusinessIdentity({ ...base }).valid).toBe(true)
+  })
+
   it('validates weekly business hours for open and closed days', () => {
     expect(
       validateBusinessHours({

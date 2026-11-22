@@ -2,8 +2,10 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { ActionButton, ActionRow } from '../components/ActionButton'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { commonCopy } from '../lib/uiCopy'
+import { useUser } from '../hooks/useUser'
 import { roleLabel } from '../lib/adminUsersView'
 import {
+  adminDeleteUser,
   adminDeleteUserInvitation,
   adminInviteUser,
   adminListUserInvitations,
@@ -45,6 +47,7 @@ const ACCOUNT_FILTERS: { value: AccountFilter; label: string }[] = [
 export function AdminUsersPage() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user: currentUser } = useUser()
   // "Editar roles" opens a pop-up over the list; /admin/users/:userId opens it directly
   const { userId: routeUserId } = useParams<{ userId: string }>()
   const [editUserId, setEditUserId] = useState<string | null>(routeUserId ?? null)
@@ -87,13 +90,14 @@ export function AdminUsersPage() {
     onConfirm: () => void
     confirmLabel?: string
     cancelLabel?: string
+    destructive?: boolean
   }>({ isOpen: false, title: 'Confirmar', message: '', onConfirm: () => {} })
 
   const showConfirm = (
     title: string,
     message: string,
     onConfirm: () => void,
-    labels?: { confirmLabel?: string; cancelLabel?: string },
+    labels?: { confirmLabel?: string; cancelLabel?: string; destructive?: boolean },
   ) => setConfirmState({ isOpen: true, title, message, onConfirm, ...labels })
   const closeConfirm = () => setConfirmState((prev) => ({ ...prev, isOpen: false }))
 
@@ -273,6 +277,27 @@ export function AdminUsersPage() {
     } finally {
       setIsInviting(false)
     }
+  }
+
+  const handleDeleteUser = (person: AdminManagedUser) => {
+    const who = person.name || person.email || 'este usuario'
+    showConfirm(
+      'Eliminar usuario',
+      `¿Eliminás a ${who}? Se borra su cuenta y su acceso de forma permanente y se cancelan sus turnos próximos. Sus turnos pasados quedan sin nombre de cliente. Para quitarle permisos sin borrarlo, usá “Editar roles”.`,
+      async () => {
+        closeConfirm()
+        setErrorMessage(null)
+        setSuccessMessage(null)
+        try {
+          await adminDeleteUser(person.userId)
+          setSuccessMessage('Usuario eliminado correctamente.')
+          await loadData()
+        } catch (err) {
+          setErrorMessage(err instanceof Error ? err.message : 'Ocurrió un error al eliminar el usuario.')
+        }
+      },
+      { confirmLabel: 'Eliminar', cancelLabel: 'Cancelar', destructive: true },
+    )
   }
 
   const handleDeleteInvitation = (invitation: UserInvitation) => {
@@ -509,6 +534,16 @@ export function AdminUsersPage() {
                 >
                   Editar roles
                 </ActionButton>
+                {/* Nobody deletes their own account from here: they would lock themselves out */}
+                {user.userId !== currentUser?.id && (
+                  <ActionButton
+                    tone="danger"
+                    onClick={() => handleDeleteUser(user)}
+                    aria-label={`Eliminar a ${user.name || user.email || 'usuario'}`}
+                  >
+                    Eliminar
+                  </ActionButton>
+                )}
               </ActionRow>
             </li>
           ))}
@@ -585,6 +620,7 @@ export function AdminUsersPage() {
         onConfirm={confirmState.onConfirm}
         confirmLabel={confirmState.confirmLabel}
         cancelLabel={confirmState.cancelLabel}
+        destructive={confirmState.destructive}
         onCancel={closeConfirm}
       />
 
@@ -594,11 +630,6 @@ export function AdminUsersPage() {
           userId={editUserId}
           onClose={closeEdit}
           onChanged={() => void loadData()}
-          onDeleted={() => {
-            closeEdit()
-            setSuccessMessage('Usuario eliminado correctamente.')
-            void loadData()
-          }}
         />
       )}
 
