@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { normalizePhone, normalizeProfileName, validateProfileInput } from '../../lib/profile'
+import { nameFromEmail, normalizePhone, resolveProfileName, validateProfileInput } from '../../lib/profile'
 import { commonCopy } from '../../lib/uiCopy'
 import { ALL_ROLES, roleLabel } from '../../lib/adminUsersView'
 import { isLastActiveAdminRoleDemotion, isSelfDemotion } from '../../lib/adminUserPolicies'
@@ -94,7 +94,9 @@ export function UserEditModal({ userId, onClose, onChanged }: UserEditModalProps
     setErrorMessage(null)
     setNameError(null)
 
-    const validation = validateProfileInput({ name, phone })
+    // Left empty, the name is the one of the email, so the account is never left without a name
+    const finalName = resolveProfileName(name, target.email)
+    const validation = validateProfileInput({ name: finalName, phone })
     if (!validation.valid) {
       setNameError(validation.errors.name ?? null)
       return
@@ -103,7 +105,7 @@ export function UserEditModal({ userId, onClose, onChanged }: UserEditModalProps
     setIsSavingProfile(true)
     try {
       const updated = await adminUpdateUserProfile(target.userId, {
-        name: normalizeProfileName(name),
+        name: finalName,
         phone: normalizePhone(phone) ?? '',
       })
       setUsers((current) =>
@@ -111,6 +113,7 @@ export function UserEditModal({ userId, onClose, onChanged }: UserEditModalProps
           item.userId === updated.userId ? { ...item, name: updated.name, phone: updated.phone } : item,
         ),
       )
+      setName(updated.name)
       setSuccessMessage('Perfil de usuario actualizado correctamente.')
       onChanged()
     } catch {
@@ -261,8 +264,12 @@ export function UserEditModal({ userId, onClose, onChanged }: UserEditModalProps
                     id="admin-profile-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    placeholder={nameFromEmail(target.email)}
                     className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text focus:border-brand-primary focus:outline-none"
                   />
+                  {target.email && !nameError && (
+                    <p className="mt-1 text-xs text-shell-subtleText">Si lo dejás vacío, se usa el de su email.</p>
+                  )}
                   {nameError ? <p className="mt-1 text-xs text-red-600">{nameError}</p> : null}
                 </div>
                 <div>

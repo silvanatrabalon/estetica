@@ -7,15 +7,18 @@ import {
   setSplitShifts,
   deleteBusinessClosure,
   getBusinessSettings,
+  listNotificationAdmins,
   saveBusinessClosure,
   saveBusinessSettings,
   saveNotificationSettings,
+  setNotificationAdmins,
   updateBookingPolicy,
   type BusinessClosureRecord,
   type BusinessHoursRecord,
+  type NotificationAdmin,
 } from '../services/businessSettings'
 import { adminDeleteAllAppointments } from '../services/adminAppointments'
-import { ADDRESS_MAX, validateNotificationEmail } from '../lib/businessSettings'
+import { ADDRESS_MAX } from '../lib/businessSettings'
 import type { BusinessClosureType, BusinessHoursInput } from '../lib/businessSettings'
 import { commonCopy } from '../lib/uiCopy'
 import { useUser } from '../hooks/useUser'
@@ -95,17 +98,22 @@ function sameHours(a: BusinessHoursRecord[], b: BusinessHoursRecord[]): boolean 
 interface PolicySnapshot {
   minNotice: number
   maxHorizon: number
-  email: string
   enabled: boolean
+  /** The administrators who get the copies, as a sorted list of ids joined by commas. */
+  copyAdmins: string
 }
+
+const joinIds = (ids: string[]) => [...ids].sort().join(',')
 
 export function BusinessSettingsPage() {
   const { isLoading: isUserLoading } = useUser()
   const [organizationId, setOrganizationId] = useState<string>('')
   const [name, setName] = useState('')
   const [timezone, setTimezone] = useState('UTC')
-  const [notificationEmail, setNotificationEmail] = useState('')
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  // The administrators, and which of them get a copy of the appointment emails
+  const [notificationAdmins, setAdminList] = useState<NotificationAdmin[]>([])
+  const [copyAdminIds, setCopyAdminIds] = useState<string[]>([])
   const [bookingMinNoticeMinutes, setBookingMinNoticeMinutes] = useState(60)
   const [bookingMaxHorizonDays, setBookingMaxHorizonDays] = useState(60)
   const [bookingPolicyError, setBookingPolicyError] = useState<string | null>(null)
@@ -118,7 +126,7 @@ export function BusinessSettingsPage() {
   const [address, setAddress] = useState('')
   const [savedGeneral, setSavedGeneral] = useState({ name: '', timezone: 'UTC', address: '' })
   const [savedHours, setSavedHours] = useState<BusinessHoursRecord[]>([])
-  const [savedPolicy, setSavedPolicy] = useState<PolicySnapshot>({ minNotice: 60, maxHorizon: 60, email: '', enabled: true })
+  const [savedPolicy, setSavedPolicy] = useState<PolicySnapshot>({ minNotice: 60, maxHorizon: 60, enabled: true, copyAdmins: '' })
   const [closureDraft, setClosureDraft] = useState<ClosureDraft>(emptyClosureDraft())
   // "Agregar cierre" and "Editar" open the form in a pop-up; its errors show inside it
   const [closureModalOpen, setClosureModalOpen] = useState(false)
@@ -181,7 +189,6 @@ export function BusinessSettingsPage() {
     setName(data.name)
     setTimezone(data.timezone)
     setAddress(data.address ?? '')
-    setNotificationEmail(data.notificationEmail ?? '')
     setNotificationsEnabled(data.notificationsEnabled ?? true)
     setBookingMinNoticeMinutes(data.bookingMinNoticeMinutes)
     setBookingMaxHorizonDays(data.bookingMaxHorizonDays)
@@ -191,13 +198,33 @@ export function BusinessSettingsPage() {
     setMissingReadiness(data.readiness.missing)
     setSavedGeneral({ name: data.name, timezone: data.timezone, address: data.address ?? '' })
     setSavedHours(data.weeklyHours)
-    setSavedPolicy({
+    // The administrators who get copies load on their own: keep what is already known
+    setSavedPolicy((prev) => ({
       minNotice: data.bookingMinNoticeMinutes,
       maxHorizon: data.bookingMaxHorizonDays,
-      email: data.notificationEmail ?? '',
       enabled: data.notificationsEnabled ?? true,
-    })
+      copyAdmins: prev.copyAdmins,
+    }))
   }
+
+  // The administrators, to choose who gets the copies (without the list the section just does not show it)
+  useEffect(() => {
+    let cancelled = false
+    listNotificationAdmins()
+      .then((list) => {
+        if (cancelled) return
+        const ids = list.filter((a) => a.notify).map((a) => a.userId)
+        setAdminList(list)
+        setCopyAdminIds(ids)
+        setSavedPolicy((prev) => ({ ...prev, copyAdmins: joinIds(ids) }))
+      })
+      .catch(() => {
+        // The copies keep going to whoever they went to
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     // Wait until user session is loaded before attempting to fetch business settings
@@ -354,8 +381,8 @@ export function BusinessSettingsPage() {
   const policyDirty =
     bookingMinNoticeMinutes !== savedPolicy.minNotice ||
     bookingMaxHorizonDays !== savedPolicy.maxHorizon ||
-    notificationEmail !== savedPolicy.email ||
-    notificationsEnabled !== savedPolicy.enabled
+    notificationsEnabled !== savedPolicy.enabled ||
+    joinIds(copyAdminIds) !== savedPolicy.copyAdmins
   const dirtyByTab: Record<string, boolean> = {
     identity: generalDirty,
     hours: hoursDirty,
@@ -380,8 +407,8 @@ export function BusinessSettingsPage() {
     } else if (tab === 'policy') {
       setBookingMinNoticeMinutes(savedPolicy.minNotice)
       setBookingMaxHorizonDays(savedPolicy.maxHorizon)
-      setNotificationEmail(savedPolicy.email)
       setNotificationsEnabled(savedPolicy.enabled)
+      setCopyAdminIds(savedPolicy.copyAdmins === '' ? [] : savedPolicy.copyAdmins.split(','))
     }
   }
 
@@ -516,22 +543,18 @@ export function BusinessSettingsPage() {
       return
     }
 
-    const notificationEmailError = validateNotificationEmail(notificationEmail)
-    if (notificationEmailError) {
-      setBookingPolicyError(notificationEmailError)
-      return
-    }
-
     setIsSavingPolicy(true)
 
     try {
       await updateBookingPolicy(bookingMinNoticeMinutes, bookingMaxHorizonDays)
-      await saveNotificationSettings({ notificationEmail, notificationsEnabled })
+      await saveNotificationSettings({ notificationsEnabled })
+      // Only when the list of administrators was loaded: otherwise nothing is changed there
+      if (notificationAdmins.length > 0) await setNotificationAdmins(copyAdminIds)
       setSavedPolicy({
         minNotice: bookingMinNoticeMinutes,
         maxHorizon: bookingMaxHorizonDays,
-        email: notificationEmail,
         enabled: notificationsEnabled,
+        copyAdmins: joinIds(copyAdminIds),
       })
       setSuccessMessage('Política de reservas actualizada.')
     } catch {
@@ -955,21 +978,55 @@ export function BusinessSettingsPage() {
                 </span>
               </span>
             </label>
-            <div>
-              <label htmlFor="business-notification-email" className="mb-1.5 block text-sm font-medium text-gray-700">
-                Email para notificaciones del negocio
-              </label>
-              <input
-                id="business-notification-email"
-                className={fieldCls}
-                type="email"
-                value={notificationEmail}
-                onChange={(e) => setNotificationEmail(e.target.value)}
-                placeholder="negocio@ejemplo.com"
-              />
-              <p className="mt-1.5 text-sm text-gray-500">
-                Recibirás una copia de cada turno confirmado, cancelado y reprogramado. Es opcional.
-              </p>
+            {notificationAdmins.length > 0 && (
+              <fieldset className="space-y-1">
+                <legend className="mb-1 text-sm font-medium text-gray-700">
+                  {notificationAdmins.length > 1 ? '¿Qué administradores reciben las copias?' : '¿El administrador recibe las copias?'}
+                </legend>
+                {notificationAdmins.map((adminUser) => {
+                  const checked = copyAdminIds.includes(adminUser.userId)
+                  return (
+                    <label key={adminUser.userId} className="flex min-h-11 items-center gap-3 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5 shrink-0"
+                        checked={checked}
+                        onChange={(e) =>
+                          setCopyAdminIds((current) =>
+                            e.target.checked ? [...current, adminUser.userId] : current.filter((id) => id !== adminUser.userId),
+                          )
+                        }
+                        aria-label={`Copias para ${adminUser.name || adminUser.email || 'administrador'}`}
+                      />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium text-gray-900">{adminUser.name || adminUser.email}</span>
+                        {adminUser.name && adminUser.email && (
+                          <span className="block truncate text-xs text-gray-500">{adminUser.email}</span>
+                        )}
+                      </span>
+                    </label>
+                  )
+                })}
+                <p className="text-sm text-gray-500">
+                  {copyAdminIds.length === 0
+                    ? 'Ningún administrador recibe copias de los turnos.'
+                    : 'Cada uno recibe en el email de su cuenta el aviso de cada turno confirmado, cancelado y reprogramado, aunque sea de otro profesional.'}
+                </p>
+              </fieldset>
+            )}
+            <div className="rounded-xl bg-shell-muted/60 px-4 py-3 text-sm text-gray-600" data-testid="notification-rules">
+              <p className="font-medium text-gray-700">Cómo se mandan</p>
+              <ul className="mt-1 list-disc space-y-1 pl-5">
+                <li>
+                  Por cada aviso sale un email al cliente, uno al profesional del turno y uno a cada administrador elegido
+                  arriba.
+                </li>
+                <li>Si dos de esas direcciones son la misma persona, le llega un solo email.</li>
+                <li>
+                  El envío tiene un tope de 300 emails por día. Si se supera, los turnos se crean igual, pero ese día no
+                  salen más avisos.
+                </li>
+              </ul>
             </div>
           </div>
 

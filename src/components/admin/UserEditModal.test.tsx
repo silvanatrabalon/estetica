@@ -173,12 +173,36 @@ describe('UserEditModal', () => {
     expect(onChanged).toHaveBeenCalled()
   })
 
-  it('rejects an empty name without saving (edge case)', async () => {
-    renderModal('u-1')
+  it('an empty name is saved as the one of the email, and the field shows it afterwards', async () => {
+    mockUpdateProfile.mockResolvedValue({ userId: 'u-1', name: 'ana', phone: null })
+    const { onChanged } = renderModal('u-1')
 
-    fireEvent.change(await screen.findByLabelText('Nombre'), { target: { value: ' ' } })
+    const field = await screen.findByLabelText('Nombre')
+    expect(field).toHaveAttribute('placeholder', 'ana')
+    expect(screen.getByText('Si lo dejás vacío, se usa el de su email.')).toBeInTheDocument()
+    fireEvent.change(field, { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar perfil de usuario' }))
 
+    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledWith('u-1', { name: 'ana', phone: '' }))
+    expect(screen.queryByText('El nombre es obligatorio.')).toBeNull()
+    await waitFor(() => expect((screen.getByLabelText('Nombre') as HTMLInputElement).value).toBe('ana'))
+    expect(onChanged).toHaveBeenCalled()
+  })
+
+  it('a typed name wins over the email (edge case)', async () => {
+    mockUpdateProfile.mockResolvedValue({ userId: 'u-1', name: 'Ana María', phone: null })
+    renderModal('u-1')
+    fireEvent.change(await screen.findByLabelText('Nombre'), { target: { value: '  Ana María ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar perfil de usuario' }))
+    await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledWith('u-1', { name: 'Ana María', phone: '' }))
+  })
+
+  it('without a name and without an email the name is still required (edge case)', async () => {
+    mockListAdminUsers.mockResolvedValue([{ ...ana, email: null }])
+    renderModal('u-1')
+    fireEvent.change(await screen.findByLabelText('Nombre'), { target: { value: ' ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar perfil de usuario' }))
+    expect(await screen.findByText('El nombre es obligatorio.')).toBeInTheDocument()
     expect(mockUpdateProfile).not.toHaveBeenCalled()
   })
 

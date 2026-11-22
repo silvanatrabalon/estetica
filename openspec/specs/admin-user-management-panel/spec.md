@@ -155,3 +155,7 @@ La ventana de "Editar roles" NO SHALL llevar la explicación de los roles bajo l
 
 ### Requirement: Sin "Desactivar" ni estado Activo/Inactivo
 Usuarios y roles NO SHALL ofrecer "Desactivar"/"Reactivar" ni mostrar la etiqueta Activo/Inactivo: desactivar solo quitaba los permisos de administrador y staff (la cuenta seguía pudiendo entrar y reservar como cliente), y para eso alcanza con sacar el rol en "Editar roles". Cada usuario de la lista tiene solo "Editar roles". El segundo desplegable pasa a ser **Cuenta** (Todas, Con cuenta, Sin cuenta) en lugar de Estado. La explicación de la pantalla habla de quién tiene cuenta y qué roles tiene. Esto reemplaza lo dicho antes sobre "Desactivar"/"Reactivar", el estado y el filtro Activos/Inactivos. La función de la base `admin_set_user_active` queda sin uso.
+
+### Requirement: Nombre vacío usa el del email
+En el popup de Editar roles, el nombre ya no bloquea el guardado: si se deja vacío se guarda el nombre que da el email (lo que está antes de la @), que también se muestra como sugerencia en el campo, así la cuenta nunca queda sin nombre. Solo si la cuenta no tiene email el nombre sigue siendo obligatorio.
+

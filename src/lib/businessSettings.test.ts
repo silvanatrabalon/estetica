@@ -8,7 +8,6 @@ import {
   validateBusinessClosure,
   validateBusinessHours,
   validateBusinessIdentity,
-  validateNotificationEmail,
 } from './businessSettings'
 
 describe('business settings helpers', () => {
@@ -136,21 +135,3 @@ describe('business settings helpers', () => {
   })
   })
 
-describe('validateNotificationEmail', () => {
-  it('treats empty and whitespace-only values as valid (field is optional)', () => {
-    expect(validateNotificationEmail('')).toBeNull()
-    expect(validateNotificationEmail('   ')).toBeNull()
-  })
-
-  it('accepts a valid address, with surrounding whitespace', () => {
-    expect(validateNotificationEmail('negocio@ejemplo.com')).toBeNull()
-    expect(validateNotificationEmail('  negocio@ejemplo.com  ')).toBeNull()
-  })
-
-  it.each([['sin-arroba'], ['a@b'], ['a b@c.com'], ['@c.com'], ['a@.com']])(
-    'rejects %s with a Spanish error message',
-    (value) => {
-      expect(validateNotificationEmail(value)).toBe('Ingresá un email válido para las notificaciones.')
-    },
-  )
-})

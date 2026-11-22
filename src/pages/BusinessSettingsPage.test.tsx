@@ -13,6 +13,8 @@ const mockSaveBusinessClosure = vi.fn()
 const mockDeleteBusinessClosure = vi.fn()
 const mockUpdateBookingPolicy = vi.fn()
 const mockSetSplitShifts = vi.fn()
+const mockListNotificationAdmins = vi.fn()
+const mockSetNotificationAdmins = vi.fn()
 
 vi.mock('../services/businessSettings', () => ({
   getBusinessSettings: (...args: unknown[]) => mockGetBusinessSettings(...args),
@@ -22,6 +24,8 @@ vi.mock('../services/businessSettings', () => ({
   deleteBusinessClosure: (...args: unknown[]) => mockDeleteBusinessClosure(...args),
   updateBookingPolicy: (...args: unknown[]) => mockUpdateBookingPolicy(...args),
   setSplitShifts: (...args: unknown[]) => mockSetSplitShifts(...args),
+  listNotificationAdmins: (...args: unknown[]) => mockListNotificationAdmins(...args),
+  setNotificationAdmins: (...args: unknown[]) => mockSetNotificationAdmins(...args),
 }))
 
 function createSettingsResponse(overrides?: Partial<Awaited<ReturnType<typeof mockGetBusinessSettings>>>) {
@@ -48,7 +52,6 @@ function createSettingsResponse(overrides?: Partial<Awaited<ReturnType<typeof mo
     readiness: { isReady: true, missing: [] },
     bookingMinNoticeMinutes: 60,
     bookingMaxHorizonDays: 60,
-    notificationEmail: null,
     notificationsEnabled: true,
     splitShifts: false,
     ...overrides,
@@ -70,6 +73,8 @@ describe('BusinessSettingsPage', () => {
     vi.clearAllMocks()
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     mockGetBusinessSettings.mockResolvedValue(createSettingsResponse())
+    mockListNotificationAdmins.mockResolvedValue([])
+    mockSetNotificationAdmins.mockResolvedValue(undefined)
   })
 
   it('loads business settings and shows readiness warning when incomplete', async () => {
@@ -590,34 +595,16 @@ describe('BusinessSettingsPage', () => {
       fireEvent.click(tab)
     }
 
-    it('shows the stored notification email', async () => {
-      mockGetBusinessSettings.mockResolvedValue(
-        createSettingsResponse({ notificationEmail: 'inbox@negocio.com' }),
-      )
+    it('has no free email field: the copies go to the administrators chosen in the list (edge case)', async () => {
       renderBusinessSettingsPage()
       await openPolicyTab()
-
-      const input = await screen.findByLabelText('Email para notificaciones del negocio')
-      expect((input as HTMLInputElement).value).toBe('inbox@negocio.com')
+      await screen.findByText('Notificaciones')
+      expect(screen.queryByLabelText(/Email adicional/)).toBeNull()
+      expect(screen.queryByLabelText(/Email para notificaciones/)).toBeNull()
+      expect(screen.queryByText(/alguien que no es administrador/)).toBeNull()
     })
 
-    it('renders empty when no notification email is configured (edge case)', async () => {
-      renderBusinessSettingsPage()
-      await openPolicyTab()
-
-      const input = await screen.findByLabelText('Email para notificaciones del negocio')
-      expect((input as HTMLInputElement).value).toBe('')
-    })
-
-    it('is not part of the Identidad form anymore', async () => {
-      renderBusinessSettingsPage()
-      await screen.findByDisplayValue('Salon Centro')
-
-      const identityForm = screen.getByLabelText('Nombre del negocio').closest('form')!
-      expect(identityForm.contains(screen.getByLabelText('Email para notificaciones del negocio'))).toBe(false)
-    })
-
-    it('saves notification email and toggle together with the policy', async () => {
+    it('saves the toggle with the policy', async () => {
       mockUpdateBookingPolicy.mockResolvedValue(undefined)
       mockSaveNotificationSettings.mockResolvedValue(undefined)
       renderBusinessSettingsPage()
@@ -626,16 +613,10 @@ describe('BusinessSettingsPage', () => {
       const toggle = (await screen.findByLabelText(/Enviar notificaciones por email/)) as HTMLInputElement
       expect(toggle.checked).toBe(true)
       fireEvent.click(toggle)
-      fireEvent.change(screen.getByLabelText('Email para notificaciones del negocio'), {
-        target: { value: 'nuevo@negocio.com' },
-      })
       fireEvent.click(screen.getByRole('button', { name: 'Guardar política' }))
 
       await waitFor(() => {
-        expect(mockSaveNotificationSettings).toHaveBeenCalledWith({
-          notificationEmail: 'nuevo@negocio.com',
-          notificationsEnabled: false,
-        })
+        expect(mockSaveNotificationSettings).toHaveBeenCalledWith({ notificationsEnabled: false })
       })
     })
 
@@ -646,40 +627,6 @@ describe('BusinessSettingsPage', () => {
 
       const toggle = (await screen.findByLabelText(/Enviar notificaciones por email/)) as HTMLInputElement
       expect(toggle.checked).toBe(false)
-    })
-
-    it('can be cleared: saves an empty notification email (edge case)', async () => {
-      mockGetBusinessSettings.mockResolvedValue(
-        createSettingsResponse({ notificationEmail: 'inbox@negocio.com' }),
-      )
-      mockUpdateBookingPolicy.mockResolvedValue(undefined)
-      mockSaveNotificationSettings.mockResolvedValue(undefined)
-      renderBusinessSettingsPage()
-      await openPolicyTab()
-
-      fireEvent.change(await screen.findByLabelText('Email para notificaciones del negocio'), {
-        target: { value: '' },
-      })
-      fireEvent.click(screen.getByRole('button', { name: 'Guardar política' }))
-
-      await waitFor(() => {
-        expect(mockSaveNotificationSettings).toHaveBeenCalledWith(
-          expect.objectContaining({ notificationEmail: '' }),
-        )
-      })
-    })
-
-    it('rejects an invalid email without saving anything (edge case)', async () => {
-      renderBusinessSettingsPage()
-      await openPolicyTab()
-
-      const input = await screen.findByLabelText('Email para notificaciones del negocio')
-      fireEvent.change(input, { target: { value: 'no-es-un-email' } })
-      fireEvent.submit(input.closest('form')!)
-
-      expect(await screen.findByText('Ingresá un email válido para las notificaciones.')).toBeDefined()
-      expect(mockUpdateBookingPolicy).not.toHaveBeenCalled()
-      expect(mockSaveNotificationSettings).not.toHaveBeenCalled()
     })
   })
 
@@ -782,6 +729,7 @@ describe('BusinessSettingsPage — jornada corrida o dos turnos', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetBusinessSettings.mockResolvedValue(createSettingsResponse())
+    mockListNotificationAdmins.mockResolvedValue([])
     mockSetSplitShifts.mockResolvedValue(undefined)
   })
 
@@ -1174,4 +1122,96 @@ describe('BusinessSettingsPage — Cierres in pop-ups', () => {
     expect(text.parentElement).toBe(row.parentElement)
     expect(title.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
+
+  it('explains in Política how the notification emails go out, so nobody has to guess (edge case: texts)', async () => {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    fireEvent.click(screen.getByRole('tab', { name: /Política/ }))
+    const rules = screen.getByTestId('notification-rules')
+    expect(rules).toHaveTextContent('uno a cada administrador')
+    expect(rules).toHaveTextContent('misma persona, le llega un solo email')
+    expect(rules).toHaveTextContent('300 emails por día')
+    expect(screen.queryByText(/Una dirección más/)).toBeNull()
+  })
 })
+
+describe('BusinessSettingsPage — which administrators get the copies', () => {
+  const two = [
+    { userId: 'a-1', name: 'Silvana', email: 'silvana@x.com', notify: true },
+    { userId: 'a-2', name: 'Marta', email: 'marta@x.com', notify: false },
+  ]
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse())
+    mockListNotificationAdmins.mockResolvedValue(two)
+    mockSetNotificationAdmins.mockResolvedValue(undefined)
+    mockSaveNotificationSettings.mockResolvedValue(undefined)
+    mockUpdateBookingPolicy.mockResolvedValue(undefined)
+  })
+
+  async function openPolicy() {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    fireEvent.click(screen.getByRole('tab', { name: /Política/ }))
+  }
+
+  it('lists every administrator with its checkbox, on for the ones that get the copies', async () => {
+    await openPolicy()
+    expect(await screen.findByText('¿Qué administradores reciben las copias?')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Copias para Silvana' })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: 'Copias para Marta' })).not.toBeChecked()
+    expect(screen.getByText('marta@x.com')).toBeInTheDocument()
+  })
+
+  it('saves the chosen administrators with the policy', async () => {
+    await openPolicy()
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Copias para Marta' }))
+    expect(screen.getByText('Hay cambios sin guardar')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar política' }))
+    await waitFor(() => expect(mockSetNotificationAdmins).toHaveBeenCalledWith(['a-1', 'a-2']))
+    await waitFor(() => expect(screen.queryByText('Hay cambios sin guardar')).toBeNull())
+  })
+
+  it('an unchanged selection is not a change (edge case)', async () => {
+    await openPolicy()
+    await screen.findByRole('checkbox', { name: 'Copias para Silvana' })
+    expect(screen.queryByText('Hay cambios sin guardar')).toBeNull()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Copias para Silvana' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Copias para Silvana' }))
+    expect(screen.queryByText('Hay cambios sin guardar')).toBeNull()
+  })
+
+  it('can leave nobody selected and says so (edge case)', async () => {
+    await openPolicy()
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Copias para Silvana' }))
+    expect(screen.getByText('Ningún administrador recibe copias de los turnos.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar política' }))
+    await waitFor(() => expect(mockSetNotificationAdmins).toHaveBeenCalledWith([]))
+  })
+
+  it('with a single administrator it asks a simple question (edge case)', async () => {
+    mockListNotificationAdmins.mockResolvedValue([two[0]])
+    await openPolicy()
+    expect(await screen.findByText('¿El administrador recibe las copias?')).toBeInTheDocument()
+  })
+
+  it('does not show the choice, nor touch it, when the administrators cannot be loaded (edge case)', async () => {
+    mockListNotificationAdmins.mockRejectedValue(new Error('down'))
+    await openPolicy()
+    await screen.findByText('Notificaciones')
+    expect(screen.queryByText(/reciben las copias/)).toBeNull()
+    fireEvent.change(screen.getByLabelText('Cuántos días hacia adelante se puede reservar'), { target: { value: '30' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar política' }))
+    await waitFor(() => expect(mockSaveNotificationSettings).toHaveBeenCalled())
+    expect(mockSetNotificationAdmins).not.toHaveBeenCalled()
+  })
+
+  it('leaving the section discards the unsaved selection (edge case)', async () => {
+    await openPolicy()
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Copias para Marta' }))
+    fireEvent.click(screen.getByRole('tab', { name: /General/ }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /Descartar|Salir sin guardar/ })).toBeInTheDocument())
+  })
+})
+

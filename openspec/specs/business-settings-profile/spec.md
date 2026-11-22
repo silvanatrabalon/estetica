@@ -163,3 +163,8 @@ La pestaña Cierres de Negocio SHALL mostrar el título y la explicación de los
 ### Requirement: Dirección del local
 Negocio → General SHALL tener un campo **Dirección del local** (hasta 200 caracteres, opcional). Se guarda con el resto de General (sin tocar las otras secciones, y el aviso de cambios sin guardar también lo cuenta) y se muestra en la sección Contacto de la página pública, con un link a Google Maps. Sin dirección, no se muestra nada.
 
+### Requirement: Los avisos de turnos llegan a los administradores
+Por cada turno creado, cancelado o reprogramado, la función de notificaciones SHALL mandar un email al cliente, al profesional del turno y a **cada administrador con las copias activadas** (al email de su cuenta; todos las tienen activadas por defecto y se eligen en Negocio → Política → Notificaciones, pudiendo quedar ninguno). Ya no hay un email suelto del negocio para los avisos: las copias van a los administradores elegidos. Las direcciones repetidas (sin distinguir mayúsculas) reciben un solo email, con la versión del cliente primero.
+
+### Requirement: La política explica cómo se mandan los avisos
+Negocio → Política → Notificaciones SHALL mostrar la lista de administradores con una casilla cada uno para elegir quiénes reciben las copias (guardada con la política, y sin tocar nada si la lista no carga) y explicar que los administradores elegidos reciben el aviso de cada turno aunque sea de otro profesional, que por cada aviso sale un email al cliente, al profesional y a cada administrador, que si dos direcciones son la misma persona le llega uno solo y que el envío tiene un tope de 300 emails por día sin afectar la creación de turnos.

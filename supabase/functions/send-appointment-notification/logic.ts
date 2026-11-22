@@ -86,14 +86,17 @@ export function bookingReference(appointmentId: string): string {
 }
 
 /**
- * Builds the unique list of recipients. Addresses are compared case-insensitively.
- * If the same address is both customer and business/staff, it only receives the
- * customer version once. Invalid or empty addresses are skipped.
+ * Builds the unique list of recipients: the customer, the professional of the appointment and every
+ * administrator that has the copies on. Addresses are compared
+ * case-insensitively. If the same address appears twice (for example an administrator who is also the
+ * professional, or who booked for themself) it receives one email, the customer version first.
+ * Invalid or empty addresses are skipped.
  */
 export function buildRecipients(input: {
   customerEmail?: string | null
   staffEmail?: string | null
-  orgNotificationEmail?: string | null
+  /** The email of every administrator that has the copies on (Negocio > Política). */
+  adminEmails?: Array<string | null | undefined>
 }): Recipient[] {
   const seen = new Set<string>()
   const recipients: Recipient[] = []
@@ -108,7 +111,7 @@ export function buildRecipients(input: {
 
   add(input.customerEmail, 'customer')
   add(input.staffEmail, 'business')
-  add(input.orgNotificationEmail, 'business')
+  for (const email of input.adminEmails ?? []) add(email, 'business')
 
   return recipients
 }

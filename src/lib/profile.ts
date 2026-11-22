@@ -20,6 +20,17 @@ export function normalizeProfileName(name: string): string {
   return name.trim()
 }
 
+/** The name an email gives: what is before the @ ("ana.perez@x.com" -> "ana.perez"). Empty when there is no usable email. */
+export function nameFromEmail(email: string | null | undefined): string {
+  const local = (email ?? '').trim().split('@')[0] ?? ''
+  return local.trim()
+}
+
+/** The name to save: the one typed, or the one of the email when it was left empty. */
+export function resolveProfileName(name: string, email: string | null | undefined): string {
+  return normalizeProfileName(name) || nameFromEmail(email)
+}
+
 export function normalizePhone(phone: string): string | null {
   const normalized = phone.trim()
   return normalized.length > 0 ? normalized : null

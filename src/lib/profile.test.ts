@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { isProfileComplete, normalizePhone, normalizeProfileName, validateProfileInput } from './profile'
+import {
+  isProfileComplete,
+  nameFromEmail,
+  normalizePhone,
+  normalizeProfileName,
+  resolveProfileName,
+  validateProfileInput,
+} from './profile'
 
 describe('profile helpers', () => {
   it('treats profile as complete only when name is present', () => {
@@ -17,5 +24,26 @@ describe('profile helpers', () => {
   it('validates required name and optional phone', () => {
     expect(validateProfileInput({ name: '  ', phone: '' }).valid).toBe(false)
     expect(validateProfileInput({ name: 'Ana', phone: '' }).valid).toBe(true)
+  })
+})
+
+
+describe('nameFromEmail and resolveProfileName', () => {
+  it('takes what is before the @', () => {
+    expect(nameFromEmail('ana.perez@example.com')).toBe('ana.perez')
+    expect(nameFromEmail('  ana@example.com ')).toBe('ana')
+  })
+
+  it('gives empty when there is no usable email (edge cases)', () => {
+    expect(nameFromEmail(null)).toBe('')
+    expect(nameFromEmail(undefined)).toBe('')
+    expect(nameFromEmail('')).toBe('')
+    expect(nameFromEmail('@example.com')).toBe('')
+  })
+
+  it('the typed name wins; empty or blank falls back to the email (edge cases)', () => {
+    expect(resolveProfileName(' Ana ', 'x@y.com')).toBe('Ana')
+    expect(resolveProfileName('   ', 'ana@y.com')).toBe('ana')
+    expect(resolveProfileName('', null)).toBe('')
   })
 })

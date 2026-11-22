@@ -54,7 +54,7 @@ describe('buildRecipients', () => {
     const result = buildRecipients({
       customerEmail: 'c@x.com',
       staffEmail: 's@x.com',
-      orgNotificationEmail: 'o@x.com',
+      adminEmails: ['o@x.com'],
     })
     expect(result.map((r) => r.email)).toEqual(['c@x.com', 's@x.com', 'o@x.com'])
     expect(result.map((r) => r.audience)).toEqual(['customer', 'business', 'business'])
@@ -64,7 +64,7 @@ describe('buildRecipients', () => {
     const result = buildRecipients({
       customerEmail: 'same@x.com',
       staffEmail: 'same@x.com',
-      orgNotificationEmail: 'same@x.com',
+      adminEmails: ['same@x.com'],
     })
     expect(result).toEqual([{ email: 'same@x.com', audience: 'customer' }])
   })
@@ -73,7 +73,7 @@ describe('buildRecipients', () => {
     const result = buildRecipients({
       customerEmail: 'Ana@X.com',
       staffEmail: 'ana@x.COM',
-      orgNotificationEmail: 'other@x.com',
+      adminEmails: ['other@x.com'],
     })
     expect(result).toHaveLength(2)
     expect(result[0]).toEqual({ email: 'Ana@X.com', audience: 'customer' })
@@ -83,7 +83,7 @@ describe('buildRecipients', () => {
     const result = buildRecipients({
       customerEmail: 'c@x.com',
       staffEmail: 'o@x.com',
-      orgNotificationEmail: 'o@x.com',
+      adminEmails: ['o@x.com'],
     })
     expect(result.map((r) => r.email)).toEqual(['c@x.com', 'o@x.com'])
   })
@@ -92,18 +92,52 @@ describe('buildRecipients', () => {
     const result = buildRecipients({
       customerEmail: 'c@x.com',
       staffEmail: null,
-      orgNotificationEmail: 'not-an-email',
+      adminEmails: ['not-an-email'],
     })
     expect(result).toEqual([{ email: 'c@x.com', audience: 'customer' }])
   })
 
   it('returns an empty list when nobody can be notified', () => {
     expect(buildRecipients({})).toEqual([])
-    expect(buildRecipients({ customerEmail: '', staffEmail: '  ', orgNotificationEmail: null })).toEqual([])
+    expect(buildRecipients({ customerEmail: '', staffEmail: '  ', adminEmails: [] })).toEqual([])
+  })
+
+  it('notifies every administrator, not only the professional of the appointment', () => {
+    const result = buildRecipients({
+      customerEmail: 'c@x.com',
+      staffEmail: 's@x.com',
+      adminEmails: ['a1@x.com', 'a2@x.com'],
+    })
+    expect(result.map((r) => r.email)).toEqual(['c@x.com', 's@x.com', 'a1@x.com', 'a2@x.com'])
+    expect(result.slice(1).every((r) => r.audience === 'business')).toBe(true)
+  })
+
+  it('an administrator who is also the professional gets one email, not two (edge case)', () => {
+    const result = buildRecipients({ customerEmail: 'c@x.com', staffEmail: 'Admin@X.com', adminEmails: ['admin@x.com'] })
+    expect(result.map((r) => r.email)).toEqual(['c@x.com', 'Admin@X.com'])
+  })
+
+  it('an administrator who booked for themself gets the customer version once (edge case)', () => {
+    const result = buildRecipients({ customerEmail: 'admin@x.com', staffEmail: 's@x.com', adminEmails: ['admin@x.com'] })
+    expect(result).toEqual([
+      { email: 'admin@x.com', audience: 'customer' },
+      { email: 's@x.com', audience: 'business' },
+    ])
+  })
+
+  it('skips administrators without a usable email, and none at all is fine (edge cases)', () => {
+    expect(buildRecipients({ customerEmail: 'c@x.com', adminEmails: [null, undefined, '', 'bad'] })).toEqual([
+      { email: 'c@x.com', audience: 'customer' },
+    ])
+    expect(buildRecipients({ adminEmails: [] })).toEqual([])
+  })
+
+  it('notifies the administrators even when the customer and the professional have no email', () => {
+    expect(buildRecipients({ adminEmails: ['a@x.com'] })).toEqual([{ email: 'a@x.com', audience: 'business' }])
   })
 
   it('still notifies the business when the customer has no email', () => {
-    const result = buildRecipients({ customerEmail: null, orgNotificationEmail: 'o@x.com' })
+    const result = buildRecipients({ customerEmail: null, adminEmails: ['o@x.com'] })
     expect(result).toEqual([{ email: 'o@x.com', audience: 'business' }])
   })
 })

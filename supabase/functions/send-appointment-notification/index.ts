@@ -30,7 +30,7 @@ interface AppointmentRow {
   guest_email: string | null
   service: { name: string } | null
   staff: { display_name: string; profile_user_id: string | null; invite_email: string | null } | null
-  org: { name: string; timezone: string | null; notification_email: string | null } | null
+  org: { name: string; timezone: string | null } | null
 }
 
 Deno.serve(async (req: Request) => {
@@ -76,7 +76,7 @@ Deno.serve(async (req: Request) => {
   const { data, error } = await admin
     .from('appointments')
     .select(
-      'id, starts_at, ends_at, customer_user_id, guest_name, guest_email, service:services(name), staff:staff_members(display_name, profile_user_id, invite_email), org:organizations(name, timezone, notification_email)',
+      'id, starts_at, ends_at, customer_user_id, guest_name, guest_email, service:services(name), staff:staff_members(display_name, profile_user_id, invite_email), org:organizations(name, timezone)',
     )
     .eq('id', appointmentId)
     .maybeSingle()
@@ -116,10 +116,22 @@ Deno.serve(async (req: Request) => {
     staffEmail = appt.staff?.invite_email ?? null
   }
 
+  // The administrators who have the copies on (Negocio > Política) are told about each appointment
+  const adminEmails: string[] = []
+  const { data: adminRoles } = await admin
+    .from('user_roles')
+    .select('user_id')
+    .eq('role', 'admin')
+    .eq('notify_appointments', true)
+  for (const row of (adminRoles ?? []) as Array<{ user_id: string }>) {
+    const { data: adminRes } = await admin.auth.admin.getUserById(row.user_id)
+    if (adminRes?.user?.email) adminEmails.push(adminRes.user.email)
+  }
+
   const recipients = buildRecipients({
     customerEmail,
     staffEmail,
-    orgNotificationEmail: appt.org?.notification_email ?? null,
+    adminEmails,
   })
 
   if (recipients.length === 0) {

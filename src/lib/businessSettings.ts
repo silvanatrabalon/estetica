@@ -38,17 +38,6 @@ export function normalizeBusinessText(value: string): string | null {
   return normalized.length > 0 ? normalized : null
 }
 
-const NOTIFICATION_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-/**
- * The notification email is optional: empty is valid. Returns a Spanish error
- * message when a non-empty value is not a valid email address, otherwise null.
- */
-export function validateNotificationEmail(value: string): string | null {
-  const normalized = value.trim()
-  if (normalized.length === 0) return null
-  return NOTIFICATION_EMAIL_REGEX.test(normalized) ? null : 'Ingresá un email válido para las notificaciones.'
-}
 
 export function isValidIanaTimezone(timezone: string): boolean {
   const normalized = timezone.trim()

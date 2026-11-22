@@ -6,7 +6,6 @@ import {
   validateBusinessClosure,
   validateBusinessHours,
   validateBusinessIdentity,
-  validateNotificationEmail,
   type BusinessClosureInput,
   type BusinessClosureType,
   type BusinessHoursInput,
@@ -47,7 +46,6 @@ export interface BusinessSettingsRecord {
   bookingSubtitleText: string | null
   bookingMinNoticeMinutes: number
   bookingMaxHorizonDays: number
-  notificationEmail: string | null
   notificationsEnabled: boolean
   /** true = morning + afternoon shifts with a break; false = one continuous day. */
   splitShifts: boolean
@@ -71,7 +69,6 @@ interface OrganizationRow {
   booking_subtitle_text: string | null
   booking_min_notice_minutes: number | null
   booking_max_horizon_days: number | null
-  notification_email: string | null
   notifications_enabled: boolean | null
   split_shifts: boolean | null
   created_at: string
@@ -110,7 +107,6 @@ const ORGANIZATION_SELECT = [
   'booking_subtitle_text',
   'booking_min_notice_minutes',
   'booking_max_horizon_days',
-  'notification_email',
   'notifications_enabled',
   'split_shifts',
   'created_at',
@@ -176,7 +172,6 @@ function toBusinessSettingsRecord(
     bookingSubtitleText: organization.booking_subtitle_text,
     bookingMinNoticeMinutes: organization.booking_min_notice_minutes ?? 60,
     bookingMaxHorizonDays: organization.booking_max_horizon_days ?? 60,
-    notificationEmail: organization.notification_email ?? null,
     notificationsEnabled: organization.notifications_enabled ?? true,
     splitShifts: organization.split_shifts ?? false,
     weeklyHours,
@@ -393,22 +388,14 @@ export async function saveBusinessSettings(input: {
   return getBusinessSettings()
 }
 
-export async function saveNotificationSettings(input: {
-  notificationEmail: string
-  notificationsEnabled: boolean
-}): Promise<void> {
-  const notificationEmailError = validateNotificationEmail(input.notificationEmail)
-  if (notificationEmailError) {
-    throw new Error(notificationEmailError)
-  }
-
+/** The master switch of the appointment emails. Who gets the copies is chosen with setNotificationAdmins. */
+export async function saveNotificationSettings(input: { notificationsEnabled: boolean }): Promise<void> {
   const organization = await resolveSingletonOrganization()
   const supabase = initSupabase()
 
   const { error } = await supabase
     .from('organizations')
     .update({
-      notification_email: normalizeBusinessText(input.notificationEmail)?.toLowerCase() ?? null,
       notifications_enabled: input.notificationsEnabled,
       updated_at: new Date().toISOString(),
     })
@@ -522,3 +509,30 @@ export async function getSplitShifts(): Promise<boolean> {
 
   return data?.split_shifts ?? false
 }
+
+export interface NotificationAdmin {
+  userId: string
+  name: string
+  email: string | null
+  /** Gets a copy of the appointment emails. */
+  notify: boolean
+}
+
+/** The administrators and whether each one gets a copy of the appointment emails. */
+export async function listNotificationAdmins(): Promise<NotificationAdmin[]> {
+  const { data, error } = await initSupabase().rpc('admin_list_notification_admins')
+  if (error) throw new Error(error.message)
+  return ((data ?? []) as Array<{ user_id: string; name: string; email: string | null; notify: boolean }>).map((row) => ({
+    userId: row.user_id,
+    name: row.name,
+    email: row.email,
+    notify: row.notify,
+  }))
+}
+
+/** Sets which administrators get the copies: the given ones on, every other administrator off. */
+export async function setNotificationAdmins(userIds: string[]): Promise<void> {
+  const { error } = await initSupabase().rpc('admin_set_notification_admins', { p_user_ids: userIds })
+  if (error) throw new Error(error.message)
+}
+

@@ -80,15 +80,14 @@ Las reglas de reserva para tus clientes:
 
   No se manda email cuando cambiás el servicio o el profesional desde **Editar**, ni cuando un turno pasa a completado.
 
-  **Quién recibe cada email.** Por cada una de esas interacciones salen **hasta 3 emails**, uno a cada uno (nadie ve las direcciones de los otros):
+  **Quién recibe cada email.** Por cada una de esas interacciones sale un email a cada uno de estos (nadie ve las direcciones de los otros):
   1. **El cliente** (si tiene email).
   2. **El profesional del turno** (el email de su cuenta, o el que cargaste al invitarlo si todavía no tiene cuenta).
-  3. **El negocio**, al **Email para notificaciones del negocio** (el tuyo, como administrador).
+  3. **Los administradores que elijas**, en el email de su cuenta. En Negocio → Política → Notificaciones hay una lista con **todos los administradores** y una casilla para cada uno: tildás a quién le llegan las copias. Quien está tildado recibe el aviso de **todos** los turnos, aunque el profesional sea otra persona. Por defecto están todos tildados, y podés dejar a nadie.
 
-  Si dos de esas direcciones son la **misma persona**, recibe **un solo email** (por ejemplo, si vos sos también la profesional de ese turno, o si cargás un turno a tu propio nombre). Si el turno es de **otra** profesional, vos recibís el aviso del negocio igual, siempre que hayas completado ese email.
+  Si dos de esas direcciones son la **misma persona**, recibe **un solo email**: por ejemplo, si vos sos también la profesional de ese turno, o si cargás un turno a tu propio nombre.
 - **Enviar notificaciones por email:** el interruptor general. Destildado, **no sale ningún email** (ni al cliente, ni al profesional, ni a vos), pero los turnos se siguen creando normalmente. Dejalo destildado mientras hacés pruebas para no mandar emails reales a clientes.
-- **Email para notificaciones del negocio:** a dónde te llegan los avisos a vos. **Si lo dejás vacío, no recibís avisos como administrador** (solo los recibiría quien sea el profesional o el cliente del turno).
-- **Límite diario:** el envío usa un servicio gratuito con un tope de **300 emails por día**. Como cada interacción puede usar hasta 3, alcanza para unas **100 reservas, cancelaciones o reprogramaciones por día**. Si se supera el tope, los emails que sobran no salen ese día (se retoma al día siguiente), pero los turnos **no se ven afectados**: se crean igual, solo falta el aviso.
+- **Límite diario:** el envío usa un servicio gratuito con un tope de **300 emails por día**. Como cada interacción usa un email por cada destinatario (cliente, profesional y administradores elegidos), con un solo administrador alcanza para unas **100 reservas, cancelaciones o reprogramaciones por día**; con más administradores, menos. Si se supera el tope, los emails que sobran no salen ese día (se retoma al día siguiente), pero los turnos **no se ven afectados**: se crean igual, solo falta el aviso.
 
 ### Historial
 Una zona delicada. Permite **eliminar todo el historial de reservas**.
@@ -123,7 +122,7 @@ Una misma persona puede tener **varios roles** a la vez.
 Si el email **ya tiene cuenta**, el sistema te lo dice y te lleva a **Editar roles** de esa cuenta.
 
 ### Editar roles
-En la fila de cada persona, tocá **Editar roles**. En el popup marcás o desmarcás los roles y guardás. Si agregás el rol de **staff**, la persona pasa a poder figurar como profesional (ver *Profesionales*).
+En la fila de cada persona, tocá **Editar roles**. En el popup marcás o desmarcás los roles y guardás. Ahí también podés cambiar el **nombre** y el **teléfono** de la persona. Si dejás el nombre vacío, se usa el de su email (lo que va antes de la @). Si agregás el rol de **staff**, la persona pasa a poder figurar como profesional (ver *Profesionales*).
 
 ### Vincular cuenta
 Cuando un profesional se cargó **sin cuenta**, aparece en esta lista con **Vincular cuenta**. Elegís la cuenta correspondiente de un desplegable y queda asociada. Las cuentas que ya pertenecen a otro profesional aparecen **deshabilitadas**, para evitar duplicados.
@@ -445,7 +444,7 @@ La **promo** se aplica sola sobre servicios elegidos. El **cupón** lo escribe e
 Con el primer profesional libre que hace ese servicio (el que se cargó primero). Si querés otro, abrí el turno en **Turnos** y usá **Editar**.
 
 **No me llegan los emails de los turnos.**
-Revisá, en **Negocio → Política**, que **Enviar notificaciones por email** esté tildado y que **Email para notificaciones del negocio** esté completo. Y recordá el tope de 300 emails por día.
+Revisá, en **Negocio → Política**, que **Enviar notificaciones por email** esté tildado y que tu casilla esté tildada en la lista de administradores (los avisos te llegan al email de tu cuenta). Y recordá el tope de 300 emails por día.
 
 **Un cliente quiere cambiar su turno.**
 **Turnos** → buscá al cliente → abrí el turno → **Reprogramar**.
