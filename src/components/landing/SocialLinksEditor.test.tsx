@@ -10,14 +10,45 @@ vi.mock('../../services/socialLinks', () => ({
   saveSocialLinks: (...args: unknown[]) => mockSaveSocialLinks(...args),
 }))
 
+async function openPopup() {
+  fireEvent.click(await screen.findByRole('button', { name: 'Editar Redes sociales' }))
+}
+
 describe('SocialLinksEditor', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetSocialLinks.mockResolvedValue([])
   })
 
+  it('shows which networks are shown now and no popup open', async () => {
+    mockGetSocialLinks.mockResolvedValue([
+      { network: 'instagram', value: 'https://instagram.com/sil', enabled: true },
+      { network: 'facebook', value: 'https://facebook.com/sil', enabled: false },
+      { network: 'tiktok', value: '', enabled: true },
+    ])
+    render(<SocialLinksEditor />)
+    expect(await screen.findByText('Instagram')).toBeInTheDocument()
+    expect(screen.queryByText(/Facebook/)).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('says so when no network is shown (edge case)', async () => {
+    render(<SocialLinksEditor />)
+    expect(await screen.findByText('No se muestra ninguna red')).toBeInTheDocument()
+  })
+
+  it('Cancelar closes the popup without saving (edge case)', async () => {
+    render(<SocialLinksEditor />)
+    await openPopup()
+    fireEvent.change(screen.getByLabelText(/Instagram \(URL\)/), { target: { value: 'instagram.com/x' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mockSaveSocialLinks).not.toHaveBeenCalled()
+  })
+
   it('lists every network, all shown by default', async () => {
     render(<SocialLinksEditor />)
+    await openPopup()
 
     for (const label of ['Instagram', 'WhatsApp', 'Facebook', 'TikTok', 'YouTube', 'X (Twitter)', 'Sitio web']) {
       const checkbox = (await screen.findByLabelText(`Mostrar ${label}`)) as HTMLInputElement
@@ -31,6 +62,8 @@ describe('SocialLinksEditor', () => {
       { network: 'facebook', value: 'https://facebook.com/sil', enabled: false },
     ])
     render(<SocialLinksEditor />)
+    await screen.findByText('Instagram')
+    await openPopup()
 
     await waitFor(() => {
       expect((screen.getByLabelText(/Instagram \(URL\)/) as HTMLInputElement).value).toBe('https://instagram.com/sil')
@@ -41,6 +74,7 @@ describe('SocialLinksEditor', () => {
   it('saves values and the show/hide choice', async () => {
     mockSaveSocialLinks.mockResolvedValue(undefined)
     render(<SocialLinksEditor />)
+    await openPopup()
 
     fireEvent.change(await screen.findByLabelText(/Instagram \(URL\)/), { target: { value: 'instagram.com/sil' } })
     fireEvent.change(screen.getByLabelText(/WhatsApp \(número/), { target: { value: '+54 9 11 1234-5678' } })
@@ -53,11 +87,13 @@ describe('SocialLinksEditor', () => {
     expect(saved.find((l) => l.network === 'instagram')).toEqual({ network: 'instagram', value: 'instagram.com/sil', enabled: true })
     expect(saved.find((l) => l.network === 'whatsapp')).toEqual({ network: 'whatsapp', value: '+54 9 11 1234-5678', enabled: false })
     expect(await screen.findByText('Redes sociales guardadas correctamente.')).toBeDefined()
-    expect((screen.getByLabelText(/Instagram \(URL\)/) as HTMLInputElement).value).toBe('https://instagram.com/sil')
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByText('Instagram')).toBeInTheDocument()
   })
 
   it('shows an error and saves nothing for an invalid URL (edge case)', async () => {
     render(<SocialLinksEditor />)
+    await openPopup()
 
     fireEvent.change(await screen.findByLabelText(/Sitio web \(URL\)/), { target: { value: 'javascript:alert(1)' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar redes' }))
@@ -68,6 +104,7 @@ describe('SocialLinksEditor', () => {
 
   it('rejects a WhatsApp value without enough digits (edge case)', async () => {
     render(<SocialLinksEditor />)
+    await openPopup()
 
     fireEvent.change(await screen.findByLabelText(/WhatsApp \(número/), { target: { value: '123' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar redes' }))
@@ -79,6 +116,7 @@ describe('SocialLinksEditor', () => {
   it('shows a save error when the request fails (edge case)', async () => {
     mockSaveSocialLinks.mockRejectedValue(new Error('boom'))
     render(<SocialLinksEditor />)
+    await openPopup()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Guardar redes' }))
 
@@ -88,6 +126,7 @@ describe('SocialLinksEditor', () => {
   it('still renders when loading the links fails (edge case)', async () => {
     mockGetSocialLinks.mockRejectedValue(new Error('down'))
     render(<SocialLinksEditor />)
+    await openPopup()
 
     expect(((await screen.findByLabelText(/Instagram \(URL\)/)) as HTMLInputElement).value).toBe('')
   })

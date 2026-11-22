@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useEffect, useState } from 'react'
+import { ChangeEvent, useEffect, useState } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -29,6 +29,7 @@ import { initSupabase } from '../lib/supabase'
 import type { LandingConfig, CarouselImage } from '../services/landing'
 import { RouteLoadingState } from '../components/routing'
 import { Select } from '../components/Select'
+import { EditPopup, NotSet, SectionCard } from '../components/appearance/SectionCard'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Sortable carousel image item
@@ -152,6 +153,19 @@ function configToFormState(config: LandingConfig): FormState {
   }
 }
 
+type SectionKey = 'hero' | 'about' | 'design' | 'hours' | 'carousel'
+
+const SECTION_TITLES: Record<SectionKey, string> = {
+  hero: 'Sección principal',
+  about: 'Sobre nosotros',
+  design: 'Diseño',
+  hours: 'Horarios',
+  carousel: 'Carrusel de imágenes',
+}
+
+const inputCls =
+  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]'
+
 export function LandingConfigPage() {
   const { activeRole, isLoading: authLoading } = useUser()
 
@@ -173,6 +187,10 @@ export function LandingConfigPage() {
   const [uploading, setUploading] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  // Which section's pop-up is open, and its working copy (the page keeps what is saved)
+  const [editing, setEditing] = useState<SectionKey | null>(null)
+  const [draft, setDraft] = useState<FormState | null>(null)
+  const [popupError, setPopupError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<CarouselImage | null>(null)
 
   const sensors = useSensors(useSensor(PointerSensor))
@@ -210,35 +228,46 @@ export function LandingConfigPage() {
   if (authLoading) return <RouteLoadingState />
   if (activeRole !== 'admin') return <Navigate to="/unauthorized" replace />
 
-  function handleFieldChange(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-    const { name, value, type } = e.target
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked
-      setForm((f) => ({ ...f, [name]: checked }))
-    } else {
-      setForm((f) => ({ ...f, [name]: value }))
-    }
+  function openSection(key: SectionKey) {
+    setDraft(form)
+    setPopupError(null)
     setFeedback(null)
+    setEditing(key)
   }
 
-  async function handleSave(e: FormEvent) {
-    e.preventDefault()
+  function closeSection() {
+    setEditing(null)
+    setDraft(null)
+    setPopupError(null)
+  }
+
+  function handleFieldChange(e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
+    const { name, value, type } = e.target
+    const next = type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    setDraft((d) => (d ? { ...d, [name]: next } : d))
+  }
+
+  async function handleSave() {
+    if (!draft) return
     setSaving(true)
-    setFeedback(null)
+    setPopupError(null)
     try {
+      // The draft is a copy of everything saved plus this section's edits
       await adminUpsertLandingConfig({
-        heroTitle: form.heroTitle || null,
-        heroSubtitle: form.heroSubtitle || null,
-        aboutText: form.aboutText || null,
-        instagramUrl: form.instagramUrl || null,
-        primaryColor: form.primaryColor,
-        secondaryColor: form.secondaryColor,
-        fontFamily: form.fontFamily,
-        showHours: form.showHours,
+        heroTitle: draft.heroTitle || null,
+        heroSubtitle: draft.heroSubtitle || null,
+        aboutText: draft.aboutText || null,
+        instagramUrl: draft.instagramUrl || null,
+        primaryColor: draft.primaryColor,
+        secondaryColor: draft.secondaryColor,
+        fontFamily: draft.fontFamily,
+        showHours: draft.showHours,
       })
-      setFeedback({ type: 'success', message: 'Configuración guardada correctamente.' })
+      setForm(draft)
+      setFeedback({ type: 'success', message: `${SECTION_TITLES[editing ?? 'hero']} guardado correctamente.` })
+      closeSection()
     } catch {
-      setFeedback({ type: 'error', message: 'No se pudo guardar la configuración. Intentá de nuevo.' })
+      setPopupError('No se pudo guardar. Intentá de nuevo.')
     } finally {
       setSaving(false)
     }
@@ -249,7 +278,7 @@ export function LandingConfigPage() {
     if (!file) return
 
     setUploading(true)
-    setFeedback(null)
+    setPopupError(null)
     try {
       const ext = file.name.split('.').pop() ?? 'jpg'
       const path = `carousel/${Date.now()}.${ext}`
@@ -257,7 +286,7 @@ export function LandingConfigPage() {
       const image = await adminAddCarouselImage(path, null)
       setImages((prev) => [...prev, image])
     } catch {
-      setFeedback({ type: 'error', message: 'No se pudo subir la imagen.' })
+      setPopupError('No se pudo subir la imagen.')
     } finally {
       setUploading(false)
       // Reset input
@@ -275,7 +304,7 @@ export function LandingConfigPage() {
       await deleteMediaFile('media', image.storagePath)
       setImages((prev) => prev.filter((img) => img.id !== image.id))
     } catch {
-      setFeedback({ type: 'error', message: 'No se pudo eliminar la imagen.' })
+      setPopupError('No se pudo eliminar la imagen.')
     } finally {
       setDeletingId(null)
     }
@@ -294,7 +323,7 @@ export function LandingConfigPage() {
     try {
       await adminReorderCarouselImages(reordered.map((img) => img.id))
     } catch {
-      setFeedback({ type: 'error', message: 'No se pudo guardar el orden de las imágenes.' })
+      setPopupError('No se pudo guardar el orden de las imágenes.')
       // Revert
       setImages(images)
     } finally {
@@ -304,135 +333,167 @@ export function LandingConfigPage() {
 
   if (loading) return <RouteLoadingState />
 
+  const aboutPreview = form.aboutText.length > 110 ? `${form.aboutText.slice(0, 110)}…` : form.aboutText
+
   return (
     // Rendered inside the Apariencia page, which provides the title and layout
-    <div className="space-y-8">
+    <div className="space-y-3">
       {feedback && (
         <div
-          className={`rounded-xl px-4 py-3 text-sm font-medium ${
+          role={feedback.type === 'error' ? 'alert' : 'status'}
+          className={`rounded-2xl border px-4 py-3 text-sm ${
             feedback.type === 'success'
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700'
           }`}
         >
           {feedback.message}
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-6">
-        {/* Hero */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-700">Sección principal</h2>
+      <SectionCard title="Sección principal" description="Lo primero que se ve al entrar." onEdit={() => openSection('hero')}>
+        {form.heroTitle || form.heroSubtitle ? (
+          <>
+            <p className="font-medium">{form.heroTitle || <NotSet>Sin título</NotSet>}</p>
+            <p className="text-shell-subtleText">{form.heroSubtitle || 'Sin subtítulo'}</p>
+          </>
+        ) : (
+          <NotSet>Textos predeterminados</NotSet>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Sobre nosotros" description="La historia de tu espacio." onEdit={() => openSection('about')}>
+        {aboutPreview ? <p className="whitespace-pre-line">{aboutPreview}</p> : <NotSet>Sin texto</NotSet>}
+      </SectionCard>
+
+      <SectionCard title="Diseño" description="Colores y tipografía de la página." onEdit={() => openSection('design')}>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="h-4 w-4 rounded-full border border-shell-border"
+              style={{ backgroundColor: form.primaryColor }}
+            />
+            Principal
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="h-4 w-4 rounded-full border border-shell-border"
+              style={{ backgroundColor: form.secondaryColor }}
+            />
+            Secundario
+          </span>
+          <span style={{ fontFamily: form.fontFamily }}>{form.fontFamily}</span>
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Horarios" description="Los horarios de atención en la página pública." onEdit={() => openSection('hours')}>
+        {form.showHours ? 'Se muestran' : <NotSet>No se muestran</NotSet>}
+      </SectionCard>
+
+      <SectionCard title="Carrusel de imágenes" description="Las fotos que rotan en la página pública." onEdit={() => openSection('carousel')}>
+        {images.length === 0 ? <NotSet>Sin imágenes</NotSet> : `${images.length} ${images.length === 1 ? 'imagen' : 'imágenes'}`}
+      </SectionCard>
+
+      {editing === 'hero' && draft && (
+        <EditPopup title="Editar sección principal" onClose={closeSection} onSubmit={handleSave} isSaving={saving} error={popupError}>
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="heroTitle">
+            <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="heroTitle">
               Título
             </label>
             <input
               id="heroTitle"
               name="heroTitle"
               type="text"
-              value={form.heroTitle}
+              value={draft.heroTitle}
               onChange={handleFieldChange}
               placeholder="Bienvenida a nuestro espacio"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+              className={inputCls}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="heroSubtitle">
+            <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="heroSubtitle">
               Subtítulo
             </label>
             <input
               id="heroSubtitle"
               name="heroSubtitle"
               type="text"
-              value={form.heroSubtitle}
+              value={draft.heroSubtitle}
               onChange={handleFieldChange}
               placeholder="Tu lugar de bienestar y belleza"
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+              className={inputCls}
             />
           </div>
-        </section>
+        </EditPopup>
+      )}
 
-        {/* About */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-700">Sobre nosotros</h2>
+      {editing === 'about' && draft && (
+        <EditPopup title="Editar sobre nosotros" onClose={closeSection} onSubmit={handleSave} isSaving={saving} error={popupError}>
+          <label className="sr-only" htmlFor="aboutText">
+            Sobre nosotros
+          </label>
           <textarea
             id="aboutText"
             name="aboutText"
-            value={form.aboutText}
+            value={draft.aboutText}
             onChange={handleFieldChange}
-            rows={5}
+            rows={6}
             placeholder="Contá la historia de tu espacio..."
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300 resize-y"
+            className={`${inputCls} resize-y`}
           />
-        </section>
+        </EditPopup>
+      )}
 
-        {/* Design */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-700">Diseño</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="primaryColor">
-                Color principal
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="primaryColor"
-                  name="primaryColor"
-                  type="color"
-                  value={form.primaryColor}
-                  onChange={handleFieldChange}
-                  className="h-9 w-12 rounded cursor-pointer border border-gray-200"
-                />
-                <input
-                  name="primaryColor"
-                  type="text"
-                  value={form.primaryColor}
-                  onChange={handleFieldChange}
-                  maxLength={7}
-                  className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-pink-300"
-                />
+      {editing === 'design' && draft && (
+        <EditPopup title="Editar diseño" onClose={closeSection} onSubmit={handleSave} isSaving={saving} error={popupError}>
+          <div className="grid grid-cols-2 gap-3">
+            {(
+              [
+                { name: 'primaryColor', label: 'Color principal' },
+                { name: 'secondaryColor', label: 'Color secundario' },
+              ] as const
+            ).map((field) => (
+              <div key={field.name}>
+                <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor={field.name}>
+                  {field.label}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id={field.name}
+                    name={field.name}
+                    type="color"
+                    value={draft[field.name]}
+                    onChange={handleFieldChange}
+                    className="h-9 w-10 shrink-0 cursor-pointer rounded border border-gray-200"
+                  />
+                  <input
+                    name={field.name}
+                    aria-label={`${field.label} (código)`}
+                    type="text"
+                    value={draft[field.name]}
+                    onChange={handleFieldChange}
+                    maxLength={7}
+                    className="min-w-0 flex-1 rounded-md border border-gray-300 px-2 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
+                  />
+                </div>
               </div>
-              <p className="mt-1 text-xs text-gray-500">Color del overlay del hero y botones</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="secondaryColor">
-                Color secundario
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="secondaryColor"
-                  name="secondaryColor"
-                  type="color"
-                  value={form.secondaryColor}
-                  onChange={handleFieldChange}
-                  className="h-9 w-12 rounded cursor-pointer border border-gray-200"
-                />
-                <input
-                  name="secondaryColor"
-                  type="text"
-                  value={form.secondaryColor}
-                  onChange={handleFieldChange}
-                  maxLength={7}
-                  className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-pink-300"
-                />
-              </div>
-              <p className="mt-1 text-xs text-gray-500">Color de fondo de tarjetas y acentos</p>
-            </div>
+            ))}
           </div>
+          <p className="-mt-1 text-xs text-gray-500">
+            El principal tiñe la portada y los botones; el secundario, el fondo de tarjetas y acentos.
+          </p>
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1" htmlFor="fontFamily">
+            <label className="mb-1 block text-sm font-medium text-gray-700" htmlFor="fontFamily">
               Tipografía
             </label>
             <Select
               id="fontFamily"
               name="fontFamily"
-              value={form.fontFamily}
-              onChange={(e) => {
-                setForm((f) => ({ ...f, fontFamily: e.target.value }))
-                setFeedback(null)
-              }}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
+              value={draft.fontFamily}
+              onChange={(e) => setDraft((d) => (d ? { ...d, fontFamily: e.target.value } : d))}
+              className={inputCls}
             >
               {FONT_OPTIONS.map((font) => (
                 <option key={font} value={font}>
@@ -441,37 +502,37 @@ export function LandingConfigPage() {
               ))}
             </Select>
             <p
-              style={{ fontFamily: form.fontFamily, fontSize: '1.125rem' }}
-              className="mt-2 text-gray-600 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100"
+              style={{ fontFamily: draft.fontFamily, fontSize: '1.0625rem' }}
+              className="mt-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-gray-600"
             >
               El rápido zorro marrón salta sobre el perro perezoso
             </p>
           </div>
-        </section>
+        </EditPopup>
+      )}
 
-        {/* Hours toggle */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <label className="flex items-center gap-3 cursor-pointer">
+      {editing === 'hours' && draft && (
+        <EditPopup title="Editar horarios" onClose={closeSection} onSubmit={handleSave} isSaving={saving} error={popupError}>
+          <label className="flex cursor-pointer items-start gap-3">
             <input
               id="showHours"
               name="showHours"
               type="checkbox"
-              checked={form.showHours}
+              checked={draft.showHours}
               onChange={handleFieldChange}
-              className="w-5 h-5 accent-pink-400"
+              className="mt-0.5 h-5 w-5"
             />
-            <div>
-              <span className="font-semibold text-gray-700">Mostrar horarios en la landing</span>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Muestra la sección de horarios de atención en la página pública.
-              </p>
-            </div>
+            <span>
+              <span className="block text-sm font-semibold text-gray-700">Mostrar horarios en la página pública</span>
+              <span className="block text-xs text-gray-500">Muestra la sección de horarios de atención.</span>
+            </span>
           </label>
-        </section>
+        </EditPopup>
+      )}
 
-        {/* Carrusel de imágenes */}
-        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-700">Carrusel de imágenes</h2>
+      {editing === 'carousel' && (
+        <EditPopup title="Editar carrusel de imágenes" onClose={closeSection} error={popupError}>
+          <p className="text-xs text-gray-500">Los cambios se aplican al momento. Arrastrá para cambiar el orden.</p>
 
           {images.length > 0 && (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -490,63 +551,42 @@ export function LandingConfigPage() {
             </DndContext>
           )}
 
-          {reordering && (
-            <p className="text-xs text-gray-400">Guardando nuevo orden...</p>
-          )}
+          {reordering && <p className="text-xs text-gray-400">Guardando nuevo orden...</p>}
 
-          {images.length === 0 && (
-            <p className="text-sm text-gray-400">No hay imágenes en el carrusel.</p>
-          )}
+          {images.length === 0 && <p className="text-sm text-gray-400">No hay imágenes en el carrusel.</p>}
 
-          <label className="block">
-            <span className="sr-only">Subir imagen</span>
-            <div className="flex items-center gap-3">
-              <label
-                className={`cursor-pointer inline-block bg-pink-50 hover:bg-pink-100 text-pink-700 border border-pink-200 rounded-xl px-4 py-2 text-sm font-medium transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}
-              >
-                {uploading ? 'Subiendo...' : '+ Agregar imagen'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleUpload}
-                  disabled={uploading}
-                />
-              </label>
-              <p className="text-xs text-gray-400">JPEG, PNG o WebP — máx. 10 MB</p>
-            </div>
-          </label>
-        </section>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full bg-pink-400 hover:bg-pink-500 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-colors"
-        >
-          {saving ? 'Guardando...' : 'Guardar configuración'}
-        </button>
-      </form>
+          <div className="flex items-center gap-3">
+            <label
+              className={`inline-block cursor-pointer rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-strong ${uploading ? 'pointer-events-none opacity-60' : ''}`}
+            >
+              {uploading ? 'Subiendo...' : '+ Agregar imagen'}
+              <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
+            </label>
+            <p className="text-xs text-gray-400">JPEG, PNG o WebP — máx. 10 MB</p>
+          </div>
+        </EditPopup>
+      )}
 
       {/* Delete confirmation */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 space-y-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="font-semibold text-gray-800">¿Eliminar imagen?</h3>
             <p className="text-sm text-gray-500">
               Esta acción no se puede deshacer. Se eliminará la imagen del carrusel y del almacenamiento.
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setDeleteConfirm(null)}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium"
+                className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleDeleteConfirmed}
-                className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors"
+                className="rounded-xl bg-red-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-600"
               >
                 Eliminar
               </button>

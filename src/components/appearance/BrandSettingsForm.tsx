@@ -1,36 +1,55 @@
-import { FormEvent, useEffect, useState } from 'react'
-import { BOOKING_HEADER_MAX, BOOKING_SUBTITLE_MAX, DEFAULT_BOOKING_HEADER, DEFAULT_BOOKING_SUBTITLE, validateBrandTexts } from '../../lib/brand'
+import { useEffect, useState } from 'react'
 import { buildLogoPath, validateLogoFile } from '../../lib/logoUpload'
 import { getBrandSettings, saveBrandSettings } from '../../services/brand'
 import { uploadMediaFile } from '../../services/adminLanding'
+import { EditPopup, NotSet, SectionCard } from './SectionCard'
 
 const inputCls =
-  'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300'
+  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]'
 
-/** Logo and booking-screen texts. Self-contained: loads and saves on its own. */
+interface Brand {
+  logoUrl: string
+  header: string
+  subtitle: string
+}
+
+/** The brand: today only the logo, in a block with its own pop-up. Self-contained: loads and saves on its own. */
 export function BrandSettingsForm() {
-  const [logoUrl, setLogoUrl] = useState('')
-  const [header, setHeader] = useState('')
-  const [subtitle, setSubtitle] = useState('')
+  const [saved, setSaved] = useState<Brand>({ logoUrl: '', header: '', subtitle: '' })
+  const [isOpen, setIsOpen] = useState(false)
+  const [draft, setDraft] = useState<Brand>(saved)
   const [isUploading, setIsUploading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [logoError, setLogoError] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [popupError, setPopupError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
     getBrandSettings()
       .then((brand) => {
         if (cancelled) return
-        setLogoUrl(brand.logoUrl ?? '')
-        setHeader(brand.bookingHeaderText ?? '')
-        setSubtitle(brand.bookingSubtitleText ?? '')
+        setSaved({
+          logoUrl: brand.logoUrl ?? '',
+          header: brand.bookingHeaderText ?? '',
+          subtitle: brand.bookingSubtitleText ?? '',
+        })
       })
       .catch((err) => console.warn('Failed to load brand settings:', err))
     return () => {
       cancelled = true
     }
   }, [])
+
+  const open = () => {
+    setDraft(saved)
+    setLogoError(null)
+    setPopupError(null)
+    setSuccess(null)
+    setIsOpen(true)
+  }
+
+  const close = () => setIsOpen(false)
 
   const handleLogoFile = async (file: File | undefined) => {
     if (!file) return
@@ -45,8 +64,7 @@ export function BrandSettingsForm() {
     setIsUploading(true)
     try {
       const publicUrl = await uploadMediaFile('media', buildLogoPath(file.name), file)
-      setLogoUrl(publicUrl)
-      setFeedback({ type: 'success', message: 'Logo subido. Guardá los cambios para aplicarlo.' })
+      setDraft((d) => ({ ...d, logoUrl: publicUrl }))
     } catch {
       setLogoError('No se pudo subir el logo. Intentá de nuevo.')
     } finally {
@@ -54,136 +72,99 @@ export function BrandSettingsForm() {
     }
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setFeedback(null)
+  const handleSave = async () => {
+    setPopupError(null)
 
-    const textError = validateBrandTexts({ bookingHeaderText: header, bookingSubtitleText: subtitle })
-    if (textError) {
-      setFeedback({ type: 'error', message: textError })
-      return
-    }
+    // Only the logo changes; the booking texts stored before are kept as they were
+    const next: Brand = { ...saved, logoUrl: draft.logoUrl }
 
     setIsSaving(true)
     try {
-      await saveBrandSettings({ logoUrl, bookingHeaderText: header, bookingSubtitleText: subtitle })
-      setFeedback({ type: 'success', message: 'Marca guardada correctamente.' })
+      await saveBrandSettings({ logoUrl: next.logoUrl, bookingHeaderText: next.header, bookingSubtitleText: next.subtitle })
+      setSaved(next)
+      setSuccess('Logo guardado correctamente.')
+      close()
     } catch {
-      setFeedback({ type: 'error', message: 'No pudimos guardar los cambios. Intentá nuevamente.' })
+      setPopupError('No pudimos guardar los cambios. Intentá nuevamente.')
     } finally {
       setIsSaving(false)
     }
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5"
-    >
-      <div>
-        <h2 className="font-semibold text-gray-700">Logo</h2>
-        <p className="mt-1 text-xs text-gray-500">Se muestra en la barra superior de la app.</p>
-      </div>
-
-      {feedback && (
-        <p
-          className={`rounded-xl px-4 py-3 text-sm font-medium ${
-            feedback.type === 'success'
-              ? 'bg-green-50 text-green-700 border border-green-200'
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}
-        >
-          {feedback.message}
+    <div className="space-y-3">
+      {success && (
+        <p role="status" className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {success}
         </p>
       )}
 
-      <div>
-        <label htmlFor="brand-logo-file" className="mb-1.5 block text-sm font-medium text-gray-600">
-          Subir logo
-        </label>
-        {logoUrl && (
-          <div className="mb-2 flex items-center gap-3">
-            <img src={logoUrl} alt="Logo actual" className="h-14 w-14 rounded-lg border border-gray-200 object-contain bg-white" />
-            <button type="button" onClick={() => setLogoUrl('')} className="text-xs font-medium text-red-600 hover:underline">
-              Quitar logo
-            </button>
-          </div>
+      <SectionCard title="Logo" description="Se muestra en la barra superior de la app." onEdit={open}>
+        {saved.logoUrl ? (
+          <img
+            src={saved.logoUrl}
+            alt="Logo actual"
+            className="h-12 w-12 rounded-lg border border-shell-border bg-white object-contain"
+          />
+        ) : (
+          <NotSet>Sin logo</NotSet>
         )}
-        <input
-          id="brand-logo-file"
-          type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          disabled={isUploading}
-          className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-pink-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-pink-700 hover:file:bg-pink-100"
-          onChange={(e) => {
-            void handleLogoFile(e.target.files?.[0])
-            e.target.value = ''
-          }}
-        />
-        <p className="mt-1.5 text-xs text-gray-400">
-          {isUploading ? 'Subiendo…' : 'JPG, PNG, WEBP o GIF. Máximo 2 MB.'}
-        </p>
-        {logoError && <p className="mt-1.5 text-xs text-red-600">{logoError}</p>}
-      </div>
+      </SectionCard>
 
-      <div>
-        <label htmlFor="brand-logo-url" className="mb-1.5 block text-sm font-medium text-gray-600">
-          O pegá la URL del logo
-        </label>
-        <input
-          id="brand-logo-url"
-          type="url"
-          className={inputCls}
-          value={logoUrl}
-          onChange={(e) => setLogoUrl(e.target.value)}
-          placeholder="https://…"
-        />
-      </div>
+      {isOpen && (
+        <EditPopup title="Editar logo" onClose={close} onSubmit={handleSave} isSaving={isSaving || isUploading} error={popupError}>
+          <div>
+            <label htmlFor="brand-logo-file" className="mb-1 block text-sm font-medium text-gray-700">
+              Subir logo
+            </label>
+            {draft.logoUrl && (
+              <div className="mb-2 flex items-center gap-3">
+                <img
+                  src={draft.logoUrl}
+                  alt="Logo elegido"
+                  className="h-14 w-14 rounded-lg border border-gray-200 bg-white object-contain"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, logoUrl: '' }))}
+                  className="text-xs font-semibold text-red-500 hover:text-red-700 hover:underline"
+                >
+                  Quitar logo
+                </button>
+              </div>
+            )}
+            <input
+              id="brand-logo-file"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              disabled={isUploading}
+              className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-lilac)] file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-primary"
+              onChange={(e) => {
+                void handleLogoFile(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              {isUploading ? 'Subiendo…' : 'JPG, PNG, WEBP o GIF. Máximo 2 MB.'}
+            </p>
+            {logoError && <p className="mt-1 text-xs text-red-600">{logoError}</p>}
+          </div>
 
-      <div className="border-t border-gray-100 pt-5 space-y-4">
-        <div>
-          <h2 className="font-semibold text-gray-700">Pantalla de reservas</h2>
-          <p className="mt-1 text-xs text-gray-500">
-            Los textos que ven tus clientes al reservar. Si los dejás vacíos se usan los predeterminados.
-          </p>
-        </div>
-        <div>
-          <label htmlFor="brand-header" className="mb-1.5 block text-sm font-medium text-gray-600">
-            Título de la reserva
-          </label>
-          <input
-            id="brand-header"
-            className={inputCls}
-            maxLength={BOOKING_HEADER_MAX + 20}
-            value={header}
-            onChange={(e) => setHeader(e.target.value)}
-            placeholder={DEFAULT_BOOKING_HEADER}
-          />
-        </div>
-        <div>
-          <label htmlFor="brand-subtitle" className="mb-1.5 block text-sm font-medium text-gray-600">
-            Subtítulo de la reserva
-          </label>
-          <input
-            id="brand-subtitle"
-            className={inputCls}
-            maxLength={BOOKING_SUBTITLE_MAX + 20}
-            value={subtitle}
-            onChange={(e) => setSubtitle(e.target.value)}
-            placeholder={DEFAULT_BOOKING_SUBTITLE}
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="rounded-xl bg-pink-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-pink-600 transition-colors disabled:opacity-50"
-        >
-          {isSaving ? 'Guardando…' : 'Guardar marca'}
-        </button>
-      </div>
-    </form>
+          <div>
+            <label htmlFor="brand-logo-url" className="mb-1 block text-sm font-medium text-gray-700">
+              O pegá la URL del logo
+            </label>
+            <input
+              id="brand-logo-url"
+              type="url"
+              className={inputCls}
+              value={draft.logoUrl}
+              onChange={(e) => setDraft((d) => ({ ...d, logoUrl: e.target.value }))}
+              placeholder="https://…"
+            />
+          </div>
+        </EditPopup>
+      )}
+    </div>
   )
 }
