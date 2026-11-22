@@ -99,6 +99,7 @@ function SortableImageItem({ image, onDelete, deleting }: SortableImageItemProps
 
 const FONT_OPTIONS = [
   'Inter',
+  'Jost',
   'Playfair Display',
   'Lato',
   'Nunito',

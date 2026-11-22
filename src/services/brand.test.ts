@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getBrandSettings, saveBrandSettings } from './brand'
+import { getBrandSettings, getPublicIdentity, saveBrandSettings } from './brand'
 
 const mockInitSupabase = vi.fn()
 vi.mock('../lib/supabase', () => ({ initSupabase: () => mockInitSupabase() }))
@@ -68,3 +68,22 @@ describe('saveBrandSettings', () => {
     await expect(saveBrandSettings({ logoUrl: null, bookingHeaderText: null, bookingSubtitleText: null })).rejects.toThrow('db')
   })
 })
+
+describe('getPublicIdentity', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('returns the name and the logo, trimmed', async () => {
+    mockClient({ name: ' Estética So Beauty ', logo_url: ' https://x/logo.svg ' })
+    expect(await getPublicIdentity()).toEqual({ name: 'Estética So Beauty', logoUrl: 'https://x/logo.svg' })
+  })
+
+  it('returns nulls when there is no organization or the lookup fails (edge cases)', async () => {
+    mockClient(null)
+    expect(await getPublicIdentity()).toEqual({ name: null, logoUrl: null })
+    mockInitSupabase.mockImplementation(() => {
+      throw new Error('down')
+    })
+    expect(await getPublicIdentity()).toEqual({ name: null, logoUrl: null })
+  })
+})
+

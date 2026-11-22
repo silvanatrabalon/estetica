@@ -12,6 +12,10 @@ import { formatPriceARS } from '../lib/formatPrice'
 import { applyPromo } from '../lib/promos'
 import { shortDiscount } from '../lib/coupons'
 import { bookingHref } from '../lib/bookingLinks'
+import { readableTextOn, splitAccentTitle, todayHoursText } from '../lib/landingStyle'
+import { getPublicIdentity, type PublicIdentity } from '../services/brand'
+import { LandingNav } from '../components/landing/LandingNav'
+import { WhatsAppButton } from '../components/landing/WhatsAppButton'
 import { initSupabase } from '../lib/supabase'
 import { resolveRoleHomePath } from '../lib/routing'
 import type { LandingConfig, CarouselImage, UpcomingClosure } from '../services/landing'
@@ -112,44 +116,82 @@ function Carousel({ images, primaryColor }: CarouselProps) {
 
 interface HeroSectionProps {
   config: LandingConfig
-  isCustomer: boolean
-  isAuthenticated: boolean
-  activeRole: string | null
+  /** Where the main button goes; null hides it (admin and staff looking at the site). */
+  ctaHref: string | null
+  /** "Hoy de 09:00 a 19:00": the glass card over the photo. Hidden when there is nothing to say. */
+  todayText: string | null
 }
 
-function HeroSection({ config, isCustomer, isAuthenticated, activeRole }: HeroSectionProps) {
-  const ctaHref = !isAuthenticated ? '/signin?redirect=/booking' : '/booking'
-  // Show CTA for visitors, customers, and users whose role hasn't resolved yet.
-  // Admin/staff are always redirected before reaching this component.
-  const showCTA = !isAuthenticated || isCustomer || activeRole === null
+function HeroSection({ config, ctaHref, todayText }: HeroSectionProps) {
+  const titleParts = splitAccentTitle(config.heroTitle ?? 'Bienvenida a nuestro espacio')
 
   return (
-    <section className="relative min-h-[75vh] flex items-center justify-center overflow-hidden">
-      <Carousel images={config.carouselImages} primaryColor={config.primaryColor} />
-      {/* Cinematic gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/45 to-black/65" aria-hidden />
-      {/* Content */}
-      <div className="relative z-10 text-center text-white px-6 max-w-2xl mx-auto">
-        {/* Decorative eyebrow */}
-        <div className="flex items-center justify-center gap-3 mb-6">
-          <span className="block w-8 h-px bg-white/50" />
-          <span className="text-[10px] sm:text-xs tracking-[0.35em] uppercase text-white/75 font-light">Bienvenida</span>
-          <span className="block w-8 h-px bg-white/50" />
+    <section id="inicio" className="relative overflow-hidden">
+      {/* Soft color behind the glass, so the blur has something to show */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full opacity-30 blur-3xl"
+        style={{ backgroundColor: 'var(--lp-primary)' }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-20 bottom-0 h-80 w-80 rounded-full opacity-40 blur-3xl"
+        style={{ backgroundColor: 'var(--lp-secondary)' }}
+      />
+
+      <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 pb-20 pt-10 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:pb-28 lg:pt-16">
+        <div>
+          <p className="mb-5 text-xs uppercase tracking-[0.35em]" style={{ color: 'var(--lp-accent-text)' }}>
+            Bienvenida
+          </p>
+          <h1 className="lp-display text-5xl font-medium leading-[1.05] text-[#2b2420] sm:text-6xl lg:text-7xl">
+            {titleParts.map((part, i) =>
+              part.accent ? (
+                <em key={i} className="italic" style={{ color: 'var(--lp-accent-text)' }}>
+                  {part.text}
+                </em>
+              ) : (
+                <span key={i}>{part.text}</span>
+              ),
+            )}
+          </h1>
+          <p className="mt-6 max-w-md text-base leading-relaxed text-[#5b4f43] sm:text-lg">
+            {config.heroSubtitle ?? 'Tu lugar de bienestar y belleza'}
+          </p>
+          <div className="mt-9 flex flex-wrap gap-3">
+            {ctaHref && (
+              <Link
+                to={ctaHref}
+                className="rounded-full px-8 py-3.5 text-sm font-medium shadow-md transition-opacity hover:opacity-90"
+                style={{ backgroundColor: 'var(--lp-primary)', color: 'var(--lp-on-primary)' }}
+              >
+                Reservar turno
+              </Link>
+            )}
+            <a
+              href="#servicios"
+              className="lp-glass rounded-full px-8 py-3.5 text-sm font-medium text-[#2b2420] transition-colors hover:bg-white/80"
+            >
+              Ver servicios
+            </a>
+          </div>
         </div>
-        <h1 className="text-4xl sm:text-6xl font-bold mb-5 leading-tight drop-shadow-lg tracking-tight">
-          {config.heroTitle ?? 'Bienvenida a nuestro espacio'}
-        </h1>
-        <p className="text-base sm:text-lg mb-10 drop-shadow-md text-white/85 font-light tracking-wide max-w-md mx-auto">
-          {config.heroSubtitle ?? 'Tu lugar de bienestar y belleza'}
-        </p>
-        {showCTA && (
-          <Link
-            to={ctaHref}
-            className="inline-block px-10 py-3.5 rounded-full text-sm font-semibold tracking-wider uppercase border-2 border-white text-white hover:bg-white hover:text-gray-900 transition-all duration-300"
+
+        <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+          <div
+            className="relative aspect-[4/5] overflow-hidden rounded-[2rem] shadow-xl"
+            style={{ border: '1px solid color-mix(in srgb, var(--lp-primary) 55%, transparent)' }}
           >
-            Reservar turno
-          </Link>
-        )}
+            <Carousel images={config.carouselImages} primaryColor={config.primaryColor} />
+            <div aria-hidden className="pointer-events-none absolute inset-3 rounded-[1.5rem] border border-white/60" />
+          </div>
+          {todayText && (
+            <div className="lp-glass absolute -bottom-5 left-4 rounded-2xl px-5 py-3 text-[#2b2420] sm:-left-6">
+              <p className="text-[11px] uppercase tracking-widest text-[#8a7a68]">Horario</p>
+              <p className="lp-display text-xl font-semibold">{todayText}</p>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   )
@@ -180,8 +222,8 @@ function ServiceCard({ service, primaryColor, promo, isAuthenticated, duplicate 
       aria-hidden={duplicate || undefined}
       tabIndex={duplicate ? -1 : undefined}
       aria-label={duplicate ? undefined : `Reservar ${service.name}`}
-      className={`bg-white rounded-2xl overflow-hidden border flex flex-col w-56 shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-primary)] ${
-        promo ? 'border-[var(--color-peach-ink)]/40' : 'border-gray-100'
+      className={`lp-glass rounded-3xl overflow-hidden flex flex-col w-56 shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-primary)] ${
+        promo ? 'ring-1 ring-[var(--color-peach-ink)]/40' : ''
       }`}
     >
       <div className="overflow-hidden relative">
@@ -266,7 +308,7 @@ function ServicesSection({ services, promos, loading, primaryColor, isAuthentica
   return (
     <section className="py-20 max-w-5xl mx-auto" id="servicios">
       <div className="text-center mb-10 px-6">
-        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Nuestros servicios</h2>
+        <h2 className="lp-display text-4xl sm:text-5xl font-semibold text-[#2b2420] mb-3">Nuestros servicios</h2>
         <div className="w-10 h-0.5 mx-auto rounded-full" style={{ backgroundColor: 'var(--lp-primary)' }} />
         {!loading && services.length > 0 && (
           <p className="mt-3 text-gray-500">Tocá un servicio para reservarlo.</p>
@@ -319,16 +361,12 @@ function AboutSection({ aboutText }: AboutSectionProps) {
   if (!aboutText) return null
 
   return (
-    <section
-      className="py-20 px-6"
-      style={{ backgroundColor: 'var(--lp-secondary)' }}
-      id="nosotros"
-    >
-      <div className="max-w-2xl mx-auto text-center">
-        <h2 className="text-3xl sm:text-4xl font-bold mb-3 text-gray-800">Sobre nosotros</h2>
-        <div className="w-10 h-0.5 mx-auto rounded-full bg-gray-400/50 mb-8" />
-        <p className="text-6xl leading-none font-serif select-none opacity-20 text-gray-600 -mb-2">&ldquo;</p>
-        <p className="text-gray-700 leading-relaxed whitespace-pre-line text-lg">{aboutText}</p>
+    <section className="py-20 px-6" id="nosotros">
+      <div className="lp-glass mx-auto max-w-3xl rounded-[2rem] p-8 text-center sm:p-12">
+        <h2 className="lp-display text-4xl sm:text-5xl font-semibold mb-3 text-[#2b2420]">Sobre nosotros</h2>
+        <div className="w-10 h-0.5 mx-auto rounded-full mb-8" style={{ backgroundColor: 'var(--lp-primary)' }} />
+        <p className="lp-display text-7xl leading-none select-none opacity-30 -mb-2" style={{ color: 'var(--lp-primary)' }}>&ldquo;</p>
+        <p className="text-[#4a3f35] leading-relaxed whitespace-pre-line text-lg">{aboutText}</p>
       </div>
     </section>
   )
@@ -397,12 +435,8 @@ function UpcomingClosuresSection({ closures }: UpcomingClosuresSectionProps) {
   if (closures.length === 0) return null
 
   return (
-    <section
-      className="py-12 px-6"
-      style={{ backgroundColor: 'var(--lp-secondary)' }}
-      aria-label="Próximos cierres"
-    >
-      <div className="max-w-xl mx-auto">
+    <section className="py-12 px-6" aria-label="Próximos cierres">
+      <div className="lp-glass mx-auto max-w-xl rounded-3xl p-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4">Próximos cierres</h2>
         <ul className="space-y-2">
           {closures.map((c) => {
@@ -438,16 +472,16 @@ function HoursSection({ showHours, hours }: HoursSectionProps) {
   return (
     <section className="py-20 px-6 max-w-xl mx-auto" id="horarios">
       <div className="text-center mb-8">
-        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Horarios</h2>
+        <h2 className="lp-display text-4xl sm:text-5xl font-semibold text-[#2b2420] mb-3">Horarios</h2>
         <div className="w-10 h-0.5 mx-auto rounded-full" style={{ backgroundColor: 'var(--lp-primary)' }} />
       </div>
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+      <div className="lp-glass rounded-3xl overflow-hidden">
         {sorted.map((h) => {
           const isToday = h.day_of_week === todayDow
           return (
             <div
               key={h.id}
-              className={`flex justify-between items-center px-6 py-4 border-b border-gray-100 last:border-b-0 ${
+              className={`flex justify-between items-center px-6 py-4 border-b border-white/70 last:border-b-0 ${
                 h.is_closed ? 'opacity-50' : ''
               }`}
             >
@@ -493,7 +527,7 @@ function ContactFooter({ socialLinks }: ContactFooterProps) {
     >
       <div className="max-w-sm mx-auto text-center">
         <div className="w-10 h-px bg-white/40 mx-auto mb-8" />
-        <h2 className="text-2xl font-bold text-white mb-1">Contacto</h2>
+        <h2 className="lp-display text-3xl font-semibold text-white mb-1">Contacto</h2>
         <p className="text-white/65 text-sm mb-8">Estamos para vos</p>
         <SocialLinksList links={socialLinks} />
         <div className="w-10 h-px bg-white/25 mx-auto mb-6" />
@@ -529,9 +563,33 @@ export function LandingPage() {
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([])
   const [promotions, setPromotions] = useState<PublicCoupon[]>([])
   const [publicPromos, setPublicPromos] = useState<PublicPromo[]>([])
+  const [identity, setIdentity] = useState<PublicIdentity>({ name: null, logoUrl: null })
 
   const isAuthenticated = !!user
   const isCustomer = activeRole === 'customer'
+
+  // Name and logo for the top bar (without them the bar just has no logo)
+  useEffect(() => {
+    let cancelled = false
+    void getPublicIdentity().then((value) => {
+      if (!cancelled) setIdentity(value)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // The serif of the titles
+  useEffect(() => {
+    const id = 'lp-display-font'
+    if (document.getElementById(id)) return
+    const link = document.createElement('link')
+    link.id = id
+    link.rel = 'stylesheet'
+    link.href =
+      'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&display=swap'
+    document.head.appendChild(link)
+  }, [])
 
   // Load the social links the admin chose to show (failures just hide the section)
   useEffect(() => {
@@ -706,30 +764,44 @@ export function LandingPage() {
     return <RouteLoadingState />
   }
 
+  // Visitors and customers can book; admin and staff are only looking at the site
+  const canBook = !isAuthenticated || isCustomer || activeRole === null
+  const bookHref = canBook ? bookingHref(isAuthenticated) : null
+  const todayText = todayHoursText(hours, { closedAllDay: todayClosure?.closureType === 'full_day' })
+
+  const navLinks = [
+    { label: 'Servicios', href: '#servicios' },
+    ...(promotions.length > 0 || publicPromos.length > 0 ? [{ label: 'Promociones', href: '#promociones' }] : []),
+    ...(effectiveConfig.aboutText ? [{ label: 'Sobre nosotros', href: '#nosotros' }] : []),
+    ...(effectiveConfig.showHours ? [{ label: 'Horarios', href: '#horarios' }] : []),
+    { label: 'Contacto', href: '#contacto' },
+  ]
+
   return (
     <div
       style={{
         '--lp-primary': effectiveConfig.primaryColor,
         '--lp-secondary': effectiveConfig.secondaryColor,
+        '--lp-on-primary': readableTextOn(effectiveConfig.primaryColor),
+        // The main color for text on the cream page: a bit deeper so a light color still reads
+        '--lp-accent-text': 'color-mix(in srgb, var(--lp-primary) 70%, #2b2420)',
         fontFamily: effectiveConfig.fontFamily,
+        // A very light wash of the secondary color: the page stays warm whatever color is chosen
+        backgroundColor: 'color-mix(in srgb, var(--lp-secondary) 18%, #fffaf2)',
       } as React.CSSProperties}
-      className="min-h-screen"
+      className="min-h-screen scroll-smooth text-[#2b2420]"
     >
       {viewingSite && (activeRole === 'admin' || activeRole === 'staff') && (
         <Link
           to={resolveRoleHomePath(activeRole)}
-          className="fixed left-3 top-3 z-50 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg ring-1 ring-black/10 hover:bg-white"
+          className="fixed bottom-4 left-3 z-50 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg ring-1 ring-black/10 hover:bg-white"
         >
           ← Volver al panel
         </Link>
       )}
       {todayClosure && <TodayClosureBanner closure={todayClosure} />}
-      <HeroSection
-        config={effectiveConfig}
-        isCustomer={isCustomer}
-        isAuthenticated={isAuthenticated}
-        activeRole={activeRole}
-      />
+      <LandingNav name={identity.name} logoUrl={identity.logoUrl} links={navLinks} bookHref={bookHref} />
+      <HeroSection config={effectiveConfig} ctaHref={bookHref} todayText={todayText} />
       <ServicesSection
         services={services}
         promos={publicPromos}
@@ -742,6 +814,7 @@ export function LandingPage() {
       <HoursSection showHours={effectiveConfig.showHours} hours={hours} />
       <UpcomingClosuresSection closures={futureClosures} />
       <ContactFooter socialLinks={socialLinks} />
+      <WhatsAppButton links={socialLinks} />
     </div>
   )
 }

@@ -213,3 +213,36 @@ body {
     animation: none;
   }
 }
+
+/* Public page: glass surfaces and the display serif of the titles */
+.lp-display {
+  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+.lp-glass {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: 0 8px 30px rgba(60, 40, 20, 0.08);
+}
+
+/* Without blur support the surface stays readable */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .lp-glass {
+    background: rgba(255, 255, 255, 0.92);
+  }
+}
+
+.lp-glass-dark {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/* The bar of the public page is fixed on top: links to a section must not hide its title behind it */
+html {
+  scroll-padding-top: 5.5rem;
+}

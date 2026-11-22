@@ -33,7 +33,7 @@ export function PromotionsSection({
       <div className="mb-8 text-center">
         <h2
           id="promociones-title"
-          className="mb-2 text-3xl font-bold text-gray-900 sm:text-4xl"
+          className="lp-display mb-2 text-4xl font-semibold text-[#2b2420] sm:text-5xl"
         >
           Promociones
         </h2>
@@ -45,7 +45,7 @@ export function PromotionsSection({
             <Link
               to={bookingHref(isAuthenticated, { promo: promo.promoId })}
               aria-label={`Reservar con la promo ${promo.name}`}
-              className="block h-full rounded-3xl border border-[var(--color-peach-ink)]/30 bg-[var(--color-peach)]/40 p-5 text-center transition-all hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-primary)]"
+              className="block h-full rounded-3xl border lp-glass ring-1 ring-[var(--color-peach-ink)]/25 p-5 text-center transition-all hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-primary)]"
             >
               <p className="text-xs font-bold uppercase tracking-wider text-[var(--color-peach-ink)]">
                 Promo · {promo.name}
@@ -80,7 +80,7 @@ export function PromotionsSection({
                 categoria: coupon.categoryName,
               })}
               aria-label={`Reservar con el cupón ${coupon.code}`}
-              className="block h-full rounded-3xl border border-dashed border-gray-300 bg-white p-5 text-center transition-all hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-primary)]"
+              className="block h-full lp-glass rounded-3xl border-dashed p-5 text-center transition-all hover:-translate-y-1 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-primary)]"
             >
               <p className="text-2xl font-extrabold text-gray-900">
                 {shortDiscount({

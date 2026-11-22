@@ -11,7 +11,10 @@ vi.mock('../services/landing', () => ({
   getLandingConfig: () => mockConfig(),
   getUpcomingClosures: () => Promise.resolve([]),
 }))
-vi.mock('../services/socialLinks', () => ({ getPublicSocialLinks: () => Promise.resolve([]) }))
+const mockSocial = vi.fn()
+vi.mock('../services/socialLinks', () => ({ getPublicSocialLinks: () => mockSocial() }))
+const mockIdentity = vi.fn()
+vi.mock('../services/brand', () => ({ getPublicIdentity: () => mockIdentity() }))
 vi.mock('../services/coupons', () => ({ listPublicCoupons: () => Promise.resolve([]) }))
 const mockPromos = vi.fn()
 vi.mock('../services/promos', () => ({ listPublicPromos: () => mockPromos() }))
@@ -88,6 +91,8 @@ describe('LandingPage — services carousel and links', () => {
     serviceRows = [row('s1', 'Manicura'), row('s2', 'Masaje')]
     mockConfig.mockResolvedValue(baseConfig)
     mockPromos.mockResolvedValue([])
+    mockSocial.mockResolvedValue([])
+    mockIdentity.mockResolvedValue({ name: 'Estética So Beauty', logoUrl: 'https://cdn/logo.svg' })
     mockUseUser.mockReturnValue({ user: { id: 'u' }, activeRole: 'customer', isLoading: false })
   })
 
@@ -166,3 +171,91 @@ describe('LandingPage — services carousel and links', () => {
     expect(within(carousel).getAllByRole('link')).toHaveLength(1)
   })
 })
+
+describe('LandingPage — design', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    serviceRows = [row('s1', 'Manicura')]
+    mockConfig.mockResolvedValue({ ...baseConfig, heroTitle: 'Donde la *belleza* se vuelve arte', showHours: true, aboutText: 'Mi historia' })
+    mockPromos.mockResolvedValue([])
+    mockSocial.mockResolvedValue([])
+    mockIdentity.mockResolvedValue({ name: 'Estética So Beauty', logoUrl: 'https://cdn/logo.svg' })
+    mockUseUser.mockReturnValue({ user: null, activeRole: null, isLoading: false })
+  })
+
+  it('the title shows its accent word in italic', async () => {
+    renderLanding()
+    const heading = await screen.findByRole('heading', { level: 1 })
+    expect(heading).toHaveTextContent('Donde la belleza se vuelve arte')
+    expect(heading.querySelector('em')).toHaveTextContent('belleza')
+  })
+
+  it('the top bar has the name, the logo and links only for the sections that exist', async () => {
+    renderLanding()
+    const nav = await screen.findByRole('navigation', { name: 'Principal' })
+    await waitFor(() => expect(within(nav).getByText('Estética So Beauty')).toBeInTheDocument())
+    expect(nav.querySelector('img')).toHaveAttribute('src', 'https://cdn/logo.svg')
+    for (const label of ['Servicios', 'Sobre nosotros', 'Horarios', 'Contacto']) {
+      expect(within(nav).getAllByRole('link', { name: label }).length).toBeGreaterThan(0)
+    }
+    expect(within(nav).queryByRole('link', { name: 'Promociones' })).toBeNull()
+  })
+
+  it('leaves out the links of sections that are off (edge case)', async () => {
+    mockConfig.mockResolvedValue({ ...baseConfig, showHours: false, aboutText: null })
+    renderLanding()
+    const nav = await screen.findByRole('navigation', { name: 'Principal' })
+    expect(within(nav).queryByRole('link', { name: 'Sobre nosotros' })).toBeNull()
+    expect(within(nav).queryByRole('link', { name: 'Horarios' })).toBeNull()
+  })
+
+  it('adds Promociones to the bar when there are promos to show', async () => {
+    mockPromos.mockResolvedValue([
+      { promoId: 'p1', name: 'Semana', description: null, discountType: 'percent', discountValue: 20, endsOn: '2026-12-31', serviceNames: ['Manicura'], serviceIds: ['s1'] },
+    ])
+    renderLanding()
+    const nav = await screen.findByRole('navigation', { name: 'Principal' })
+    await waitFor(() => expect(within(nav).getAllByRole('link', { name: 'Promociones' }).length).toBeGreaterThan(0))
+  })
+
+  it('the WhatsApp button shows only when WhatsApp is on', async () => {
+    renderLanding()
+    await screen.findByRole('navigation', { name: 'Principal' })
+    expect(screen.queryByRole('link', { name: 'Escribinos por WhatsApp' })).toBeNull()
+  })
+
+  it('the WhatsApp button appears with the number the admin set', async () => {
+    mockSocial.mockResolvedValue([{ network: 'whatsapp', value: '+54 9 11 1234-5678', enabled: true }])
+    renderLanding()
+    expect(await screen.findByRole('link', { name: 'Escribinos por WhatsApp' })).toBeInTheDocument()
+  })
+
+  it('a visitor sees Reservar, which goes through sign-in', async () => {
+    renderLanding()
+    const nav = await screen.findByRole('navigation', { name: 'Principal' })
+    const href = within(nav).getByRole('link', { name: 'Reservar' }).getAttribute('href') as string
+    expect(href.startsWith('/signin?redirect=')).toBe(true)
+  })
+
+  it('admin and staff looking at the site have no Reservar buttons (edge case)', async () => {
+    mockUseUser.mockReturnValue({ user: { id: 'u' }, activeRole: 'admin', isLoading: false })
+    render(
+      <MemoryRouter initialEntries={['/?sitio=1']}>
+        <LandingPage />
+      </MemoryRouter>,
+    )
+    const nav = await screen.findByRole('navigation', { name: 'Principal' })
+    expect(within(nav).queryByRole('link', { name: 'Reservar' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Reservar turno' })).toBeNull()
+    expect(screen.getByRole('link', { name: /Volver al panel/ })).toBeInTheDocument()
+  })
+
+  it('still loads without name nor logo (edge case)', async () => {
+    mockIdentity.mockResolvedValue({ name: null, logoUrl: null })
+    renderLanding()
+    const nav = await screen.findByRole('navigation', { name: 'Principal' })
+    expect(nav.querySelector('img')).toBeNull()
+    expect(within(nav).getByRole('link', { name: 'Reservar' })).toBeInTheDocument()
+  })
+})
+

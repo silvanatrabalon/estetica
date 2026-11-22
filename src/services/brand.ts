@@ -44,6 +44,26 @@ export async function getBrandSettings(): Promise<BrandSettings> {
   }
 }
 
+export interface PublicIdentity {
+  name: string | null
+  logoUrl: string | null
+}
+
+/** Name and logo for the public page (organizations are readable by everyone). Never throws: the page works without them. */
+export async function getPublicIdentity(): Promise<PublicIdentity> {
+  try {
+    const { data } = await initSupabase()
+      .from('organizations')
+      .select('name, logo_url')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle<{ name: string | null; logo_url: string | null }>()
+    return { name: clean(data?.name), logoUrl: clean(data?.logo_url) }
+  } catch {
+    return { name: null, logoUrl: null }
+  }
+}
+
 /** Saves logo and booking texts only; never touches business rules. */
 export async function saveBrandSettings(input: BrandSettings): Promise<void> {
   const message = validateBrandTexts(input)
