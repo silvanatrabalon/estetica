@@ -232,6 +232,21 @@ export async function adminLinkStaffMember(staffId: string, userId: string): Pro
   return toAdminStaffMember(rows[0])
 }
 
+/**
+ * Ids of every account that already belongs to a professional, including professionals the
+ * Profesionales list hides (their account lost the staff role). Used to not offer those accounts.
+ */
+export async function listLinkedStaffUserIds(): Promise<string[]> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('admin_staff_linked_user_ids')
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return ((data ?? []) as Array<{ user_id: string }>).map((row) => row.user_id)
+}
+
 /** Renames a professional that has no account (linked ones take the name of their account). */
 export async function adminRenameStaffMember(staffId: string, displayName: string): Promise<void> {
   const supabase = initSupabase()
