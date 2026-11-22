@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { AdminAppointmentDetailPage } from './AdminAppointmentDetailPage'
 import { cn } from '../lib/cn'
 import { FilterMenu } from '../components/FilterMenu'
 import { PERIOD_OPTIONS, getPeriodRange, isAscendingPeriod, type AppointmentPeriod } from '../lib/appointmentPeriods'
@@ -46,6 +47,8 @@ export function AdminAppointmentsPage({ mode = 'admin' }: AppointmentsPageProps)
   const isStaff = mode === 'staff'
   const basePath = isStaff ? '/staff/appointments' : '/admin/appointments'
   const [searchParams] = useSearchParams()
+  // /…/appointments/:id opens the detail as a pop-up over this list
+  const { id: openAppointmentId } = useParams<{ id: string }>()
   const [period, setPeriod] = useState<AppointmentPeriod>(() => {
     const fromUrl = searchParams.get('periodo')
     return PERIOD_OPTIONS.some((o) => o.value === fromUrl) ? (fromUrl as AppointmentPeriod) : 'today'
@@ -64,6 +67,8 @@ export function AdminAppointmentsPage({ mode = 'admin' }: AppointmentsPageProps)
   // What is typed, and what is actually searched (a moment later, so each key does not hit the server)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
+  // Bumped when the pop-up changes an appointment, so the list reloads and shows it
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     const trimmed = searchInput.trim()
@@ -121,7 +126,7 @@ export function AdminAppointmentsPage({ mode = 'admin' }: AppointmentsPageProps)
     return () => {
       cancelled = true
     }
-  }, [period, selectedStatus, selectedStaff, search, page, isStaff])
+  }, [period, selectedStatus, selectedStaff, search, page, isStaff, reloadKey])
 
   function handleStatusChange(value: string) {
     setSelectedStatus(value)
@@ -284,6 +289,12 @@ export function AdminAppointmentsPage({ mode = 'admin' }: AppointmentsPageProps)
           </div>
         </div>
       )}
+
+      {openAppointmentId && <AdminAppointmentDetailPage
+          key={openAppointmentId}
+          mode={mode}
+          onChanged={() => setReloadKey((k) => k + 1)}
+        />}
     </div>
   )
 }

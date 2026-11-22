@@ -25,8 +25,8 @@ interface BookingCalendarProps {
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
 const LEVEL_STYLES = {
-  many: 'border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100',
-  few: 'border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100',
+  many: 'border-[var(--color-state-confirmed)] bg-[var(--color-secondary)] text-shell-text hover:brightness-95',
+  few: 'border-[var(--color-state-pending)] bg-[var(--color-peach)] text-[var(--color-peach-ink)] hover:brightness-95',
 } as const
 
 function dayLabel(key: string, count: number): string {
@@ -95,7 +95,7 @@ export function BookingCalendar({ serviceId, minDate, maxDate, selectedDate, onS
               <div
                 key={key}
                 aria-disabled="true"
-                className="flex aspect-square items-center justify-center rounded-xl text-sm text-gray-300"
+                className="flex aspect-square items-center justify-center rounded-xl text-sm text-shell-subtleText/50"
               >
                 {dayNumber}
               </div>
@@ -135,15 +135,15 @@ export function BookingCalendar({ serviceId, minDate, maxDate, selectedDate, onS
 
       <ul className="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-shell-subtleText">
         <li className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded border border-emerald-300 bg-emerald-50" aria-hidden="true" />
+          <span className="h-3 w-3 rounded border border-[var(--color-state-confirmed)] bg-[var(--color-secondary)]" aria-hidden="true" />
           Varios horarios libres
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded border border-amber-300 bg-amber-50" aria-hidden="true" />
+          <span className="h-3 w-3 rounded border border-[var(--color-state-pending)] bg-[var(--color-peach)]" aria-hidden="true" />
           Pocos horarios libres
         </li>
         <li className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded bg-gray-100" aria-hidden="true" />
+          <span className="h-3 w-3 rounded bg-shell-muted" aria-hidden="true" />
           Sin disponibilidad
         </li>
       </ul>

@@ -161,6 +161,6 @@ describe('BookingSlotDayView', () => {
     const slot = makeSlot('2026-05-18T09:00:00Z', '2026-05-18T09:30:00Z')
     renderView({ slots: [slot], selectedSlot: null })
     const block = screen.getByTestId('slot-block')
-    expect(block).toHaveClass('bg-teal-500')
+    expect(block).toHaveClass('bg-[var(--color-lilac)]')
   })
 })

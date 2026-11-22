@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AdminAppointmentsPage } from './AdminAppointmentsPage'
 import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
 import { mockSessions } from '../hooks/__test-utils__/fixtures'
@@ -23,6 +23,16 @@ vi.mock('../services/adminStaff', () => ({
 
 vi.mock('../services/businessSettings', () => ({
   getBusinessSettings: (...args: unknown[]) => mockGetBusinessSettings(...args),
+}))
+
+vi.mock('./AdminAppointmentDetailPage', () => ({
+  AdminAppointmentDetailPage: ({ onChanged }: { onChanged?: () => void }) => (
+    <div role="dialog" aria-label="Detalle del turno">
+      <button type="button" onClick={() => onChanged?.()}>
+        simular cambio
+      </button>
+    </div>
+  ),
 }))
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -589,5 +599,46 @@ describe('AdminAppointmentsPage — staff mode (own appointments only)', () => {
     mockStaffListAppointments.mockRejectedValue(new Error('STAFF_NOT_AUTHORIZED'))
     renderStaffPage()
     expect(await screen.findByText('Ocurrió un error al cargar los turnos.')).toBeInTheDocument()
+  })
+
+  describe('detail pop-up', () => {
+    function renderAt(url: string) {
+      return render(
+        <MemoryRouter initialEntries={[url]}>
+          <TestUserProvider
+            user={mockSessions.authenticatedAdmin.user}
+            roles={['admin']}
+            activeRole="admin"
+            isLoading={false}
+          >
+            <Routes>
+              <Route path="/admin/appointments/:id?" element={<AdminAppointmentsPage />} />
+            </Routes>
+          </TestUserProvider>
+        </MemoryRouter>,
+      )
+    }
+
+    it('opens over the list when the URL has an appointment id, and not otherwise', async () => {
+      mockAdminListAppointments.mockResolvedValue({ rows: [makeRow()], totalCount: 1 })
+      const { unmount } = renderAt('/admin/appointments/appt-1')
+      expect(await screen.findByRole('dialog', { name: 'Detalle del turno' })).toBeDefined()
+      expect(await screen.findByText('Juan Pérez')).toBeDefined()
+      unmount()
+      renderAt('/admin/appointments')
+      await screen.findByText('Juan Pérez')
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('reloads the list when the pop-up reports a change (cancelled turn is reflected)', async () => {
+      mockAdminListAppointments.mockResolvedValueOnce({ rows: [makeRow()], totalCount: 1 })
+      mockAdminListAppointments.mockResolvedValueOnce({ rows: [makeRow({ status: 'cancelled' })], totalCount: 1 })
+      renderAt('/admin/appointments/appt-1')
+      await screen.findByText('Confirmado')
+      expect(mockAdminListAppointments).toHaveBeenCalledTimes(1)
+      fireEvent.click(screen.getByRole('button', { name: 'simular cambio' }))
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalledTimes(2))
+      expect(await screen.findByText('Cancelado')).toBeDefined()
+    })
   })
 })

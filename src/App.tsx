@@ -9,12 +9,10 @@ import {
 import { RoleSelector } from './components/auth/RoleSelector'
 import {
   AdminAppointmentsPage,
-  AdminAppointmentDetailPage,
   AdminCouponsPage,
   AdminPromosPage,
   AdminGiftCardsPage,
   AdminStatsPage,
-  StaffAppointmentDetailPage,
   AdminDashboardPage,
   AdminReportsPage,
   AdminServicesPage,
@@ -76,8 +74,7 @@ function AppContent() {
           </Route>
 
           <Route element={<RoleGuard allowedRoles={['staff', 'admin']} />}>
-            <Route path="/staff/appointments" element={<StaffAppointmentsPage />} />
-            <Route path="/staff/appointments/:id" element={<StaffAppointmentDetailPage />} />
+            <Route path="/staff/appointments/:id?" element={<StaffAppointmentsPage />} />
             <Route path="/staff/schedule" element={<StaffSchedulePage />} />
           </Route>
 
@@ -91,8 +88,7 @@ function AppContent() {
             <Route path="/admin/staff/:staffId/services" element={<AdminStaffServicesPage />} />
             <Route path="/admin/services" element={<AdminServicesPage />} />
             <Route path="/admin/services/:serviceId/availability" element={<AdminServicesPage />} />
-            <Route path="/admin/appointments" element={<AdminAppointmentsPage />} />
-            <Route path="/admin/appointments/:id" element={<AdminAppointmentDetailPage />} />
+            <Route path="/admin/appointments/:id?" element={<AdminAppointmentsPage />} />
             <Route path="/admin/coupons" element={<AdminCouponsPage />} />
             <Route path="/admin/promos" element={<AdminPromosPage />} />
             <Route path="/admin/gift-cards" element={<AdminGiftCardsPage />} />

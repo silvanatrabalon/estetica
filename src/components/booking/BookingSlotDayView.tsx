@@ -48,17 +48,17 @@ export function BookingSlotDayView({
   if (loading) {
     return (
       <div
-        className="rounded-lg border border-gray-200 overflow-hidden"
+        className="rounded-lg border border-shell-border overflow-hidden"
         data-testid="booking-slot-loading"
       >
         <div className="overflow-y-auto max-h-[640px] pt-2">
           <div className="flex">
             <div
-              className="flex-shrink-0 w-14 border-r border-gray-100 animate-pulse bg-gray-50"
+              className="flex-shrink-0 w-14 border-r border-shell-border animate-pulse bg-shell-muted"
               style={{ height: gridHeightPx }}
             />
             <div
-              className="flex-1 animate-pulse bg-gray-50"
+              className="flex-1 animate-pulse bg-shell-muted"
               style={{ height: gridHeightPx }}
             />
           </div>
@@ -68,19 +68,19 @@ export function BookingSlotDayView({
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 overflow-hidden">
+    <div className="rounded-lg border border-shell-border overflow-hidden">
       <div className="overflow-y-auto max-h-[640px] pt-2">
         <div className="flex">
           {/* Hour-label column */}
           <div
-            className="relative flex-shrink-0 w-14 border-r border-gray-100"
+            className="relative flex-shrink-0 w-14 border-r border-shell-border"
             style={{ height: gridHeightPx }}
             data-testid="hour-labels"
           >
             {hourLabels.map((hour, idx) => (
               <div
                 key={hour}
-                className="absolute right-1 text-xs text-gray-400 select-none leading-none"
+                className="absolute right-1 text-xs text-shell-subtleText select-none leading-none"
                 style={{ top: idx * 60 * PX_PER_MIN - 6 }}
                 data-testid={`hour-label-${hour}`}
               >
@@ -99,7 +99,7 @@ export function BookingSlotDayView({
             {hourLabels.map((_, idx) => (
               <div
                 key={idx}
-                className="absolute left-0 right-0 border-t border-gray-100"
+                className="absolute left-0 right-0 border-t border-shell-border"
                 style={{ top: idx * 60 * PX_PER_MIN }}
               />
             ))}
@@ -107,7 +107,7 @@ export function BookingSlotDayView({
             {/* Empty state */}
             {slots.length === 0 && (
               <p
-                className="absolute inset-0 flex items-center justify-center text-sm text-gray-400"
+                className="absolute inset-0 flex items-center justify-center text-sm text-shell-subtleText"
                 data-testid="booking-slot-empty"
               >
                 No hay turnos disponibles para este día
@@ -129,8 +129,8 @@ export function BookingSlotDayView({
                   className={cn(
                     'absolute left-1 right-1 px-2 py-1 rounded border text-xs text-left overflow-hidden transition-colors',
                     isSelected
-                      ? 'bg-indigo-600 border-indigo-700 text-white font-medium'
-                    : 'bg-teal-500 border-teal-600 text-white hover:bg-teal-600',
+                      ? 'bg-brand-primary border-brand-strong text-white font-medium'
+                    : 'bg-[var(--color-lilac)] border-brand-primary/40 text-shell-text hover:bg-brand-primary/20',
                   )}
                   style={{ top, height }}
                   data-testid={isSelected ? 'slot-block-selected' : 'slot-block'}

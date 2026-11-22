@@ -239,7 +239,7 @@ export function BookingPage() {
 
       {/* Fixed CTA — shown from step 3+ */}
       {step >= 3 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-sm border-t border-gray-100 z-40 md:left-auto md:right-4 md:bottom-4 md:border-0 md:bg-transparent md:p-0">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-sm border-t border-shell-border z-40 md:left-auto md:right-4 md:bottom-4 md:border-0 md:bg-transparent md:p-0">
           <button
             type="button"
             onClick={step === 4 ? handleConfirm : () => { setBookingError(null); setStep(4) }}
@@ -261,10 +261,10 @@ export function BookingPage() {
                   key={i}
                   className="rounded-xl border border-shell-border bg-white animate-pulse"
                 >
-                  <div className="h-32 rounded-t-xl bg-gray-100" />
+                  <div className="h-32 rounded-t-xl bg-shell-muted" />
                   <div className="p-3 space-y-2">
-                    <div className="h-3 bg-gray-100 rounded w-3/4" />
-                    <div className="h-3 bg-gray-100 rounded w-1/2" />
+                    <div className="h-3 bg-shell-muted rounded w-3/4" />
+                    <div className="h-3 bg-shell-muted rounded w-1/2" />
                   </div>
                 </div>
               ))}
@@ -312,8 +312,8 @@ export function BookingPage() {
                       onClick={() => setActiveCategoryId(null)}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                         activeCategoryId === null
-                          ? 'bg-gray-800 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-brand-primary text-white'
+                          : 'bg-[var(--color-lilac)] text-shell-text hover:brightness-95'
                       }`}
                     >
                       Todos
@@ -340,8 +340,8 @@ export function BookingPage() {
                           onClick={() => setActiveCategoryId(cat.id)}
                           className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                             activeCategoryId === cat.id
-                              ? 'bg-gray-800 text-white'
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              ? 'bg-brand-primary text-white'
+                              : 'bg-[var(--color-lilac)] text-shell-text hover:brightness-95'
                           }`}
                         >
                           {cat.name}
@@ -499,7 +499,7 @@ export function BookingPage() {
           )}
 
           {/* Coupon: only for the person booking for themselves */}
-          {selectedPromo && canUseCoupon(target) && (
+          {selectedPromo && (
             <p className="mb-4 rounded-2xl bg-[var(--color-peach)]/40 px-4 py-3 text-sm text-[var(--color-peach-ink)]">
               Este servicio ya tiene una promo y no se suma con cupones.
             </p>
@@ -734,22 +734,18 @@ function ServiceDetailPanel({
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Popup — bottom sheet on phones, centered from sm up */}
       <div
-        className="fixed inset-0 bg-black/40 z-40"
-        aria-hidden="true"
+        className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-4"
         onClick={onClose}
-      />
-
-      {/* Panel — bottom drawer on mobile, side panel on md+ */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={service.name}
-        className="fixed z-50 bg-white shadow-xl
-          bottom-0 left-0 right-0 rounded-t-2xl max-h-[85vh] overflow-y-auto
-          md:bottom-auto md:top-0 md:right-0 md:left-auto md:h-screen md:max-h-screen md:w-96 md:rounded-none"
       >
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={service.name}
+          onClick={(e) => e.stopPropagation()}
+          className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white pb-[env(safe-area-inset-bottom)] shadow-xl sm:rounded-2xl"
+        >
         {/* Close button */}
         <div className="flex justify-end p-4">
           <button
@@ -774,7 +770,7 @@ function ServiceDetailPanel({
 
         {/* Image */}
         <div
-          className={`w-full h-48 flex items-center justify-center${!service.imageUrl || imgError ? ' bg-pink-50' : ''}`}
+          className={`w-full h-48 flex items-center justify-center${!service.imageUrl || imgError ? ' bg-[var(--color-lilac)]' : ''}`}
         >
           {service.imageUrl && !imgError ? (
             <img
@@ -786,7 +782,7 @@ function ServiceDetailPanel({
           ) : (
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="w-16 h-16 text-pink-300"
+              className="w-16 h-16 text-brand-primary/40"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -836,6 +832,7 @@ function ServiceDetailPanel({
           >
             Seleccionar este servicio
           </button>
+        </div>
         </div>
       </div>
     </>

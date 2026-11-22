@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Select } from '../components/Select'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ConfirmModal } from '../components/ConfirmModal'
@@ -29,13 +29,41 @@ const ACTIONABLE = ['pending', 'confirmed', 'completed']
 interface AppointmentDetailPageProps {
   /** admin: full actions (reprogramar, editar, cancelar). staff: own appointments, no editing. */
   mode?: 'admin' | 'staff'
+  /** Called after the appointment was edited or cancelled, so the list behind can refresh. */
+  onChanged?: () => void
 }
 
-export function AdminAppointmentDetailPage({ mode = 'admin' }: AppointmentDetailPageProps) {
+/** The pop-up frame: bottom sheet on phones, centered from sm up. Escape, X or a click outside closes it. */
+function DetailPopup({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Detalle del turno"
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[92dvh] w-full max-w-lg space-y-4 overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+export function AdminAppointmentDetailPage({ mode = 'admin', onChanged }: AppointmentDetailPageProps) {
   const listPath = mode === 'staff' ? '/staff/appointments' : '/admin/appointments'
   const detailPath = (appointmentId: string) => `${listPath}/${appointmentId}`
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const closePopup = useCallback(() => navigate(listPath), [navigate, listPath])
 
   const [appointment, setAppointment] = useState<AdminAppointmentDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -117,6 +145,7 @@ export function AdminAppointmentDetailPage({ mode = 'admin' }: AppointmentDetail
         notes: appointment.notes ?? '',
       })
       setEditing(false)
+      onChanged?.()
       await load()
       setFeedback({ type: 'success', text: 'Cambios guardados.' })
     } catch (err) {
@@ -133,6 +162,7 @@ export function AdminAppointmentDetailPage({ mode = 'admin' }: AppointmentDetail
     try {
       await cancelAppointment({ appointmentId: appointment.id })
       setConfirmCancel(false)
+      onChanged?.()
       await load()
       setFeedback({ type: 'success', text: 'El turno fue cancelado.' })
     } catch (err) {
@@ -146,36 +176,40 @@ export function AdminAppointmentDetailPage({ mode = 'admin' }: AppointmentDetail
   const backLink = (
     <Link
       to={listPath}
-      aria-label={mode === 'staff' ? 'Volver a turnos' : 'Volver a turnos'}
-      className="flex h-9 w-9 items-center justify-center rounded-full text-xl text-brand-primary hover:bg-shell-muted"
+      aria-label="Volver a turnos"
+      className="ml-auto flex h-9 w-9 items-center justify-center rounded-full text-xl text-shell-subtleText hover:bg-shell-muted"
     >
-      ←
+      ✕
     </Link>
   )
 
   if (loading && !appointment) {
-    return <p className="py-10 text-center text-sm text-shell-subtleText">Cargando turno...</p>
+    return (
+      <DetailPopup onClose={closePopup}>
+        <p className="py-10 text-center text-sm text-shell-subtleText">Cargando turno...</p>
+      </DetailPopup>
+    )
   }
 
   if (loadError) {
     return (
-      <div className="space-y-4">
-        {backLink}
+      <DetailPopup onClose={closePopup}>
+        <div className="flex">{backLink}</div>
         <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
           {loadError}
         </div>
-      </div>
+      </DetailPopup>
     )
   }
 
   if (!appointment) {
     return (
-      <div className="space-y-4">
-        {backLink}
-        <div className="shell-surface rounded-2xl border py-14 text-center shadow-sm">
+      <DetailPopup onClose={closePopup}>
+        <div className="flex">{backLink}</div>
+        <div className="rounded-2xl border border-shell-border py-14 text-center">
           <p className="text-sm text-shell-subtleText">No encontramos este turno.</p>
         </div>
-      </div>
+      </DetailPopup>
     )
   }
 
@@ -183,10 +217,10 @@ export function AdminAppointmentDetailPage({ mode = 'admin' }: AppointmentDetail
   const canSave = !saving && !!staffId && !!serviceId
 
   return (
-    <div className="space-y-6">
+    <DetailPopup onClose={closePopup}>
       <div className="flex items-center gap-2">
+        <h1 className="font-heading text-xl font-semibold text-shell-text">Detalle del turno</h1>
         {backLink}
-        <h1 className="font-heading text-2xl font-semibold text-shell-text">Detalle del turno</h1>
       </div>
 
       {feedback && (
@@ -325,7 +359,7 @@ export function AdminAppointmentDetailPage({ mode = 'admin' }: AppointmentDetail
         onConfirm={() => void handleCancel()}
         onCancel={() => setConfirmCancel(false)}
       />
-    </div>
+    </DetailPopup>
   )
 }
 

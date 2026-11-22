@@ -282,4 +282,66 @@ describe('AdminAppointmentDetailPage', () => {
       expect(await screen.findByText('No encontramos este turno.')).toBeInTheDocument()
     })
   })
+
+  describe('pop-up', () => {
+    it('is a dialog that Escape closes back to the list', async () => {
+      renderPage()
+      expect(await screen.findByRole('dialog', { name: 'Detalle del turno' })).toBeInTheDocument()
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(mocks.navigate).toHaveBeenCalledWith('/admin/appointments')
+    })
+
+    it('a click on the backdrop closes it but a click inside does not (edge case)', async () => {
+      renderPage()
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.click(dialog)
+      expect(mocks.navigate).not.toHaveBeenCalled()
+      fireEvent.click(dialog.parentElement as HTMLElement)
+      expect(mocks.navigate).toHaveBeenCalledWith('/admin/appointments')
+    })
+
+    it('the X links back to the list, and staff go back to their own list', async () => {
+      renderStaffPage()
+      const close = await screen.findByRole('link', { name: 'Volver a turnos' })
+      expect(close).toHaveAttribute('href', '/staff/appointments')
+    })
+
+    it('also shows as a pop-up while loading and when the appointment is missing (edge case)', async () => {
+      mocks.getAdminAppointment.mockResolvedValue(null)
+      renderPage()
+      expect(await screen.findByRole('dialog')).toBeInTheDocument()
+      expect(await screen.findByText('No encontramos este turno.')).toBeInTheDocument()
+    })
+  })
+
+  describe('refreshing the list behind', () => {
+    function renderWith(onChanged: () => void) {
+      return render(
+        <MemoryRouter initialEntries={['/admin/appointments/a1']}>
+          <Routes>
+            <Route path="/admin/appointments/:id" element={<AdminAppointmentDetailPage onChanged={onChanged} />} />
+          </Routes>
+        </MemoryRouter>,
+      )
+    }
+
+    it('tells the list after cancelling', async () => {
+      mocks.cancelAppointment.mockResolvedValue(undefined)
+      const onChanged = vi.fn()
+      renderWith(onChanged)
+      fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Sí, cancelar' }))
+      await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1))
+    })
+
+    it('does not tell the list when cancelling fails (edge case)', async () => {
+      mocks.cancelAppointment.mockRejectedValue(new Error('boom'))
+      const onChanged = vi.fn()
+      renderWith(onChanged)
+      fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Sí, cancelar' }))
+      expect(await screen.findByText('boom')).toBeInTheDocument()
+      expect(onChanged).not.toHaveBeenCalled()
+    })
+  })
 })

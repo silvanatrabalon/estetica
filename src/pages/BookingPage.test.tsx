@@ -1156,4 +1156,18 @@ describe('BookingPage — promo', () => {
     await load()
     expect(screen.queryByRole('button', { name: 'Promos' })).toBeNull()
   })
+
+  it('the review explains that the promo does not stack with coupons', async () => {
+    mockListActivePromos.mockResolvedValue([promo])
+    mockListBookingClients.mockResolvedValue([])
+    await load()
+    await screen.findByText('PROMO 20% OFF')
+    await selectService()
+    await pickDay()
+    await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId('slot-block'))
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await screen.findByText(/Revisá tu reserva/)
+    expect(screen.getByText(/no se suma con cupones/)).toBeDefined()
+  })
 })
