@@ -156,8 +156,8 @@ describe('BusinessSettingsPage', () => {
 
       expect(screen.getByRole('tablist', { name: 'Secciones de Negocio' })).toBeDefined()
       const tabs = screen.getAllByRole('tab')
-      expect(tabs.map((t) => t.textContent)).toEqual(['General', 'Horarios', 'Cierres', 'Política'])
-      expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false'])
+      expect(tabs.map((t) => t.textContent)).toEqual(['General', 'Horarios', 'Cierres', 'Política', 'Zona de peligro'])
+      expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false', 'false'])
     })
 
     it('moves the selection when another tab is pressed', async () => {
@@ -836,14 +836,22 @@ describe('BusinessSettingsPage — look', () => {
     expect(screen.getByRole('button', { name: 'Guardar política' }).textContent).toBe('Guardar')
   })
 
-  it('the danger zone starts closed and opens on click (edge case)', async () => {
+  it('the danger zone is a tab of the section menu, hidden until chosen (edge case)', async () => {
     renderBusinessSettingsPage()
     await screen.findByDisplayValue('Salon Centro')
-    expect(screen.queryByText('Eliminar historial de reservas')).toBeNull()
-    const toggle = screen.getByRole('button', { name: 'Zona de peligro' })
-    expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    fireEvent.click(toggle)
-    expect(screen.getByText('Eliminar historial de reservas')).toBeDefined()
-    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const tab = screen.getByRole('tab', { name: 'Zona de peligro' })
+    expect(tab).toHaveAttribute('aria-selected', 'false')
+    const panel = screen.getByText('Eliminar historial de reservas').closest('div[class*="hidden"]')
+    expect(panel).not.toBeNull()
+    fireEvent.click(tab)
+    expect(tab).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Eliminar historial de reservas').closest('div[class*="hidden"]')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Zona de peligro' })).toBeNull() // no more collapsible button
+  })
+
+  it('the danger tab never shows the unsaved-changes dot (edge case)', async () => {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    expect(screen.getByRole('tab', { name: 'Zona de peligro' }).textContent).not.toContain('sin guardar')
   })
 })

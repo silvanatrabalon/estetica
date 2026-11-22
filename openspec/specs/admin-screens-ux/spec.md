@@ -40,3 +40,9 @@ Que la hora de un turno ya haya pasado (estado "completado") NO SHALL impedir qu
 
 ### Requirement: Gift Card (admin)
 El menú del admin SHALL tener "Gift Card" (`/admin/gift-cards`, solo admin), una pantalla para generar la imagen de una gift card para regalar. Se completa: **Para** (obligatorio), **De parte de** (opcional), **qué se regala** (un servicio activo, o un monto en pesos; obligatorio uno de los dos), **mensaje** corto (opcional), **válida hasta** (opcional) y el **estilo** (Rosa, Dorado, Lila). El diseño es apaisado (1600×1000, no formato historia), con papel claro, lazo, el logo y nombre del negocio, "GIFT CARD" grande, para quién, el servicio o monto, de parte de, el mensaje y la vigencia. Se ve una vista previa que se actualiza al escribir y se descarga como PNG con el nombre de quien la recibe. Los textos largos se recortan o parten sin pisarse; si el logo no carga, sale sin él; si el navegador no puede generar el PNG se avisa.
+
+### Requirement: Menú lateral ocultable en desktop
+En desktop (pantallas medianas en adelante) el menú lateral de los tres roles SHALL poder ocultarse y mostrarse con un botón de hamburguesa en la barra superior ("Ocultar menú lateral" / "Mostrar menú lateral"). Al ocultarlo el contenido ocupa todo el ancho. La elección se recuerda en el navegador; si este bloquea el almacenamiento, el menú vuelve a estar abierto al recargar. En el celular no cambia nada: el menú sigue abriéndose desde "Más".
+
+### Requirement: "Ir al sitio" al final del menú
+El menú lateral (desktop) y el menú del celular, de los tres roles, SHALL terminar con un único acceso "Ir al sitio →" que abre el sitio público (`/?sitio=1`). El marcador `?sitio` hace que admin y staff vean el sitio en lugar de ser redirigidos a su panel, y en ese caso se muestra un botón "← Volver al panel". Para clientes y visitantes el sitio se ve igual que siempre. Al usarlo en el celular se cierra el menú.

@@ -19,12 +19,7 @@ export function StaffDashboard() {
   })()
 
   return (
-    <div className="mx-auto max-w-6xl space-y-3 sm:space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xs font-normal leading-tight text-shell-subtleText sm:text-sm">{formattedDate}</h1>
-        <TodayTotalLink count={agenda.stats.today} loading={agenda.loading} to={`${AGENDA_PATH}?periodo=today`} />
-      </div>
-
+    <div className="mx-auto -mt-2 max-w-6xl space-y-3 sm:-mt-3">
       <TodayAgenda
         items={agenda.items}
         featured={agenda.featured}
@@ -34,6 +29,8 @@ export function StaffDashboard() {
         error={agenda.error}
         detailHref={detailHref}
         hideStaffName
+        subtitle={<h1 className="text-xs font-normal leading-tight text-shell-subtleText sm:text-sm">{formattedDate}</h1>}
+        headerRight={<TodayTotalLink count={agenda.stats.today} loading={agenda.loading} to={`${AGENDA_PATH}?periodo=today`} />}
       />
     </div>
   )

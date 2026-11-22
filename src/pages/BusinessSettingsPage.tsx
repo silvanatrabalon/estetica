@@ -119,7 +119,7 @@ export function BusinessSettingsPage() {
   const [savedPolicy, setSavedPolicy] = useState<PolicySnapshot>({ minNotice: 60, maxHorizon: 60, email: '', enabled: true })
   const [closureDraft, setClosureDraft] = useState<ClosureDraft>(emptyClosureDraft())
   const [missingReadiness, setMissingReadiness] = useState<string[]>([])
-  const [activeTab, setActiveTab] = useState<'identity' | 'hours' | 'closures' | 'policy'>('identity')
+  const [activeTab, setActiveTab] = useState<'identity' | 'hours' | 'closures' | 'policy' | 'danger'>('identity')
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   const [isSavingClosure, setIsSavingClosure] = useState(false)
@@ -137,7 +137,6 @@ export function BusinessSettingsPage() {
   }>({ isOpen: false, message: '', title: 'Confirmar', onConfirm: () => {} })
 
   // ── Danger zone state ──────────────────────────────────────────────────────
-  const [dangerOpen, setDangerOpen] = useState(false)
   const [deleteStep, setDeleteStep] = useState<0 | 1 | 2>(0)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
@@ -475,6 +474,15 @@ export function BusinessSettingsPage() {
         </svg>
       ),
     },
+    {
+      key: 'danger' as const,
+      label: 'Zona de peligro',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" />
+        </svg>
+      ),
+    },
   ]
 
   return (
@@ -518,14 +526,18 @@ export function BusinessSettingsPage() {
               className={cn(
                 'relative flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-primary sm:px-3',
                 activeTab === tab.key
-                  ? 'bg-brand-primary text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
+                  ? tab.key === 'danger'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'bg-brand-primary text-white shadow-sm'
+                  : tab.key === 'danger'
+                    ? 'text-red-600 hover:bg-red-50'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
               )}
             >
               {/* Icons only where there is room; on phones the four labels need the space */}
               <span className="hidden sm:inline-flex">{tab.icon}</span>
               <span>{tab.label}</span>
-              {dirtyByTab[tab.key] && (
+              {tab.key !== 'danger' && dirtyByTab[tab.key] && (
                 <>
                   <span aria-hidden="true" className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-amber-400" />
                   <span className="sr-only"> (con cambios sin guardar)</span>
@@ -928,46 +940,29 @@ export function BusinessSettingsPage() {
       />
 
       {/* ── ZONA DE PELIGRO ── */}
-      <div className="mt-6">
-        <button
-          type="button"
-          onClick={() => setDangerOpen((v) => !v)}
-          aria-expanded={dangerOpen}
-          className="flex w-full items-center justify-between rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50"
-        >
-          <span>Zona de peligro</span>
-          <svg
-            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-            className={cn('transition-transform', dangerOpen ? 'rotate-180' : '')}
-            aria-hidden="true"
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
+      <div className={activeTab !== 'danger' ? 'hidden' : ''}>
+        <div className="space-y-3 rounded-2xl border border-red-200 bg-white p-4">
+          <h3 className="text-sm font-semibold text-red-700">Zona de peligro</h3>
+          {deleteSuccess && (
+            <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {deleteSuccess}
+            </p>
+          )}
 
-        {dangerOpen && (
-          <div className="mt-2 space-y-3 rounded-xl border border-red-200 bg-white p-4">
-            {deleteSuccess && (
-              <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-                {deleteSuccess}
-              </p>
-            )}
-
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Eliminar historial de reservas</p>
-              <p className="mt-1 text-sm text-gray-500">
-                Elimina permanentemente todos los turnos del sistema. Esta acción no se puede deshacer.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => { setDeleteStep(1); setDeleteSuccess(null); setDeleteError(null) }}
-              className="w-full rounded-lg border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 sm:w-auto"
-            >
-              Eliminar historial
-            </button>
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Eliminar historial de reservas</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Elimina permanentemente todos los turnos del sistema. Esta acción no se puede deshacer.
+            </p>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={() => { setDeleteStep(1); setDeleteSuccess(null); setDeleteError(null) }}
+            className="w-full rounded-lg border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 sm:w-auto"
+          >
+            Eliminar historial
+          </button>
+        </div>
       </div>
 
       {/* First confirmation dialog */}

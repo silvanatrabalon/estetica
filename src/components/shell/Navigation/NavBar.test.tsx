@@ -14,11 +14,18 @@ vi.mock('../../../services/brand', () => ({
 
 type Session = typeof mockSessions.authenticatedAdmin
 
-function wrap(ui: React.ReactNode, session: Session = mockSessions.authenticatedAdmin, onToggle = vi.fn()) {
+function wrap(
+  ui: React.ReactNode,
+  session: Session = mockSessions.authenticatedAdmin,
+  onToggle = vi.fn(),
+  sidebar: { isSidebarOpen?: boolean; onToggleSidebar?: () => void } = {},
+) {
   return render(
     <MemoryRouter>
       <TestUserProvider user={session.user} roles={session.roles} activeRole={session.activeRole} isLoading={false}>
-        <TestShellProvider onToggleMobileMenu={onToggle}>{ui}</TestShellProvider>
+        <TestShellProvider onToggleMobileMenu={onToggle} {...sidebar}>
+          {ui}
+        </TestShellProvider>
       </TestUserProvider>
     </MemoryRouter>,
   )
@@ -77,5 +84,74 @@ describe.each([
   it('leaves room under the content so the last row is not hidden by the bar (edge case)', () => {
     wrap(<Shell>contenido final</Shell>, session)
     expect(screen.getByText('contenido final').className).toContain('pb-20')
+  })
+})
+
+describe.each([
+  ['admin', AdminShell, mockSessions.authenticatedAdmin],
+  ['staff', StaffShell, mockSessions.authenticatedStaff],
+  ['customer', CustomerShell, mockSessions.authenticatedCustomer],
+] as const)('%s shell: side menu on desktop', (_role, Shell, session) => {
+  it('has a button that hides the menu and the layout uses the full width once hidden', () => {
+    const onToggleSidebar = vi.fn()
+    const { container, rerender } = wrap(<Shell>contenido</Shell>, session, vi.fn(), { onToggleSidebar })
+    const hide = screen.getByRole('button', { name: 'Ocultar menú lateral' })
+    expect(hide).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('complementary', { name: 'Navegación principal' }).className).not.toContain('md:hidden')
+    expect(container.firstElementChild!.className).toContain('md:grid-cols-[250px_1fr]')
+    fireEvent.click(hide)
+    expect(onToggleSidebar).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <MemoryRouter>
+        <TestUserProvider user={session.user} roles={session.roles} activeRole={session.activeRole} isLoading={false}>
+          <TestShellProvider isSidebarOpen={false}>
+            <Shell>contenido</Shell>
+          </TestShellProvider>
+        </TestUserProvider>
+      </MemoryRouter>,
+    )
+    expect(screen.getByRole('button', { name: 'Mostrar menú lateral' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.getByRole('complementary', { name: 'Navegación principal', hidden: true }).className).toContain('md:hidden')
+    expect(container.firstElementChild!.className).toContain('md:grid-cols-1')
+    expect(container.firstElementChild!.className).not.toContain('250px')
+  })
+
+  it('the phone menu still opens from "Más" even if the desktop menu is hidden (edge case)', () => {
+    const onToggle = vi.fn()
+    wrap(<Shell>contenido</Shell>, session, onToggle, { isSidebarOpen: false })
+    fireEvent.click(screen.getByRole('button', { name: /Más/ }))
+    expect(onToggle).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe.each([
+  ['admin', AdminShell, mockSessions.authenticatedAdmin],
+  ['staff', StaffShell, mockSessions.authenticatedStaff],
+  ['customer', CustomerShell, mockSessions.authenticatedCustomer],
+] as const)('%s shell: "Ir al sitio" at the end of the menu', (_role, Shell, session) => {
+  it('is the last entry of the side menu and opens the site', () => {
+    wrap(<Shell>contenido</Shell>, session)
+    const menu = screen.getByRole('complementary', { name: 'Navegación principal' })
+    const links = Array.from(menu.querySelectorAll('a'))
+    const last = links[links.length - 1]
+    expect(last.textContent).toContain('Ir al sitio')
+    expect(last).toHaveAttribute('href', '/?sitio=1')
+    expect(links.filter((a) => a.textContent?.includes('Ir al sitio'))).toHaveLength(1)
+  })
+
+  it('closes the phone menu when it is used (edge case)', () => {
+    const onClose = vi.fn()
+    render(
+      <MemoryRouter>
+        <TestUserProvider user={session.user} roles={session.roles} activeRole={session.activeRole} isLoading={false}>
+          <TestShellProvider onCloseMobileMenu={onClose}>
+            <Shell>contenido</Shell>
+          </TestShellProvider>
+        </TestUserProvider>
+      </MemoryRouter>,
+    )
+    fireEvent.click(screen.getByRole('link', { name: /Ir al sitio/ }))
+    expect(onClose).toHaveBeenCalled()
   })
 })

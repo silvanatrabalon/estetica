@@ -28,7 +28,7 @@ describe('TodayAgenda', () => {
   it('shows the next appointment with its time, client, service and how soon it starts', () => {
     renderAgenda()
     expect(screen.getByRole('heading', { name: 'Siguiente turno de hoy' })).toBeInTheDocument()
-    const card = screen.getByRole('heading', { name: 'Siguiente turno de hoy' }).parentElement!
+    const card = screen.getByLabelText('Turnos de hoy')
     expect(within(card).getByText('10:30')).toBeInTheDocument()
     expect(within(card).getByText('en 12 min')).toBeInTheDocument()
     expect(within(card).getByText('Camila Ríos')).toBeInTheDocument()
@@ -67,7 +67,7 @@ describe('TodayAgenda', () => {
   it('shows a busy placeholder while loading (edge case)', () => {
     renderAgenda({ loading: true })
     expect(screen.getByLabelText('Turnos de hoy')).toHaveAttribute('aria-busy', 'true')
-    expect(screen.queryByRole('heading', { name: 'Siguiente turno de hoy' })).toBeNull()
+    expect(screen.queryByText('Semi permanentes')).toBeNull()
   })
 
   it('shows the error as an alert and no list (edge case)', () => {
@@ -80,6 +80,36 @@ describe('TodayAgenda', () => {
     const long = item('9', '2026-11-21T13:30:00Z', '2026-11-21T14:30:00Z', 'confirmed', 'María de los Ángeles Fernández de Kirchner', 'Semi permanentes')
     renderAgenda({ items: [long], featured: [long] })
     expect(screen.getByText('María de los Ángeles Fernández de Kirchner').className).not.toContain('truncate')
+  })
+
+  describe('header row', () => {
+    it('puts the title, the subtitle and the right part together in one row', () => {
+      renderAgenda({
+        subtitle: <h1>Sábado, 21 de noviembre de 2026</h1>,
+        headerRight: <a href="/x">14 turnos hoy</a>,
+      })
+      const title = screen.getByRole('heading', { level: 2, name: 'Siguiente turno de hoy' })
+      const row = title.parentElement!.parentElement!
+      expect(within(row).getByRole('heading', { level: 1 })).toHaveTextContent('Sábado, 21 de noviembre de 2026')
+      expect(within(row).getByRole('link', { name: '14 turnos hoy' })).toBeInTheDocument()
+    })
+
+    it('keeps the header while loading and on error, so the total never disappears (edge case)', () => {
+      const props = { subtitle: <h1>Fecha</h1>, headerRight: <span>14 turnos hoy</span> }
+      const { unmount } = renderAgenda({ ...props, loading: true })
+      expect(screen.getByText('14 turnos hoy')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Fecha')
+      unmount()
+      renderAgenda({ ...props, error: 'No pudimos cargar los turnos de hoy.' })
+      expect(screen.getByText('14 turnos hoy')).toBeInTheDocument()
+      expect(screen.getByRole('alert')).toBeInTheDocument()
+    })
+
+    it('works without subtitle or right part (edge case)', () => {
+      renderAgenda()
+      expect(screen.getByRole('heading', { level: 2 })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
+    })
   })
 
   describe('links to the appointment', () => {

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   clockTime,
@@ -15,6 +16,10 @@ interface TodayAgendaProps {
   error: string | null
   /** When set, the whole next-appointment card and each row link to the appointment's detail. */
   detailHref?: (appointmentId: string) => string
+  /** Small line under the title (the screen's date heading). */
+  subtitle?: ReactNode
+  /** Next to the title, on the same row (the day's total). */
+  headerRight?: ReactNode
   /** Hide "con {professional}" (the professional looking at their own agenda). */
   hideStaffName?: boolean
 }
@@ -28,8 +33,22 @@ export function TodayAgenda({
   loading,
   error,
   detailHref,
+  subtitle,
+  headerRight,
   hideStaffName = false,
 }: TodayAgendaProps) {
+  const header = (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="text-base font-extrabold leading-tight text-shell-text">
+          {featured.length > 1 ? 'Ahora y siguientes' : 'Siguiente turno de hoy'}
+        </h2>
+        {subtitle}
+      </div>
+      {headerRight}
+    </div>
+  )
+
   const nameOf = (id: string, name: string) =>
     detailHref ? (
       // Stretched link: the whole card or row (a `relative` parent) becomes the click target
@@ -45,7 +64,8 @@ export function TodayAgenda({
 
   if (loading) {
     return (
-      <section aria-label="Turnos de hoy" aria-busy="true" className="space-y-4">
+      <section aria-label="Turnos de hoy" aria-busy="true" className="space-y-3">
+        {header}
         <div className="h-32 animate-pulse rounded-3xl bg-shell-muted" />
         <div className="h-64 animate-pulse rounded-3xl bg-shell-muted" />
       </section>
@@ -54,7 +74,8 @@ export function TodayAgenda({
 
   if (error) {
     return (
-      <section aria-label="Turnos de hoy">
+      <section aria-label="Turnos de hoy" className="space-y-3">
+        {header}
         <p role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </p>
@@ -63,13 +84,11 @@ export function TodayAgenda({
   }
 
   return (
-    <section aria-label="Turnos de hoy" className="space-y-4 sm:space-y-6">
+    <section aria-label="Turnos de hoy" className="space-y-3">
+      {header}
       <div>
-        <h2 className="text-base font-extrabold text-shell-text">
-          {featured.length > 1 ? 'Ahora y siguientes' : 'Siguiente turno de hoy'}
-        </h2>
         {featured.length > 0 ? (
-          <div className="mt-2 space-y-2">
+          <div className="space-y-2">
             {featured.map((card) => (
               <div key={card.id} className="relative rounded-3xl bg-[var(--color-lilac)] p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -92,7 +111,7 @@ export function TodayAgenda({
             ))}
           </div>
         ) : (
-          <div className="mt-2 rounded-3xl bg-shell-muted p-5 text-shell-text">
+          <div className="rounded-3xl bg-shell-muted p-5 text-shell-text">
             <p className="text-lg font-bold">
               {items.length === 0 ? 'Hoy no tenés turnos.' : 'No quedan turnos por hoy.'}
             </p>

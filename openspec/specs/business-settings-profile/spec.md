@@ -147,3 +147,6 @@ The system MUST allow admins to configure an optional notification email address
 
 ### Requirement: The business chooses how it works
 Negocio > Horarios SHALL offer "Jornada corrida" and "Dos turnos" (`organizations.split_shifts`). With two shifts every open day has an optional "Turno matutino" and "Turno vespertino"; switching back to continuous asks for confirmation and merges every day into one window. See `split-shifts`.
+
+### Requirement: Zona de peligro como sección del menú de Negocio
+"Zona de peligro" SHALL ser una sección más del menú superior de Negocio (General, Horarios, Cierres, Política, Zona de peligro), en rojo, y no un desplegable al pie de la pantalla. Contiene "Eliminar historial de reservas", que sigue pidiendo doble confirmación (la segunda, escribir CONFIRMAR). Esta sección nunca muestra la marca de cambios sin guardar.

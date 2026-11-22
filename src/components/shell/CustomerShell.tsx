@@ -1,16 +1,24 @@
 import { ReactNode } from 'react'
 import { CUSTOMER_TABS, MobileTabBar, NavBar, Sidebar } from './Navigation'
 import { useNavigation } from '../../features/shell/hooks/useNavigation'
+import { useShellContext } from '../../features/shell/hooks/useShellContext'
+import { cn } from '../../lib'
 
 interface ShellProps {
   children: ReactNode
 }
 
 export function CustomerShell({ children }: ShellProps) {
+  const { isSidebarOpen } = useShellContext()
   const navItems = useNavigation('customer')
 
   return (
-    <div className="grid min-h-screen grid-cols-1 gap-0 bg-shell-base text-shell-text md:grid-cols-[250px_1fr]">
+    <div
+      className={cn(
+        'grid min-h-screen grid-cols-1 gap-0 bg-shell-base text-shell-text',
+        isSidebarOpen ? 'md:grid-cols-[250px_1fr]' : 'md:grid-cols-1',
+      )}
+    >
       <Sidebar items={navItems} />
       <div className="flex flex-col">
         <NavBar />

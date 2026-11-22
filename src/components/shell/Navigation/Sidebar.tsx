@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useShellContext } from '../../../features/shell/hooks/useShellContext'
 import type { NavItem } from '../../../features/shell/types'
 import { NavLink } from './NavLink'
@@ -9,7 +9,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ items }: SidebarProps) {
-  const { isMobileMenuOpen, closeMobileMenu } = useShellContext()
+  const { isMobileMenuOpen, closeMobileMenu, isSidebarOpen } = useShellContext()
 
   const location = useLocation()
   const currentPathname = location.pathname
@@ -42,13 +42,15 @@ export function Sidebar({ items }: SidebarProps) {
         id="primary-sidebar"
         aria-label="Navegación principal"
         className={cn(
-          'shell-surface fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 overflow-y-auto border-r md:relative md:top-0 md:h-screen',
+          'shell-surface fixed left-0 top-16 z-40 flex h-[calc(100vh-4rem)] w-64 flex-col overflow-y-auto border-r md:relative md:top-0 md:h-screen',
           'transform transition-transform transition-structural md:translate-x-0',
           'shadow-shell md:shadow-none',
-          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full',
+          // Desktop: hidden by the toggle in the top bar (the phone drawer is not affected)
+          !isSidebarOpen && 'md:hidden'
         )}
       >
-        <nav className="p-4 md:p-6" aria-label="Enlaces de navegación">
+        <nav className="flex-1 p-4 md:p-6" aria-label="Enlaces de navegación">
           {items.length === 0 ? (
             <div className="rounded-xl bg-shell-muted px-3 py-4 text-center text-sm text-shell-subtleText">
               No hay elementos de navegación
@@ -67,6 +69,18 @@ export function Sidebar({ items }: SidebarProps) {
             </ul>
           )}
         </nav>
+
+        {/* Last entry of the menu: the public website. The marker lets admin and staff see it instead of being sent back home. */}
+        <div className="border-t border-shell-border p-4 md:px-6">
+          <Link
+            to="/?sitio=1"
+            onClick={handleNavigation}
+            className="transition-micro flex min-h-11 items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold text-brand-primary hover:bg-shell-muted"
+          >
+            Ir al sitio
+            <span aria-hidden="true">→</span>
+          </Link>
+        </div>
       </aside>
     </>
   )

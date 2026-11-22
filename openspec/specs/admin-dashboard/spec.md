@@ -135,3 +135,6 @@ Para el rol staff la sección SHALL llamarse "Turnos" (no "Agenda") y ser la mis
 
 ### Requirement: Cambiar de rol lleva al Inicio
 Al elegir un rol (por ejemplo pasar a staff) la app SHALL llevar a su Inicio: `/dashboard` para cliente y staff, `/admin/dashboard` para admin.
+
+### Requirement: Encabezado compacto del Inicio
+En el Inicio (admin y staff) la fecha y el total de hoy SHALL ir en la misma fila que el título "Ahora y siguientes" (o "Siguiente turno de hoy"): el título con la fecha chica debajo a la izquierda, y el indicador "N turnos hoy" a la derecha. No hay filas separadas para la fecha y el título, y el espacio sobre el encabezado se reduce. La fila se mantiene mientras carga y si hay error.

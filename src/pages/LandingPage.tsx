@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 import { getLandingConfig, getUpcomingClosures } from '../services/landing'
 import { getPublicSocialLinks } from '../services/socialLinks'
@@ -507,6 +507,9 @@ function ContactFooter({ socialLinks }: ContactFooterProps) {
 
 export function LandingPage() {
   const { user, activeRole, isLoading: authLoading } = useUser()
+  // "Ir al sitio" in the menu opens the site with ?sitio so admin and staff can see it
+  const [searchParams] = useSearchParams()
+  const viewingSite = searchParams.has('sitio')
   const [config, setConfig] = useState<LandingConfig | null>(null)
   const [services, setServices] = useState<Service[]>([])
   const [hours, setHours] = useState<BusinessHourRow[]>([])
@@ -688,7 +691,7 @@ export function LandingPage() {
 
   // Redirect admin/staff to their home. This must come after every hook: the role can change
   // while the page is mounted, and returning earlier would change the number of hooks.
-  if (!authLoading && (activeRole === 'admin' || activeRole === 'staff')) {
+  if (!authLoading && !viewingSite && (activeRole === 'admin' || activeRole === 'staff')) {
     return <Navigate to={resolveRoleHomePath(activeRole)} replace />
   }
 
@@ -705,6 +708,14 @@ export function LandingPage() {
       } as React.CSSProperties}
       className="min-h-screen"
     >
+      {viewingSite && (activeRole === 'admin' || activeRole === 'staff') && (
+        <Link
+          to={resolveRoleHomePath(activeRole)}
+          className="fixed left-3 top-3 z-50 rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-slate-800 shadow-lg ring-1 ring-black/10 hover:bg-white"
+        >
+          ← Volver al panel
+        </Link>
+      )}
       {todayClosure && <TodayClosureBanner closure={todayClosure} />}
       <HeroSection
         config={effectiveConfig}

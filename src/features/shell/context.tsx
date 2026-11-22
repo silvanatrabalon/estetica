@@ -11,13 +11,36 @@ export interface ShellContextValue {
   closeUserMenu: () => void
 }
 
+const SIDEBAR_KEY = 'shell.sidebarOpen'
+
+function readSidebarPreference(): boolean {
+  try {
+    return window.localStorage.getItem(SIDEBAR_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
+
+function writeSidebarPreference(open: boolean): void {
+  try {
+    window.localStorage.setItem(SIDEBAR_KEY, String(open))
+  } catch {
+    // Private mode or blocked storage: the menu just goes back to open on reload
+  }
+}
+
 export const ShellContext = createContext<ShellContextValue | undefined>(undefined)
 
 export function ShellProvider({ children }: { children: ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  // Desktop only: the side menu can be hidden, and the choice is remembered in this browser.
+  const [isSidebarOpen, setIsSidebarOpen] = useState(readSidebarPreference)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
-  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev)
+  const toggleSidebar = () =>
+    setIsSidebarOpen((prev) => {
+      writeSidebarPreference(!prev)
+      return !prev
+    })
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
 
   // Only one overlay menu at a time: opening one closes the other.

@@ -20,23 +20,13 @@ export function AdminDashboardPage() {
   })()
 
   return (
-    <div className="mx-auto max-w-6xl space-y-3 sm:space-y-6">
+    <div className="mx-auto -mt-2 max-w-6xl space-y-3 sm:-mt-3">
       {/* Stats error */}
       {statsError && (
         <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-red-700 text-sm">
           {statsError}
         </div>
       )}
-
-      {/* The date is the page heading, so the screen still has an h1 for assistive tech */}
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xs font-normal leading-tight text-shell-subtleText sm:text-sm">{formattedDate}</h1>
-        <TodayTotalLink
-          count={stats?.todayCount ?? 0}
-          loading={statsLoading}
-          to="/admin/appointments?periodo=today"
-        />
-      </div>
 
       <TodayAgenda
         items={agenda.items}
@@ -46,6 +36,17 @@ export function AdminDashboardPage() {
         loading={agenda.loading}
         error={agenda.error}
         detailHref={(id) => `/admin/appointments/${id}`}
+        subtitle={
+          // The date is the page heading, so the screen still has an h1 for assistive tech
+          <h1 className="text-xs font-normal leading-tight text-shell-subtleText sm:text-sm">{formattedDate}</h1>
+        }
+        headerRight={
+          <TodayTotalLink
+            count={stats?.todayCount ?? 0}
+            loading={statsLoading}
+            to="/admin/appointments?periodo=today"
+          />
+        }
       />
     </div>
   )
