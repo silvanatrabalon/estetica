@@ -3,9 +3,12 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { BookingForWhom } from './BookingForWhom'
 import type { BookingTarget } from '../../lib/bookingTarget'
 
+const account = { kind: 'account' as const, phone: null, isActive: true }
 const clients = [
-  { userId: 'u1', name: 'Ana Pérez', email: 'ana@mail.com' },
-  { userId: 'u2', name: '', email: 'sin-nombre@mail.com' },
+  { ...account, userId: 'u1', name: 'Ana Pérez', email: 'ana@mail.com' },
+  { ...account, userId: 'u2', name: '', email: 'sin-nombre@mail.com' },
+  { ...account, userId: 'u3', name: 'Maxi', email: null, isActive: false },
+  { kind: 'guest' as const, userId: null, name: 'Rosa Gómez', email: 'rosa@mail.com', phone: '1155', isActive: true },
 ]
 
 function setup(value: BookingTarget, extra: Partial<React.ComponentProps<typeof BookingForWhom>> = {}) {
@@ -46,6 +49,27 @@ describe('BookingForWhom', () => {
     expect(screen.getByText(/a nombre del cliente, no tuyo/)).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Cliente'), { target: { value: 'u1' } })
     expect(onChange).toHaveBeenCalledWith({ kind: 'client', userId: 'u1' })
+  })
+
+  it('also lists deactivated accounts and people without account, flagged (edge case)', () => {
+    setup({ kind: 'client', userId: '' })
+    expect(screen.getByRole('option', { name: 'Maxi · inactivo' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Rosa Gómez (rosa@mail.com) · sin cuenta' })).toBeInTheDocument()
+  })
+
+  it('choosing a person without account fills "Otra persona" with their data', () => {
+    const onChange = setup({ kind: 'client', userId: '' })
+    fireEvent.change(screen.getByLabelText('Cliente'), { target: { value: 'guest:3' } })
+    expect(onChange).toHaveBeenCalledWith({ kind: 'guest', name: 'Rosa Gómez', phone: '1155', email: 'rosa@mail.com' })
+  })
+
+  it('a guest without phone or email fills empty strings (edge case)', () => {
+    const onChange = setup(
+      { kind: 'client', userId: '' },
+      { clients: [{ kind: 'guest', userId: null, name: 'Sola', email: null, phone: null, isActive: true }] },
+    )
+    fireEvent.change(screen.getByLabelText('Cliente'), { target: { value: 'guest:0' } })
+    expect(onChange).toHaveBeenCalledWith({ kind: 'guest', name: 'Sola', phone: '', email: '' })
   })
 
   it('shows loading and error states for the client list (edge cases)', () => {

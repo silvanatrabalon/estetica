@@ -267,4 +267,43 @@ describe('BookingConfirmationPage', () => {
       expect(screen.queryByText(/Turno reservado/)).toBeNull()
     })
   })
+
+  describe('where "see appointments" leads', () => {
+    function renderAs(session: typeof mockSessions.authenticatedCustomer | typeof mockSessions.authenticatedAdmin) {
+      return render(
+        <TestUserProvider {...session}>
+          <MemoryRouter initialEntries={[`/booking/confirmation/${APPOINTMENT_ID}`]}>
+            <Routes>
+              <Route path="/booking/confirmation/:appointmentId" element={<BookingConfirmationPage />} />
+            </Routes>
+          </MemoryRouter>
+        </TestUserProvider>,
+      )
+    }
+
+    it('a client goes to "Mis turnos"', async () => {
+      mockGetAppointment.mockResolvedValue(mockDetail)
+      renderAs(mockSessions.authenticatedCustomer)
+      expect(await screen.findByRole('link', { name: 'Ver mis turnos' })).toHaveAttribute('href', '/appointments')
+    })
+
+    it('an admin goes to Turnos, not to the client-only page', async () => {
+      mockGetAppointment.mockResolvedValue({ ...mockDetail, customerUserId: 'someone-else' })
+      renderAs(mockSessions.authenticatedAdmin)
+      expect(await screen.findByRole('link', { name: 'Ver turnos' })).toHaveAttribute('href', '/admin/appointments')
+      expect(screen.queryByRole('link', { name: 'Ver mis turnos' })).toBeNull()
+    })
+
+    it('staff go to their agenda (edge case)', async () => {
+      mockGetAppointment.mockResolvedValue({ ...mockDetail, customerUserId: 'someone-else' })
+      renderAs(mockSessions.authenticatedStaff)
+      expect(await screen.findByRole('link', { name: 'Ver mi agenda' })).toHaveAttribute('href', '/staff/appointments')
+    })
+
+    it('a cancelled appointment also follows the role (edge case)', async () => {
+      mockGetAppointment.mockResolvedValue({ ...mockDetail, status: 'cancelled', customerUserId: 'someone-else' })
+      renderAs(mockSessions.authenticatedAdmin)
+      expect(await screen.findByRole('link', { name: 'Ver turnos' })).toHaveAttribute('href', '/admin/appointments')
+    })
+  })
 })

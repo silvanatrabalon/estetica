@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { BookingPage } from './BookingPage'
 import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
@@ -845,7 +845,10 @@ describe('BookingPage — booking for someone else (admin and staff)', () => {
     })
     mockGetAvailableDays.mockResolvedValue([{ day: todayKey(), slotCount: 3 }])
     mockGetAvailableSlots.mockResolvedValue([mockSlot])
-    mockListBookingClients.mockResolvedValue([{ userId: 'client-1', name: 'Ana Pérez', email: 'ana@mail.com' }])
+    mockListBookingClients.mockResolvedValue([
+      { kind: 'account', userId: 'client-1', name: 'Ana Pérez', email: 'ana@mail.com', phone: null, isActive: true },
+      { kind: 'guest', userId: null, name: 'Rosa Gómez', email: 'rosa@mail.com', phone: '1155', isActive: true },
+    ])
     mockCreateAppointment.mockResolvedValue({ id: 'apt-1' })
   })
 
@@ -901,6 +904,21 @@ describe('BookingPage — booking for someone else (admin and staff)', () => {
     await waitFor(() =>
       expect(mockCreateAppointment).toHaveBeenCalledWith(
         expect.objectContaining({ guest: { name: 'Rosa Gómez', phone: '', email: 'rosa@mail.com' } }),
+      ),
+    )
+  })
+
+  it('picking a person without account from the list books for them as "Otra persona"', async () => {
+    await goToReview('admin')
+    fireEvent.click(screen.getByRole('radio', { name: 'Para un cliente' }))
+    const select = await screen.findByLabelText('Cliente')
+    await waitFor(() => expect(within(select).getAllByRole('option').length).toBeGreaterThan(2))
+    fireEvent.change(select, { target: { value: 'guest:1' } })
+    expect((screen.getByLabelText('Nombre') as HTMLInputElement).value).toBe('Rosa Gómez')
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
+    await waitFor(() =>
+      expect(mockCreateAppointment).toHaveBeenCalledWith(
+        expect.objectContaining({ guest: { name: 'Rosa Gómez', phone: '1155', email: 'rosa@mail.com' } }),
       ),
     )
   })

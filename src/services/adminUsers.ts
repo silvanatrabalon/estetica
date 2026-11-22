@@ -222,3 +222,95 @@ export async function adminRevokeUserRole(userId: string, role: AdminManagedRole
     throw error
   }
 }
+
+// ── Invitations: add a user before they sign in ──────────────────────────────
+
+export interface UserInvitation {
+  id: string
+  email: string
+  name: string | null
+  roles: AdminManagedRole[]
+  createdAt: string
+}
+
+export type InviteResult =
+  | { status: 'invited'; invitationId: string }
+  | { status: 'exists'; userId: string }
+
+const INVITE_ERRORS: Record<string, string> = {
+  INVITE_EMAIL_INVALID: 'El email no parece válido.',
+  INVITE_NAME_INVALID: 'El nombre no puede superar los 80 caracteres.',
+  INVITE_ROLES_REQUIRED: 'Elegí al menos un rol.',
+  INVITE_ALREADY_PENDING: 'Ya hay una invitación pendiente para ese email.',
+  INVITE_NOT_FOUND: 'No encontramos esa invitación.',
+}
+
+/** Spanish message for the invitation errors coming from the database. */
+export function translateInviteError(message: string): string {
+  for (const [code, text] of Object.entries(INVITE_ERRORS)) {
+    if (message.includes(code)) return text
+  }
+  return 'No pudimos guardar la invitación. Intentá de nuevo.'
+}
+
+/**
+ * Saves an invitation: when the person signs in for the first time with this email they get the
+ * given roles. If the email already has an account nothing is created and `exists` is returned.
+ */
+export async function adminInviteUser(
+  email: string,
+  name: string,
+  roles: AdminManagedRole[],
+): Promise<InviteResult> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('admin_invite_user', {
+    p_email: email,
+    p_full_name: name.trim() || null,
+    p_roles: roles,
+  })
+
+  if (error) {
+    throw new Error(translateInviteError(error.message))
+  }
+
+  const row = ((data ?? []) as Array<{ status: string; user_id: string | null; invitation_id: string | null }>)[0]
+  if (row?.status === 'exists' && row.user_id) {
+    return { status: 'exists', userId: row.user_id }
+  }
+  if (row?.status === 'invited' && row.invitation_id) {
+    return { status: 'invited', invitationId: row.invitation_id }
+  }
+  throw new Error(translateInviteError(''))
+}
+
+export async function adminListUserInvitations(): Promise<UserInvitation[]> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('admin_list_user_invitations')
+
+  if (error) {
+    throw new Error(translateInviteError(error.message))
+  }
+
+  return ((data ?? []) as Array<{
+    id: string
+    email: string
+    full_name: string | null
+    roles: AdminManagedRole[]
+    created_at: string
+  }>).map((row) => ({
+    id: row.id,
+    email: row.email,
+    name: row.full_name,
+    roles: row.roles,
+    createdAt: row.created_at,
+  }))
+}
+
+export async function adminDeleteUserInvitation(id: string): Promise<void> {
+  const supabase = initSupabase()
+  const { error } = await supabase.rpc('admin_delete_user_invitation', { p_id: id })
+
+  if (error) {
+    throw new Error(translateInviteError(error.message))
+  }
+}

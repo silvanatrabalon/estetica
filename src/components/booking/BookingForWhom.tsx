@@ -71,12 +71,23 @@ export function BookingForWhom({ value, onChange, clients, loading, error, valid
               id="booking-client"
               value={value.userId}
               disabled={loading}
-              onChange={(e) => onChange({ kind: 'client', userId: e.target.value })}
+              onChange={(e) => {
+                const picked = e.target.value
+                if (picked.startsWith('guest:')) {
+                  // A person without account booked before: switch to "Otra persona" with their data
+                  const guest = clients[Number(picked.slice('guest:'.length))]
+                  if (guest) {
+                    onChange({ kind: 'guest', name: guest.name, phone: guest.phone ?? '', email: guest.email ?? '' })
+                    return
+                  }
+                }
+                onChange({ kind: 'client', userId: picked })
+              }}
               className={fieldCls}
             >
               <option value="">{loading ? 'Cargando clientes…' : 'Elegí un cliente'}</option>
-              {clients.map((c) => (
-                <option key={c.userId} value={c.userId}>
+              {clients.map((c, index) => (
+                <option key={c.userId ?? `guest-${index}`} value={c.userId ?? `guest:${index}`}>
                   {clientLabel(c)}
                 </option>
               ))}
@@ -84,10 +95,12 @@ export function BookingForWhom({ value, onChange, clients, loading, error, valid
           )}
           {!loading && !error && clients.length === 0 && (
             <p className="mt-1 text-xs text-shell-subtleText">
-              Todavía no hay clientes con cuenta. Usá “Otra persona” para cargar el nombre.
+              Todavía no hay clientes. Usá “Otra persona” para cargar el nombre.
             </p>
           )}
-          <p className="mt-2 text-xs text-shell-subtleText">El turno queda a nombre del cliente, no tuyo.</p>
+          <p className="mt-2 text-xs text-shell-subtleText">
+            El turno queda a nombre del cliente, no tuyo. Las personas “sin cuenta” son las que ya cargaste antes.
+          </p>
         </div>
       )}
 

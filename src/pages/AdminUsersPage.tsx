@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '../lib/cn'
 import { commonCopy } from '../lib/uiCopy'
 import { roleLabel } from '../lib/adminUsersView'
 import { isLastActiveAdminDeactivation } from '../lib/adminUserPolicies'
 import {
+  adminDeleteUserInvitation,
+  adminInviteUser,
+  adminListUserInvitations,
   adminSetUserActive,
   listAdminUsers,
   type AdminManagedRole,
   type AdminManagedUser,
+  type UserInvitation,
 } from '../services/adminUsers'
 import { ConfirmModal } from '../components/ConfirmModal'
 
@@ -42,6 +46,15 @@ export function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [loadFailed, setLoadFailed] = useState(false)
+
+  // Add a user before they have signed in
+  const [invitations, setInvitations] = useState<UserInvitation[]>([])
+  const [isInviteOpen, setIsInviteOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
+  const [inviteRoles, setInviteRoles] = useState<AdminManagedRole[]>(['customer'])
+  const [isInviting, setIsInviting] = useState(false)
+  const [existingUserId, setExistingUserId] = useState<string | null>(null)
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean
     title: string
@@ -85,6 +98,7 @@ export function AdminUsersPage() {
     setLoadFailed(false)
     try {
       setUsers(await listAdminUsers())
+      setInvitations(await adminListUserInvitations().catch(() => []))
     } catch {
       setLoadFailed(true)
       setErrorMessage('No pudimos cargar la gestión de usuarios en este momento.')
@@ -139,6 +153,67 @@ export function AdminUsersPage() {
     )
   }
 
+  const openInvite = () => {
+    setIsInviteOpen(true)
+    setInviteEmail('')
+    setInviteName('')
+    setInviteRoles(['customer'])
+    setExistingUserId(null)
+    setErrorMessage(null)
+    setSuccessMessage(null)
+  }
+
+  const toggleInviteRole = (role: AdminManagedRole) =>
+    setInviteRoles((current) => (current.includes(role) ? current.filter((r) => r !== role) : [...current, role]))
+
+  const handleInviteSubmit = async (event: FormEvent) => {
+    event.preventDefault()
+    setErrorMessage(null)
+    setSuccessMessage(null)
+    setExistingUserId(null)
+
+    if (inviteRoles.length === 0) {
+      setErrorMessage('Elegí al menos un rol.')
+      return
+    }
+
+    setIsInviting(true)
+    try {
+      const result = await adminInviteUser(inviteEmail, inviteName, inviteRoles)
+      if (result.status === 'exists') {
+        setExistingUserId(result.userId)
+        setErrorMessage('Ese email ya tiene cuenta. Para cambiar sus roles usá "Editar roles".')
+        return
+      }
+      setInvitations(await adminListUserInvitations().catch(() => invitations))
+      setSuccessMessage(`Listo. Cuando ${inviteEmail.trim().toLowerCase()} entre a la app, ya tiene sus roles.`)
+      setIsInviteOpen(false)
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'No pudimos guardar la invitación.')
+    } finally {
+      setIsInviting(false)
+    }
+  }
+
+  const handleDeleteInvitation = (invitation: UserInvitation) => {
+    showConfirm(
+      'Quitar invitación',
+      `¿Quitás la invitación de ${invitation.email}? Si tenía el rol de staff, también se quita su ficha de profesional (salvo que ya tenga turnos).`,
+      async () => {
+        closeConfirm()
+        setErrorMessage(null)
+        setSuccessMessage(null)
+        try {
+          await adminDeleteUserInvitation(invitation.id)
+          setInvitations((current) => current.filter((i) => i.id !== invitation.id))
+          setSuccessMessage('Invitación quitada.')
+        } catch (err) {
+          setErrorMessage(err instanceof Error ? err.message : 'No pudimos quitar la invitación.')
+        }
+      },
+    )
+  }
+
   const chipClass = (active: boolean) =>
     cn(
       'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
@@ -149,11 +224,22 @@ export function AdminUsersPage() {
 
   return (
     <section className="space-y-4">
-      <div>
+      <div className="flex items-start justify-between gap-3">
+        <div>
         <h2 className="font-heading text-2xl font-semibold text-shell-text">Usuarios y roles</h2>
         <p className="mt-1 text-sm text-shell-subtleText">
           Quién tiene cuenta y si está activa. Para cambiar los roles o los datos de alguien, usá “Editar roles”.
         </p>
+        </div>
+        {!isInviteOpen && (
+          <button
+            type="button"
+            onClick={openInvite}
+            className="shrink-0 rounded-xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+          >
+            + Agregar usuario
+          </button>
+        )}
       </div>
 
       {errorMessage ? (
@@ -175,6 +261,118 @@ export function AdminUsersPage() {
           {successMessage}
         </p>
       ) : null}
+
+      {existingUserId && (
+        <p className="text-sm">
+          <Link to={`/admin/users/${existingUserId}`} className="font-semibold text-brand-primary hover:underline">
+            Ir a Editar roles de esa cuenta
+          </Link>
+        </p>
+      )}
+
+      {isInviteOpen && (
+        <form
+          onSubmit={(e) => void handleInviteSubmit(e)}
+          noValidate
+          className="shell-surface space-y-3 rounded-2xl border p-4 shadow-sm"
+        >
+          <h3 className="text-base font-semibold text-shell-text">Agregar usuario</h3>
+          <p className="text-sm text-shell-subtleText">
+            Cuando esa persona entre a la app con este email, ya va a tener los roles que elijas.
+          </p>
+          <div>
+            <label htmlFor="invite-email" className="mb-1 block text-sm font-medium text-shell-text">
+              Email
+            </label>
+            <input
+              id="invite-email"
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text focus:border-brand-primary focus:outline-none"
+              placeholder="persona@gmail.com"
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label htmlFor="invite-name" className="mb-1 block text-sm font-medium text-shell-text">
+              Nombre <span className="font-normal text-shell-subtleText">(opcional)</span>
+            </label>
+            <input
+              id="invite-name"
+              value={inviteName}
+              onChange={(e) => setInviteName(e.target.value)}
+              className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text focus:border-brand-primary focus:outline-none"
+              autoComplete="off"
+            />
+          </div>
+          <fieldset>
+            <legend className="mb-1 text-sm font-medium text-shell-text">Roles</legend>
+            <div className="flex flex-wrap gap-2">
+              {(['admin', 'staff', 'customer'] as const).map((role) => (
+                <label
+                  key={role}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-shell-border px-3 py-2 text-sm text-shell-text hover:bg-shell-muted"
+                >
+                  <input
+                    type="checkbox"
+                    checked={inviteRoles.includes(role)}
+                    onChange={() => toggleInviteRole(role)}
+                    className="h-4 w-4 rounded accent-teal-600"
+                  />
+                  {roleLabel(role)}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <div className="flex gap-3 pt-1">
+            <button
+              type="submit"
+              disabled={isInviting}
+              className="rounded-lg bg-brand-primary px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {isInviting ? 'Guardando…' : 'Guardar'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsInviteOpen(false)}
+              className="rounded-lg border border-shell-border px-4 py-2 text-sm font-medium text-shell-text hover:bg-shell-muted"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
+      {invitations.length > 0 && (
+        <section aria-label="Invitaciones pendientes" className="shell-surface rounded-2xl border p-4 shadow-sm">
+          <h3 className="mb-2 text-sm font-semibold text-shell-text">Invitaciones pendientes</h3>
+          <ul className="divide-y divide-shell-border">
+            {invitations.map((invitation) => (
+              <li key={invitation.id} className="flex items-center justify-between gap-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-shell-text">{invitation.name || invitation.email}</p>
+                  {invitation.name && <p className="truncate text-xs text-shell-subtleText">{invitation.email}</p>}
+                  <p className="text-xs text-shell-subtleText">{invitation.roles.map(roleLabel).join(', ')}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 text-xs font-semibold">
+                  <span className="rounded-full bg-[var(--color-peach)] px-2 py-0.5 text-[11px] text-[var(--color-peach-ink)]">
+                    Invitación pendiente
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteInvitation(invitation)}
+                    aria-label={`Quitar la invitación de ${invitation.email}`}
+                    className="text-red-500 hover:underline"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="shell-surface rounded-2xl border p-4 shadow-sm">
         <input

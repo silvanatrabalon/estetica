@@ -29,7 +29,7 @@ interface AppointmentRow {
   guest_name: string | null
   guest_email: string | null
   service: { name: string } | null
-  staff: { display_name: string; profile_user_id: string | null } | null
+  staff: { display_name: string; profile_user_id: string | null; invite_email: string | null } | null
   org: { name: string; timezone: string | null; notification_email: string | null } | null
 }
 
@@ -76,7 +76,7 @@ Deno.serve(async (req: Request) => {
   const { data, error } = await admin
     .from('appointments')
     .select(
-      'id, starts_at, ends_at, customer_user_id, guest_name, guest_email, service:services(name), staff:staff_members(display_name, profile_user_id), org:organizations(name, timezone, notification_email)',
+      'id, starts_at, ends_at, customer_user_id, guest_name, guest_email, service:services(name), staff:staff_members(display_name, profile_user_id, invite_email), org:organizations(name, timezone, notification_email)',
     )
     .eq('id', appointmentId)
     .maybeSingle()
@@ -111,6 +111,9 @@ Deno.serve(async (req: Request) => {
   if (appt.staff?.profile_user_id) {
     const { data: staffRes } = await admin.auth.admin.getUserById(appt.staff.profile_user_id)
     staffEmail = staffRes?.user?.email ?? null
+  } else {
+    // A professional without account: use the email saved on the professional (any provider)
+    staffEmail = appt.staff?.invite_email ?? null
   }
 
   const recipients = buildRecipients({

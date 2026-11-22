@@ -7,10 +7,16 @@ import { mockSessions } from '../hooks/__test-utils__/fixtures'
 
 const mockListAdminUsers = vi.fn()
 const mockAdminSetUserActive = vi.fn()
+const mockListInvitations = vi.fn()
+const mockInviteUser = vi.fn()
+const mockDeleteInvitation = vi.fn()
 
 vi.mock('../services/adminUsers', () => ({
   listAdminUsers: (...args: unknown[]) => mockListAdminUsers(...args),
   adminSetUserActive: (...args: unknown[]) => mockAdminSetUserActive(...args),
+  adminListUserInvitations: (...args: unknown[]) => mockListInvitations(...args),
+  adminInviteUser: (...args: unknown[]) => mockInviteUser(...args),
+  adminDeleteUserInvitation: (...args: unknown[]) => mockDeleteInvitation(...args),
 }))
 
 function renderPage(state?: unknown) {
@@ -48,6 +54,7 @@ const admin = {
 describe('AdminUsersPage (simple directory)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockListInvitations.mockResolvedValue([])
   })
 
   it('lists users with email, roles and status', async () => {
@@ -234,6 +241,107 @@ describe('AdminUsersPage (simple directory)', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Inactivos' }))
       fireEvent.change(screen.getByLabelText('Buscar usuarios'), { target: { value: 'sofia' } })
       expect(screen.getByText('No se encontraron usuarios con ese criterio.')).toBeDefined()
+    })
+  })
+
+  describe('add a user (invitation)', () => {
+    const pending = {
+      id: 'i1',
+      email: 'nora@mail.com',
+      name: 'Nora Díaz',
+      roles: ['admin', 'staff'],
+      createdAt: '2026-11-21T00:00:00Z',
+    }
+
+    async function openForm() {
+      mockListAdminUsers.mockResolvedValue([ana])
+      renderPage()
+      await screen.findByText('Ana')
+      fireEvent.click(screen.getByRole('button', { name: '+ Agregar usuario' }))
+    }
+
+    it('offers email, name and the three roles, with "Cliente" checked by default', async () => {
+      await openForm()
+      expect(screen.getByLabelText('Email')).toBeDefined()
+      expect(screen.getByLabelText(/Nombre/)).toBeDefined()
+      expect(screen.getByRole('checkbox', { name: 'Cliente' })).toBeChecked()
+      expect(screen.getByRole('checkbox', { name: 'Staff' })).not.toBeChecked()
+      expect(screen.getByRole('checkbox', { name: 'Administrador' })).not.toBeChecked()
+    })
+
+    it('saves the invitation with the chosen roles and says what happens next', async () => {
+      mockInviteUser.mockResolvedValue({ status: 'invited', invitationId: 'i1' })
+      await openForm()
+      mockListInvitations.mockResolvedValue([pending])
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'Nora@Mail.com' } })
+      fireEvent.change(screen.getByLabelText(/Nombre/), { target: { value: 'Nora Díaz' } })
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Cliente' }))
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Administrador' }))
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Staff' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+      await waitFor(() => expect(mockInviteUser).toHaveBeenCalledWith('Nora@Mail.com', 'Nora Díaz', ['admin', 'staff']))
+      expect(await screen.findByText(/Cuando nora@mail.com entre a la app, ya tiene sus roles/)).toBeDefined()
+      expect(screen.getByText('Invitación pendiente')).toBeDefined()
+    })
+
+    it('needs at least one role (edge case)', async () => {
+      await openForm()
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'nora@mail.com' } })
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Cliente' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      expect(await screen.findByText('Elegí al menos un rol.')).toBeDefined()
+      expect(mockInviteUser).not.toHaveBeenCalled()
+    })
+
+    it('an email that already has an account points to "Editar roles" instead (edge case)', async () => {
+      mockInviteUser.mockResolvedValue({ status: 'exists', userId: 'u-1' })
+      await openForm()
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'ana@example.com' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      expect(await screen.findByText(/Ese email ya tiene cuenta/)).toBeDefined()
+      expect(screen.getByRole('link', { name: 'Ir a Editar roles de esa cuenta' })).toHaveAttribute('href', '/admin/users/u-1')
+    })
+
+    it('shows the error and keeps the form open when the invitation fails (edge case)', async () => {
+      mockInviteUser.mockRejectedValue(new Error('Ya hay una invitación pendiente para ese email.'))
+      await openForm()
+      fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'nora@mail.com' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      expect(await screen.findByText('Ya hay una invitación pendiente para ese email.')).toBeDefined()
+      expect(screen.getByLabelText('Email')).toBeDefined()
+    })
+
+    it('lists the pending invitations with their roles and removes one after confirming', async () => {
+      mockListAdminUsers.mockResolvedValue([ana])
+      mockListInvitations.mockResolvedValue([pending])
+      mockDeleteInvitation.mockResolvedValue(undefined)
+      renderPage()
+      expect(await screen.findByText('Nora Díaz')).toBeDefined()
+      expect(screen.getByText('Administrador, Staff')).toBeDefined()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Quitar la invitación de nora@mail.com' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+      await waitFor(() => expect(mockDeleteInvitation).toHaveBeenCalledWith('i1'))
+      expect(await screen.findByText('Invitación quitada.')).toBeDefined()
+      expect(screen.queryByText('Nora Díaz')).toBeNull()
+    })
+
+    it('does not remove an invitation if the confirmation is cancelled (edge case)', async () => {
+      mockListAdminUsers.mockResolvedValue([ana])
+      mockListInvitations.mockResolvedValue([pending])
+      renderPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Quitar la invitación de nora@mail.com' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+      expect(mockDeleteInvitation).not.toHaveBeenCalled()
+    })
+
+    it('the page still works if the invitations cannot be loaded (edge case)', async () => {
+      mockListAdminUsers.mockResolvedValue([ana])
+      mockListInvitations.mockRejectedValue(new Error('down'))
+      renderPage()
+      expect(await screen.findByText('Ana')).toBeDefined()
+      expect(screen.queryByText('Invitaciones pendientes')).toBeNull()
     })
   })
 })

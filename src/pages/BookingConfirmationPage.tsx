@@ -28,7 +28,7 @@ function formatAppointmentDate(isoUtc: string, orgTimezone: string): string {
 
 export function BookingConfirmationPage() {
   const { appointmentId } = useParams<{ appointmentId: string }>()
-  const { user, isLoading: sessionLoading } = useUser()
+  const { user, activeRole, isLoading: sessionLoading } = useUser()
   const [pageState, setPageState] = useState<PageState>('loading')
   const [appointment, setAppointment] = useState<AppointmentDetail | null>(null)
 
@@ -124,6 +124,13 @@ export function BookingConfirmationPage() {
       : '¡Tu turno está reservado!'
 
   const isActive = !isCancelled && !isCompleted
+  // "Mis turnos" is for clients; admin and staff go to their own list of appointments
+  const listLink =
+    activeRole === 'admin'
+      ? { to: '/admin/appointments', label: 'Ver turnos' }
+      : activeRole === 'staff'
+        ? { to: '/staff/appointments', label: 'Ver mi agenda' }
+        : { to: '/appointments', label: 'Ver mis turnos' }
   // Admin or staff looking at an appointment they booked for someone else
   const isForSomeoneElse = apt.customerUserId !== (user?.id ?? null)
 
@@ -217,10 +224,10 @@ export function BookingConfirmationPage() {
               Reservar de nuevo
             </Link>
             <Link
-              to="/appointments"
+              to={listLink.to}
               className="rounded-xl border border-shell-border bg-white px-4 py-3.5 text-center font-semibold text-shell-text transition-colors hover:bg-shell-muted"
             >
-              Ver mis turnos
+              {listLink.label}
             </Link>
           </>
         ) : (
@@ -232,10 +239,10 @@ export function BookingConfirmationPage() {
               Hacer otra reserva
             </Link>
             <Link
-              to="/appointments"
+              to={listLink.to}
               className="rounded-xl border border-shell-border bg-white px-4 py-3.5 text-center font-semibold text-shell-text transition-colors hover:bg-shell-muted"
             >
-              Ver mis turnos
+              {listLink.label}
             </Link>
           </>
         )}

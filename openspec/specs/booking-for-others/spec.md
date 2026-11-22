@@ -9,7 +9,7 @@ Admin y staff pueden reservar un turno a nombre de un cliente (con cuenta o sin 
 Los roles admin y staff SHALL tener "Reservar turno" en el menú y poder abrir `/booking` y la confirmación. Las clientas siguen viendo "Mis turnos" (`/appointments`), que no es para admin ni staff.
 
 ### Requirement: Elegir para quién es
-En el paso de revisión, solo admin y staff SHALL ver "¿Para quién es la reserva?" con tres opciones: "Para mí" (por defecto, el turno queda a su nombre), "Para un cliente" (desplegable de cuentas con rol cliente) y "Otra persona" (nombre obligatorio, teléfono y email opcionales, sin cuenta). Las clientas nunca ven esta opción ni cargan la lista de clientes.
+En el paso de revisión, solo admin y staff SHALL ver "¿Para quién es la reserva?" con tres opciones: "Para mí" (por defecto, el turno queda a su nombre), "Para un cliente" (desplegable con todas las cuentas con rol cliente, también las inactivas, y las personas sin cuenta ya cargadas antes) y "Otra persona" (nombre obligatorio, teléfono y email opcionales, sin cuenta). Las clientas nunca ven esta opción ni cargan la lista de clientes.
 
 #### Scenario: Para un cliente
 - **WHEN** se elige un cliente y se confirma
@@ -34,3 +34,9 @@ Las listas, el detalle del turno, el Inicio, los mails y las estadísticas SHALL
 
 ### Requirement: Avisos
 Al cliente con cuenta le llega el email de siempre; a la persona sin cuenta, solo si se cargó su email. El profesional siempre recibe el aviso. La pantalla de turno confirmado dice "Turno reservado para {nombre}" cuando quien lo mira no es el cliente.
+
+### Requirement: El desplegable de clientes
+`list_booking_clients` SHALL devolver todas las cuentas con rol cliente (las desactivadas con la marca "inactivo") y, sin repetir por nombre y email, las personas sin cuenta de turnos anteriores (con los datos más recientes), marcadas "sin cuenta". Elegir una persona sin cuenta cambia la opción a "Otra persona" con sus datos ya completos, editables.
+
+### Requirement: Después de reservar
+La pantalla de turno confirmado SHALL llevar a "Ver turnos" (`/admin/appointments`) para admin, "Ver mi agenda" (`/staff/appointments`) para staff y "Ver mis turnos" (`/appointments`) para clientes, porque "Mis turnos" es solo de clientes.

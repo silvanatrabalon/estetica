@@ -125,3 +125,24 @@ The admin menu entry and the page title MUST read "Usuarios y roles". The page M
 #### Scenario: Per-user screen is admin-only
 - **WHEN** a non-admin requests `/admin/users/:userId`
 - **THEN** access is denied
+
+### Requirement: Add a user before they sign in
+Usuarios y roles SHALL offer "+ Agregar usuario": email (required), name (optional) and any of the roles Administrador, Staff and Cliente (Cliente checked by default, at least one required). Nothing is created in the account system: an invitation is saved and listed under "Invitaciones pendientes" with its roles.
+
+#### Scenario: First sign-in
+- **WHEN** the person signs in for the first time with that email (their profile is created)
+- **THEN** they get exactly the invited roles (the default client role is dropped unless it was invited), take the invited name if their account has none, and the invitation disappears
+
+#### Scenario: Staff role
+- **WHEN** the invitation includes Staff
+- **THEN** a professional without account is created right away with that email, so it appears in Profesionales and can be given schedules; at first sign-in it is linked to the account
+
+#### Scenario: The email already has an account
+- **WHEN** the admin invites an email that already belongs to an account
+- **THEN** nothing is created and the screen points to "Editar roles" of that account
+
+#### Scenario: Remove an invitation
+- **WHEN** the admin removes a pending invitation
+- **THEN** it is deleted, together with the professional created for it unless that professional already has appointments
+
+An email can have only one pending invitation. The email is the only thing that links the person: they must sign in with exactly that email.
