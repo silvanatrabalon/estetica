@@ -11,6 +11,7 @@ const mockAdminSetStaffActive = vi.fn()
 const mockCreateWithoutAccount = vi.fn()
 const mockLinkStaff = vi.fn()
 const mockRenameStaff = vi.fn()
+const mockLinkedIds = vi.fn()
 
 vi.mock('../services/adminStaff', () => ({
   listAdminStaffMembers: (...args: unknown[]) => mockListAdminStaffMembers(...args),
@@ -19,6 +20,7 @@ vi.mock('../services/adminStaff', () => ({
   adminCreateStaffWithoutAccount: (...args: unknown[]) => mockCreateWithoutAccount(...args),
   adminLinkStaffMember: (...args: unknown[]) => mockLinkStaff(...args),
   adminRenameStaffMember: (...args: unknown[]) => mockRenameStaff(...args),
+  listLinkedStaffUserIds: (...args: unknown[]) => mockLinkedIds(...args),
 }))
 
 const mockListAdminUsers = vi.fn()
@@ -26,6 +28,11 @@ const mockListAdminUsers = vi.fn()
 vi.mock('../services/adminUsers', () => ({
   listAdminUsers: (...args: unknown[]) => mockListAdminUsers(...args),
 }))
+
+// The account is chosen in a drop-down: the list opens by itself when the pop-up does
+async function chooseAccount(name: RegExp | string) {
+  fireEvent.click(await screen.findByRole('option', { name }))
+}
 
 function renderAdminStaffPage() {
   return render(
@@ -75,6 +82,7 @@ describe('AdminStaffPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockListAdminUsers.mockResolvedValue(mockUsers)
+    mockLinkedIds.mockResolvedValue([])
   })
 
   it('shows loading state initially', () => {
@@ -104,7 +112,7 @@ describe('AdminStaffPage', () => {
 
   async function openCreateForm() {
     fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
-    await screen.findByLabelText('Usuario vinculado')
+    await screen.findByLabelText('Buscar cuenta')
   }
 
   it('the create form only asks for the account, with no display name field', async () => {
@@ -122,7 +130,7 @@ describe('AdminStaffPage', () => {
     renderAdminStaffPage()
     await openCreateForm()
 
-    fireEvent.change(screen.getByLabelText('Usuario vinculado'), { target: { value: 'u-1' } })
+    await chooseAccount(/Ana García/)
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => expect(mockAdminCreateStaffMember).toHaveBeenCalledWith('u-1'))
@@ -145,7 +153,7 @@ describe('AdminStaffPage', () => {
     renderAdminStaffPage()
     await openCreateForm()
 
-    fireEvent.change(screen.getByLabelText('Usuario vinculado'), { target: { value: 'u-1' } })
+    await chooseAccount(/Ana García/)
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     expect(await screen.findByText('Ya existe un profesional vinculado a ese usuario.')).toBeDefined()
   })
@@ -291,6 +299,7 @@ describe('AdminStaffPage', () => {
 
     it('shows "Sin cuenta" instead of a role when the professional has no linked user (edge case)', async () => {
       mockListAdminUsers.mockResolvedValue(mockUsers)
+    mockLinkedIds.mockResolvedValue([])
       mockListAdminStaffMembers.mockResolvedValue([{ ...mockStaffMember, profileUserId: null, role: 'customer' }])
       renderAdminStaffPage()
 
@@ -340,12 +349,12 @@ describe('AdminStaffPage', () => {
       renderAdminStaffPage()
       fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
       expect(screen.getByRole('radio', { name: 'Con cuenta' })).toHaveAttribute('aria-checked', 'true')
-      expect(screen.getByLabelText('Usuario vinculado')).toBeDefined()
+      expect(screen.getByLabelText('Buscar cuenta')).toBeDefined()
 
       fireEvent.click(screen.getByRole('radio', { name: 'Sin cuenta' }))
       expect(screen.getByLabelText('Nombre')).toBeDefined()
       expect(screen.getByLabelText(/Email/)).toBeDefined()
-      expect(screen.queryByLabelText('Usuario vinculado')).toBeNull()
+      expect(screen.queryByLabelText('Buscar cuenta')).toBeNull()
     })
 
     it('creates a professional with a name and an invitation email', async () => {
@@ -431,7 +440,7 @@ describe('AdminStaffPage', () => {
       fireEvent.click(await screen.findByRole('button', { name: 'Vincular cuenta' }))
 
       expect(await screen.findByRole('heading', { name: 'Vincular una cuenta a Laura Sosa' })).toBeDefined()
-      fireEvent.change(screen.getByLabelText('Usuario vinculado'), { target: { value: 'u-1' } })
+      await chooseAccount(/Ana García/)
       fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
 
       await waitFor(() => expect(mockLinkStaff).toHaveBeenCalledWith('sm-9', 'u-1'))
@@ -464,5 +473,92 @@ describe('AdminStaffPage', () => {
       expect(await screen.findByText('Nombre actualizado.')).toBeDefined()
       expect(screen.getByText('Laura S.')).toBeDefined()
     })
+  })
+})
+
+describe('AdminStaffPage — forms are pop-ups with the account drop-down', () => {
+  const noAccount = { ...mockStaffMember, id: 'sm-9', profileUserId: null, displayName: 'Laura Sosa', fullName: null, inviteEmail: null }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListAdminUsers.mockResolvedValue(mockUsers)
+    mockLinkedIds.mockResolvedValue([])
+    mockListAdminStaffMembers.mockResolvedValue([mockStaffMember, noAccount])
+  })
+
+  async function openNew() {
+    renderAdminStaffPage()
+    await screen.findByText('Laura Sosa')
+    fireEvent.click(screen.getAllByRole('button', { name: /Agregar profesional|Nuevo profesional/ })[0])
+    return screen.findByRole('dialog', { name: 'Nuevo profesional' })
+  }
+
+  it('"Nuevo profesional" opens as a pop-up (sheet on phones, centered on larger screens) with the account box focused', async () => {
+    const dialog = await openNew()
+    expect(dialog.parentElement?.className).toContain('fixed inset-0')
+    expect(dialog.parentElement?.className).toContain('items-end')
+    expect(dialog.parentElement?.className).toContain('sm:items-center')
+    expect(dialog.className).toContain('max-h-[92dvh]')
+    const box = screen.getByLabelText('Buscar cuenta')
+    expect(box).toHaveAttribute('role', 'combobox')
+    expect(box).toHaveFocus()
+  })
+
+  it('choosing an account closes the list and shows its name; saving creates the professional', async () => {
+    mockAdminCreateStaffMember.mockResolvedValue({ ...mockStaffMember, id: 'sm-new', profileUserId: 'u-1', displayName: 'Ana García' })
+    await openNew()
+    await chooseAccount(/Ana García/)
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect((screen.getByLabelText('Buscar cuenta') as HTMLInputElement).value).toBe('Ana García')
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(mockAdminCreateStaffMember).toHaveBeenCalledWith('u-1'))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Nuevo profesional' })).toBeNull())
+  })
+
+  it('typing filters the accounts (edge case)', async () => {
+    await openNew()
+    fireEvent.change(screen.getByLabelText('Buscar cuenta'), { target: { value: 'bruno@' } })
+    expect(screen.getByRole('option', { name: /Bruno López/ })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /Ana García/ })).toBeNull()
+  })
+
+  it('accounts that already are professionals appear marked and cannot be chosen, including ones the list hides (edge case)', async () => {
+    mockLinkedIds.mockResolvedValue(['u-1']) // Ana has a hidden professional record
+    await openNew()
+    const bruno = await screen.findByRole('option', { name: /Bruno López/ })
+    expect(bruno).toHaveAttribute('aria-disabled', 'true') // linked to the visible professional
+    await waitFor(() => expect(screen.getByRole('option', { name: /Ana García/ })).toHaveAttribute('aria-disabled', 'true'))
+    fireEvent.click(screen.getByRole('option', { name: /Ana García/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByText('Seleccioná un usuario para vincular al profesional.')).toBeInTheDocument()
+    expect(mockAdminCreateStaffMember).not.toHaveBeenCalled()
+  })
+
+  it('errors show inside the pop-up, once (edge case)', async () => {
+    await openNew()
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    const dialog = screen.getByRole('dialog', { name: 'Nuevo profesional' })
+    await waitFor(() => expect(dialog).toHaveTextContent('Seleccioná un usuario para vincular al profesional.'))
+    expect(screen.getAllByText('Seleccioná un usuario para vincular al profesional.')).toHaveLength(1)
+  })
+
+  it('Escape closes the drop-down first and then the pop-up (edge case)', async () => {
+    await openNew()
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('listbox')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Nuevo profesional' })).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Nuevo profesional' })).toBeNull()
+  })
+
+  it('"Sin cuenta" and "Cambiar nombre" are pop-ups too, with the name focused (edge case)', async () => {
+    await openNew()
+    fireEvent.click(screen.getByRole('radio', { name: 'Sin cuenta' }))
+    expect(screen.getByRole('dialog', { name: 'Nuevo profesional' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Nombre')).toHaveFocus()
+    expect(screen.queryByLabelText('Buscar cuenta')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

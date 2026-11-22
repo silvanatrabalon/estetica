@@ -7,12 +7,13 @@ import {
   adminRenameStaffMember,
   adminSetStaffActive,
   listAdminStaffMembers,
+  listLinkedStaffUserIds,
   type AdminStaffMember,
 } from '../services/adminStaff'
 import { listAdminUsers, type AdminManagedRole, type AdminManagedUser } from '../services/adminUsers'
 import { roleLabel } from '../lib/adminUsersView'
 import { ConfirmModal } from '../components/ConfirmModal'
-import { Select } from '../components/Select'
+import { AccountPicker } from '../components/admin/AccountPicker'
 
 /** 'account': new professional from an account. 'guest': new one without account. 'link' / 'rename': act on one. */
 type FormMode = 'account' | 'guest' | 'link' | 'rename' | null
@@ -157,7 +158,9 @@ export function AdminStaffPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   const [formMode, setFormMode] = useState<FormMode>(null)
-  const formRef = useRef<HTMLElement | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [linkedUserIds, setLinkedUserIds] = useState<string[]>([])
+  const pickerRef = useRef<HTMLInputElement | null>(null)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [targetStaff, setTargetStaff] = useState<AdminStaffMember | null>(null)
   const [guestName, setGuestName] = useState('')
@@ -193,14 +196,41 @@ export function AdminStaffPage() {
     void loadData()
   }, [])
 
-  // The form opens above the cards: bring it into view so "Editar" visibly does something
+  // Pop-up: the first Escape closes the account drop-down, the next one the pop-up
   useEffect(() => {
-    if (formMode !== null) {
-      formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    if (formMode === null) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || isSaving) return
+      if (pickerOpen) setPickerOpen(false)
+      else closeForm()
     }
-  }, [formMode])
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formMode, pickerOpen, isSaving])
+
+  // Which accounts are taken: ask the server each time a form that picks an account opens
+  const needsAccount = formMode === 'account' || formMode === 'link'
+  useEffect(() => {
+    if (needsAccount) pickerRef.current?.focus()
+  }, [needsAccount, formMode])
+  useEffect(() => {
+    if (!needsAccount) return
+    let cancelled = false
+    listLinkedStaffUserIds()
+      .then((ids) => {
+        if (!cancelled) setLinkedUserIds(ids)
+      })
+      .catch(() => {
+        // Keep what the professionals list already tells
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [needsAccount])
 
   const resetForm = () => {
+    setPickerOpen(false)
     setSelectedUserId('')
     setTargetStaff(null)
     setGuestName('')
@@ -318,9 +348,12 @@ export function AdminStaffPage() {
     )
   }
 
-  const availableUsers = allUsers.filter(
-    (u) => !staffMembers.some((sm) => sm.profileUserId === u.userId),
-  )
+  const takenUserIds = [
+    ...new Set([
+      ...linkedUserIds,
+      ...staffMembers.flatMap((m) => (m.profileUserId ? [m.profileUserId] : [])),
+    ]),
+  ]
 
   if (isLoading) {
     return (
@@ -364,7 +397,7 @@ export function AdminStaffPage() {
         </div>
 
         {/* Feedback messages */}
-        {errorMessage && (
+        {errorMessage && formMode === null && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
             <span className="shrink-0 mt-0.5">⚠️</span>
             <span>{errorMessage}</span>
@@ -379,9 +412,15 @@ export function AdminStaffPage() {
 
         {/* Create / link / rename form */}
         {formMode !== null && (
-          <section ref={formRef} className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
-            <div className="p-4">
-              <h2 className="mb-1 font-heading text-base font-semibold text-shell-text">
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-4">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="staff-form-title"
+            className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+          >
+            <div className="p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+              <h2 id="staff-form-title" className="mb-1 font-heading text-base font-semibold text-shell-text">
                 {formMode === 'link'
                   ? `Vincular una cuenta a ${targetStaff?.displayName ?? ''}`
                   : formMode === 'rename'
@@ -417,34 +456,18 @@ export function AdminStaffPage() {
                 {(formMode === 'account' || formMode === 'link') && (
                   <div>
                     <p className="mb-2 text-sm text-shell-subtleText">
-                      Elegí la cuenta. El profesional usa el nombre de esa cuenta.
+                      Buscá o elegí la cuenta. El profesional usa el nombre de esa cuenta.
                     </p>
-                    <label
-                      htmlFor="staff-user-select"
-                      className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide"
-                    >
-                      Usuario vinculado
-                    </label>
-                    {availableUsers.length === 0 ? (
-                      <p className="text-sm text-shell-subtleText">
-                        No hay usuarios disponibles. Todos los usuarios ya tienen un profesional asignado.
-                      </p>
-                    ) : (
-                      <Select
-                        id="staff-user-select"
-                        value={selectedUserId}
-                        onChange={(e) => setSelectedUserId(e.target.value)}
-                        className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                        required
-                      >
-                        <option value="">Seleccioná un usuario</option>
-                        {availableUsers.map((u) => (
-                          <option key={u.userId} value={u.userId}>
-                            {u.name || u.email || u.userId}
-                          </option>
-                        ))}
-                      </Select>
-                    )}
+                    <AccountPicker
+                      accounts={allUsers}
+                      linkedUserIds={takenUserIds}
+                      value={selectedUserId}
+                      onChange={setSelectedUserId}
+                      open={pickerOpen}
+                      onOpenChange={setPickerOpen}
+                      inputRef={pickerRef}
+                      id="staff-account"
+                    />
                   </div>
                 )}
 
@@ -464,6 +487,7 @@ export function AdminStaffPage() {
                         className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                         placeholder="Ej: María González"
                         autoComplete="off"
+                        autoFocus
                       />
                     </div>
                     {formMode === 'guest' && (
@@ -492,6 +516,12 @@ export function AdminStaffPage() {
                   </div>
                 )}
 
+                {errorMessage && (
+                  <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {errorMessage}
+                  </p>
+                )}
+
                 <div className="flex gap-3 justify-end pt-1">
                   <button
                     type="button"
@@ -503,7 +533,7 @@ export function AdminStaffPage() {
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="px-5 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm font-semibold disabled:opacity-50 transition-colors shadow-sm"
+                    className="px-5 py-2 bg-brand-primary text-white rounded-xl hover:opacity-90 text-sm font-semibold disabled:opacity-50 transition-opacity shadow-sm"
                   >
                     {isSaving ? 'Guardando...' : 'Guardar'}
                   </button>
@@ -511,6 +541,7 @@ export function AdminStaffPage() {
               </form>
             </div>
           </section>
+          </div>
         )}
 
         {/* Staff cards */}
