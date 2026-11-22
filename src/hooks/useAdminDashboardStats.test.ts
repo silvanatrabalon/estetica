@@ -7,6 +7,7 @@ import type { AdminDashboardStats } from '../services/adminDashboard'
 const mockStats: AdminDashboardStats = {
   todayCount: 3,
   weekCount: 15,
+  upcomingCount: 12,
   monthCount: 42,
   pendingCount: 2,
   confirmedCount: 8,

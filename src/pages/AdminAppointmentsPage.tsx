@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { cn } from '../lib/cn'
-import { PERIOD_OPTIONS, getPeriodRange, type AppointmentPeriod } from '../lib/appointmentPeriods'
+import { PERIOD_OPTIONS, getPeriodRange, isAscendingPeriod, type AppointmentPeriod } from '../lib/appointmentPeriods'
 import { formatSlotDateTime } from '../lib/formatSlotTime'
 import { getBusinessSettings } from '../services/businessSettings'
 import { listAdminStaffMembers, type AdminStaffMember } from '../services/adminStaff'
@@ -124,6 +124,19 @@ export function AdminAppointmentsPage() {
   const [orgTimezone, setOrgTimezone] = useState('UTC')
   const [selectedStaff, setSelectedStaff] = useState<string>('')
   const [professionals, setProfessionals] = useState<AdminStaffMember[]>([])
+  // What is typed, and what is actually searched (a moment later, so each key does not hit the server)
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+
+  useEffect(() => {
+    const trimmed = searchInput.trim()
+    if (trimmed === search) return
+    const timer = window.setTimeout(() => {
+      setSearch(trimmed)
+      setPage(1)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [searchInput, search])
 
   useEffect(() => {
     listAdminStaffMembers()
@@ -149,6 +162,8 @@ export function AdminAppointmentsPage() {
     const activeFilters: AdminAppointmentFilters = {
       statuses: selectedStatus ? [selectedStatus] : undefined,
       staffMemberId: selectedStaff || undefined,
+      search: search || undefined,
+      ascending: isAscendingPeriod(period),
       ...getPeriodRange(period),
     }
 
@@ -167,7 +182,7 @@ export function AdminAppointmentsPage() {
     return () => {
       cancelled = true
     }
-  }, [period, selectedStatus, selectedStaff, page])
+  }, [period, selectedStatus, selectedStaff, search, page])
 
   function handleStatusChange(value: string) {
     setSelectedStatus(value)
@@ -190,6 +205,19 @@ export function AdminAppointmentsPage() {
   return (
     <div className="space-y-6">
       <h1 className="font-heading text-2xl font-semibold text-shell-text">Turnos</h1>
+
+      {/* Search by client */}
+      <div className="relative">
+        <input
+          type="search"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Buscar cliente por nombre, email o teléfono"
+          aria-label="Buscar cliente"
+          autoComplete="off"
+          className="h-10 w-full rounded-xl border border-shell-border bg-white px-3 text-sm text-shell-text shadow-sm placeholder:text-shell-subtleText focus:border-brand-primary focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
+        />
+      </div>
 
       {/* Filters */}
       <div className="flex items-center gap-2">
@@ -257,7 +285,7 @@ export function AdminAppointmentsPage() {
       {/* Empty state */}
       {!loading && !error && result.rows.length === 0 && (
         <div className="shell-surface rounded-2xl border py-14 text-center shadow-sm">
-          <p className="text-sm text-shell-subtleText">No hay turnos que coincidan con los filtros.</p>
+          <p className="text-sm text-shell-subtleText">{search ? `No encontramos turnos para “${search}” con estos filtros.` : 'No hay turnos que coincidan con los filtros.'}</p>
         </div>
       )}
 

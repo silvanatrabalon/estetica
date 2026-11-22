@@ -16,6 +16,7 @@ import type { AdminDashboardStats, StatsByRange } from '../services/adminDashboa
 const mockStats: AdminDashboardStats = {
   todayCount: 5,
   weekCount: 20,
+  upcomingCount: 11,
   monthCount: 60,
   pendingCount: 3,
   confirmedCount: 10,
@@ -128,9 +129,19 @@ describe('AdminDashboardPage — card links', () => {
     const href = async (name: string) =>
       (await screen.findByRole('link', { name: new RegExp(name) })).getAttribute('href')
     expect(await href('Turnos hoy')).toBe('/admin/appointments?periodo=today')
-    expect(await href('Turnos esta semana')).toBe('/admin/appointments?periodo=week')
+    expect(await href('Próximos turnos')).toBe('/admin/appointments?periodo=upcoming')
     expect(await href('Turnos este mes')).toBe('/admin/appointments?periodo=month')
     expect(await href('Cancelados este mes')).toBe('/admin/appointments?periodo=month&estado=cancelled')
+  })
+})
+
+describe('AdminDashboardPage — Hoy y Próximos turnos', () => {
+  it('shows the number of upcoming appointments instead of the weekly count', async () => {
+    vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockResolvedValue(mockStats)
+    renderDashboard('admin')
+    const card = await screen.findByRole('link', { name: /Próximos turnos/ })
+    expect(card.textContent).toContain('11')
+    expect(screen.queryByRole('link', { name: /esta semana/ })).toBeNull()
   })
 })
 
@@ -144,7 +155,8 @@ describe('AdminDashboardPage — content', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Turnos hoy')).toBeDefined()
-      expect(screen.getByText('Turnos esta semana')).toBeDefined()
+      expect(screen.getByText('Próximos turnos')).toBeDefined()
+      expect(screen.queryByText('Turnos esta semana')).toBeNull()
       expect(screen.getByText('Turnos este mes')).toBeDefined()
       expect(screen.getByText('Cancelados este mes')).toBeDefined()
     })
@@ -248,7 +260,7 @@ describe('AdminDashboardPage — today agenda', () => {
     })
     renderDashboard('admin')
 
-    expect(await screen.findByRole('heading', { name: 'Próximo turno' })).toBeDefined()
+    expect(await screen.findByRole('heading', { name: 'Siguiente turno de hoy' })).toBeDefined()
     expect(screen.getByText('en 12 min')).toBeDefined()
     expect(screen.getAllByText('Camila Ríos').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByRole('heading', { name: 'Hoy · 1 turno' })).toBeDefined()

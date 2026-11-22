@@ -382,4 +382,143 @@ describe('AdminAppointmentsPage', () => {
       expect(screen.queryByRole('button', { name: 'Filtrar por profesional' })).toBeNull()
     })
   })
+
+  describe('search by client', () => {
+    beforeEach(() => {
+      mockListStaff.mockResolvedValue([])
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+    })
+
+    it('has a search box and starts without a search', async () => {
+      renderPage()
+      expect(await screen.findByLabelText('Buscar cliente')).toBeDefined()
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalled())
+      expect(mockAdminListAppointments.mock.calls[0][0].search).toBeUndefined()
+    })
+
+    it('searches what was typed, trimmed, and goes back to page 1', async () => {
+      renderPage()
+      const box = await screen.findByLabelText('Buscar cliente')
+      mockAdminListAppointments.mockClear()
+      fireEvent.change(box, { target: { value: '  sofia ' } })
+
+      await waitFor(
+        () =>
+          expect(mockAdminListAppointments).toHaveBeenLastCalledWith(
+            expect.objectContaining({ search: 'sofia' }),
+            1,
+            PAGE_SIZE,
+          ),
+        { timeout: 2000 },
+      )
+    })
+
+    it('waits for a pause in typing before asking the server (edge case)', async () => {
+      renderPage()
+      const box = await screen.findByLabelText('Buscar cliente')
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalled())
+      mockAdminListAppointments.mockClear()
+
+      fireEvent.change(box, { target: { value: 's' } })
+      fireEvent.change(box, { target: { value: 'so' } })
+      fireEvent.change(box, { target: { value: 'sof' } })
+      await new Promise((r) => setTimeout(r, 100))
+      expect(mockAdminListAppointments).not.toHaveBeenCalled()
+
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalledTimes(1), { timeout: 2000 })
+      expect(mockAdminListAppointments.mock.calls[0][0].search).toBe('sof')
+    })
+
+    it('clearing the box lists everything again', async () => {
+      renderPage()
+      const box = await screen.findByLabelText('Buscar cliente')
+      fireEvent.change(box, { target: { value: 'laura' } })
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'laura' }), 1, PAGE_SIZE), { timeout: 2000 })
+      fireEvent.change(box, { target: { value: '' } })
+      await waitFor(
+        () => expect(mockAdminListAppointments).toHaveBeenLastCalledWith(expect.objectContaining({ search: undefined }), 1, PAGE_SIZE),
+        { timeout: 2000 },
+      )
+    })
+
+    it('a blank search is the same as no search (edge case)', async () => {
+      renderPage()
+      const box = await screen.findByLabelText('Buscar cliente')
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalled())
+      mockAdminListAppointments.mockClear()
+      fireEvent.change(box, { target: { value: '   ' } })
+      await new Promise((r) => setTimeout(r, 500))
+      expect(mockAdminListAppointments).not.toHaveBeenCalled()
+    })
+
+    it('says what was searched when nothing matches (edge case)', async () => {
+      renderPage()
+      fireEvent.change(await screen.findByLabelText('Buscar cliente'), { target: { value: 'zzz' } })
+      expect(await screen.findByText(/No encontramos turnos para “zzz”/, undefined, { timeout: 2000 })).toBeDefined()
+    })
+
+    it('combines with the period and the professional (edge case)', async () => {
+      mockListStaff.mockResolvedValue([{ id: 'sm-1', displayName: 'Sil' }])
+      renderPage('/admin/appointments?periodo=past')
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por profesional' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sil' }))
+      fireEvent.change(screen.getByLabelText('Buscar cliente'), { target: { value: 'ana' } })
+      await waitFor(
+        () =>
+          expect(mockAdminListAppointments).toHaveBeenLastCalledWith(
+            expect.objectContaining({ staffMemberId: 'sm-1', search: 'ana' }),
+            1,
+            PAGE_SIZE,
+          ),
+        { timeout: 2000 },
+      )
+      expect(mockAdminListAppointments.mock.calls.at(-1)![0].dateTo).toBeDefined()
+    })
+  })
+
+  describe('Próximos and Historial', () => {
+    beforeEach(() => {
+      mockListStaff.mockResolvedValue([])
+      mockAdminListAppointments.mockResolvedValue({ rows: [], totalCount: 0 })
+    })
+
+    it('offers Próximos and Historial in the period menu', async () => {
+      renderPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por período' }))
+      expect(screen.getByRole('menuitemradio', { name: 'Próximos' })).toBeDefined()
+      expect(screen.getByRole('menuitemradio', { name: 'Historial' })).toBeDefined()
+    })
+
+    it('Historial asks for everything up to now, most recent first', async () => {
+      renderPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por período' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Historial' }))
+      await waitFor(() => {
+        const filters = mockAdminListAppointments.mock.calls.at(-1)![0]
+        expect(filters.dateFrom).toBeUndefined()
+        expect(new Date(filters.dateTo).getTime()).toBeLessThanOrEqual(Date.now() + 1000)
+        expect(filters.ascending).toBe(false)
+      })
+      expect(screen.getByRole('button', { name: 'Filtrar por período' }).textContent).toContain('Historial')
+    })
+
+    it('Próximos asks from now on, soonest first', async () => {
+      renderPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por período' }))
+      fireEvent.click(screen.getByRole('menuitemradio', { name: 'Próximos' }))
+      await waitFor(() => {
+        const filters = mockAdminListAppointments.mock.calls.at(-1)![0]
+        expect(filters.dateTo).toBeUndefined()
+        expect(new Date(filters.dateFrom).getTime()).toBeGreaterThan(Date.now() - 5000)
+        expect(filters.ascending).toBe(true)
+      })
+    })
+
+    it('can be opened from a link with ?periodo=past (edge case)', async () => {
+      renderPage('/admin/appointments?periodo=past')
+      await waitFor(() => expect(mockAdminListAppointments).toHaveBeenCalled())
+      expect(mockAdminListAppointments.mock.calls[0][0].dateTo).toBeDefined()
+      expect(screen.getByRole('button', { name: 'Filtrar por período' }).textContent).toContain('Historial')
+    })
+  })
 })

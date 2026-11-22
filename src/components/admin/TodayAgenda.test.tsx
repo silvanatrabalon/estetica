@@ -24,8 +24,8 @@ function renderAgenda(props: Partial<React.ComponentProps<typeof TodayAgenda>> =
 describe('TodayAgenda', () => {
   it('shows the next appointment with its time, client, service and how soon it starts', () => {
     renderAgenda()
-    expect(screen.getByRole('heading', { name: 'Próximo turno' })).toBeInTheDocument()
-    const card = screen.getByRole('heading', { name: 'Próximo turno' }).parentElement!
+    expect(screen.getByRole('heading', { name: 'Siguiente turno de hoy' })).toBeInTheDocument()
+    const card = screen.getByRole('heading', { name: 'Siguiente turno de hoy' }).parentElement!
     expect(within(card).getByText('10:30')).toBeInTheDocument()
     expect(within(card).getByText('en 12 min')).toBeInTheDocument()
     expect(within(card).getByText('Camila Ríos')).toBeInTheDocument()
@@ -69,7 +69,7 @@ describe('TodayAgenda', () => {
   it('shows a busy placeholder while loading (edge case)', () => {
     renderAgenda({ loading: true })
     expect(screen.getByLabelText('Turnos de hoy')).toHaveAttribute('aria-busy', 'true')
-    expect(screen.queryByRole('heading', { name: 'Próximo turno' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Siguiente turno de hoy' })).toBeNull()
   })
 
   it('shows the error as an alert and no list (edge case)', () => {

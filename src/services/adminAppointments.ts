@@ -19,6 +19,10 @@ export interface AdminAppointmentFilters {
   dateTo?: string
   /** Only this professional's appointments. */
   staffMemberId?: string
+  /** Text to look for in the client's name, email or phone (accents and case do not matter). */
+  search?: string
+  /** true: soonest first. Default: most recent first. */
+  ascending?: boolean
 }
 
 export interface AdminAppointmentPage {
@@ -68,6 +72,8 @@ export async function adminListAppointments(
     p_page: page,
     p_page_size: pageSize ?? null,
     p_staff_member_id: filters.staffMemberId || null,
+    p_search: filters.search?.trim() || null,
+    p_ascending: filters.ascending ?? false,
   })
 
   if (error) {

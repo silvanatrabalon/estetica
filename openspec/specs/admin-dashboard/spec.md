@@ -118,3 +118,5 @@ The "Cancelados este mes" card MUST show only the cancelled appointments of the 
 - **WHEN** an appointment that starts this month is cancelled
 - **THEN** the figure includes it
 
+### Requirement: Hoy como lista, "Próximos turnos" como contador
+El Inicio del admin SHALL mostrar "Siguiente turno de hoy" y la lista "Hoy" con los turnos del día (no los de otros días). Los contadores son: Turnos hoy, **Próximos turnos** (pendientes o confirmados desde ahora en adelante, que lleva a Turnos > Próximos), Turnos este mes y Cancelados este mes. El contador de "esta semana" se quitó.

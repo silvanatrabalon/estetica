@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getPeriodRange } from './appointmentPeriods'
+import { PERIOD_OPTIONS, getPeriodRange, isAscendingPeriod } from './appointmentPeriods'
 
 const local = (iso?: string) => (iso ? new Date(iso) : undefined)
 
@@ -40,5 +40,30 @@ describe('getPeriodRange', () => {
     const r = getPeriodRange('month', new Date(2028, 1, 10))
     expect(local(r.dateFrom)).toEqual(new Date(2028, 1, 1, 0, 0, 0, 0))
     expect(local(r.dateTo)).toEqual(new Date(2028, 1, 29, 23, 59, 59, 999))
+  })
+})
+
+describe('upcoming and past', () => {
+  const now = new Date(2026, 10, 21, 15, 30)
+
+  it('"Próximos" starts now and has no end', () => {
+    expect(getPeriodRange('upcoming', now)).toEqual({ dateFrom: now.toISOString() })
+  })
+
+  it('"Historial" ends now and has no start', () => {
+    expect(getPeriodRange('past', now)).toEqual({ dateTo: now.toISOString() })
+  })
+
+  it('only "Próximos" is sorted soonest first', () => {
+    expect(isAscendingPeriod('upcoming')).toBe(true)
+    for (const p of ['today', 'week', 'month', 'past', 'all'] as const) {
+      expect(isAscendingPeriod(p)).toBe(false)
+    }
+  })
+
+  it('both are offered in the menu, before "Todos"', () => {
+    const values = PERIOD_OPTIONS.map((o) => o.value)
+    expect(values).toEqual(['today', 'week', 'month', 'upcoming', 'past', 'all'])
+    expect(PERIOD_OPTIONS.find((o) => o.value === 'past')?.label).toBe('Historial')
   })
 })

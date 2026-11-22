@@ -37,7 +37,7 @@ function StatusPill({ status, className }: { status: string; className?: string 
   )
 }
 
-/** "Próximo turno" card plus the day's list, in time order. */
+/** "Siguiente turno de hoy" card plus the day's list, in time order. */
 export function TodayAgenda({
   items,
   next,
@@ -79,7 +79,7 @@ export function TodayAgenda({
   return (
     <section aria-label="Turnos de hoy" className="space-y-6">
       <div>
-        <h2 className="text-base font-extrabold text-shell-text">Próximo turno</h2>
+        <h2 className="text-base font-extrabold text-shell-text">Siguiente turno de hoy</h2>
         {next ? (
           <div className="mt-2 rounded-3xl bg-[var(--color-lilac)] p-5 sm:p-6">
             <div className="flex items-start justify-between gap-3">

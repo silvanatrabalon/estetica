@@ -216,6 +216,28 @@ describe('adminListAppointments professional filter', () => {
   })
 })
 
+describe('adminListAppointments search and order', () => {
+  beforeEach(() => mockRpc.mockReset())
+
+  it('sends the trimmed search and the order', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    await adminListAppointments({ search: '  sofía ', ascending: true }, 1, 50)
+    expect(mockRpc).toHaveBeenLastCalledWith(
+      'admin_list_appointments',
+      expect.objectContaining({ p_search: 'sofía', p_ascending: true }),
+    )
+  })
+
+  it('defaults to no search and most recent first (edge case)', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    await adminListAppointments({ search: '   ' }, 1, 50)
+    expect(mockRpc).toHaveBeenLastCalledWith(
+      'admin_list_appointments',
+      expect.objectContaining({ p_search: null, p_ascending: false }),
+    )
+  })
+})
+
 describe('admin appointment edit services', () => {
   beforeEach(() => mockRpc.mockReset())
 

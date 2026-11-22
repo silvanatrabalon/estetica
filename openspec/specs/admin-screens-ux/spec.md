@@ -30,4 +30,7 @@ Un buscador, filtros por rol con la cantidad de cada uno (Todos, Administradores
 Donde antes decía "Ver la página principal" o "Ver página pública" ahora dice "Ir al sitio web". El Inicio de clientes no muestra "Mi perfil" (está en el menú de la cuenta).
 
 ### Requirement: Turnos del admin
-La lista de Turnos usa tarjetas con un color por estado, filtro de período (Hoy, Esta semana, Este mes, Todos) y de estado (sin "Pendiente"), y por defecto muestra "Hoy". Las tarjetas del Inicio del admin llevan a Turnos con el filtro correspondiente.
+La lista de Turnos usa tarjetas con un color por estado, filtro de período (Hoy, Esta semana, Este mes, Próximos, Historial, Todos) y de estado (sin "Pendiente"), y por defecto muestra "Hoy". Las tarjetas del Inicio del admin llevan a Turnos con el filtro correspondiente.
+
+### Requirement: Historial, Próximos y buscador de cliente en Turnos
+"Próximos" SHALL listar los turnos desde ahora, el más cercano primero; "Historial" los anteriores a ahora, el más reciente primero. Un buscador "Buscar cliente" SHALL filtrar por nombre, email o teléfono del cliente (con cuenta o sin cuenta), sin importar mayúsculas ni acentos, esperando una pausa al escribir, y combinarse con período, estado y profesional. Un texto vacío equivale a no buscar, y si no hay resultados se dice qué se buscó.

@@ -104,9 +104,9 @@ export function AdminDashboardPage() {
               icon={<IconCalendarDay />}
             />
             <StatCard
-              label="Turnos esta semana"
-              to="/admin/appointments?periodo=week"
-              value={stats?.weekCount ?? 0}
+              label="Próximos turnos"
+              to="/admin/appointments?periodo=upcoming"
+              value={stats?.upcomingCount ?? 0}
               loading={statsLoading}
               icon={<IconCalendarWeek />}
             />

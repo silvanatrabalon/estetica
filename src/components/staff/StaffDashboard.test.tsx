@@ -19,7 +19,7 @@ const base = {
   next: null,
   timezone: 'America/Argentina/Buenos_Aires',
   now: new Date('2026-11-21T13:00:00Z'),
-  stats: { today: 2, week: 5, month: 9, cancelledMonth: 1 },
+  stats: { today: 2, upcoming: 5, month: 9, cancelledMonth: 1 },
   loading: false,
   error: null,
 }
@@ -37,7 +37,7 @@ describe('StaffDashboard', () => {
         <StaffDashboard />
       </MemoryRouter>,
     )
-    for (const label of ['Mis turnos hoy', 'Esta semana', 'Este mes', 'Cancelados este mes']) {
+    for (const label of ['Mis turnos hoy', 'Próximos turnos', 'Este mes', 'Cancelados este mes']) {
       expect(screen.getByRole('link', { name: new RegExp(label) })).toHaveAttribute('href', '/staff/appointments')
     }
     expect(screen.getByText('9')).toBeInTheDocument()
@@ -67,7 +67,7 @@ describe('StaffDashboard', () => {
   })
 
   it('shows an empty state when there are no appointments today (edge case)', () => {
-    mockAgenda.mockReturnValue({ ...base, stats: { today: 0, week: 0, month: 0, cancelledMonth: 0 } })
+    mockAgenda.mockReturnValue({ ...base, stats: { today: 0, upcoming: 0, month: 0, cancelledMonth: 0 } })
     render(
       <MemoryRouter>
         <StaffDashboard />

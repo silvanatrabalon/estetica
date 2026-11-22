@@ -3,6 +3,8 @@ import { initSupabase } from '../lib/supabase'
 export interface AdminDashboardStats {
   todayCount: number
   weekCount: number
+  /** Pending or confirmed appointments from now on. */
+  upcomingCount: number
   monthCount: number
   pendingCount: number
   confirmedCount: number
@@ -17,6 +19,7 @@ export interface AdminDashboardStats {
 interface AdminDashboardStatsRpcRow {
   today_count: number
   week_count: number
+  upcoming_count?: number
   month_count: number
   pending_count: number
   confirmed_count: number
@@ -43,6 +46,7 @@ export async function getAdminDashboardStats(): Promise<AdminDashboardStats> {
   return {
     todayCount: Number(row.today_count),
     weekCount: Number(row.week_count),
+    upcomingCount: Number(row.upcoming_count ?? 0),
     monthCount: Number(row.month_count),
     pendingCount: Number(row.pending_count),
     confirmedCount: Number(row.confirmed_count),

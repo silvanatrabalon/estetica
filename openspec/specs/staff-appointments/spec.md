@@ -20,7 +20,7 @@ Tocar un turno en la agenda (lista o calendario, semanal o mensual) o en Inicio 
 - **THEN** no hay acciones y se explica que ya no se puede modificar
 
 ### Requirement: Inicio de staff
-El Inicio con el rol staff SHALL mostrar el próximo turno, la lista de hoy y cuatro contadores (hoy, esta semana de lunes a domingo, este mes y cancelados del mes, en la zona horaria del negocio, sin contar cancelados salvo en su propio contador). Cada turno lleva a su detalle y cada contador a la Agenda. Incluye el link "Ir al sitio web".
+El Inicio con el rol staff SHALL mostrar el próximo turno, la lista de hoy y cuatro contadores (hoy, próximos turnos, este mes y cancelados del mes, en la zona horaria del negocio, sin contar cancelados salvo en su propio contador; "próximos" son los pendientes o confirmados desde ahora en adelante, de cualquier día). Cada turno lleva a su detalle y cada contador a la Agenda. Incluye el link "Ir al sitio web".
 
 ### Requirement: Reservar desde Inicio de staff
 Si la persona también es cliente, el Inicio de staff SHALL ofrecer "Reservar turno", que cambia al rol cliente y abre la reserva a su nombre. Si no es cliente, muestra "Para crear tus propias reservas a tu nombre, pedile a tu administrador que te haga cliente."

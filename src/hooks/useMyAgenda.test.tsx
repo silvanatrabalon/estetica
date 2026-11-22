@@ -45,7 +45,7 @@ describe('useMyAgenda', () => {
 
     expect(result.current.items.map((i) => i.id)).toEqual(['a'])
     expect(result.current.next?.id).toBe('a')
-    expect(result.current.stats).toEqual({ today: 1, week: 2, month: 2, cancelledMonth: 1 })
+    expect(result.current.stats).toEqual({ today: 1, upcoming: 1, month: 2, cancelledMonth: 1 })
   })
 
   it('is empty without appointments (edge case)', async () => {
@@ -54,7 +54,7 @@ describe('useMyAgenda', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.items).toEqual([])
     expect(result.current.next).toBeNull()
-    expect(result.current.stats).toEqual({ today: 0, week: 0, month: 0, cancelledMonth: 0 })
+    expect(result.current.stats).toEqual({ today: 0, upcoming: 0, month: 0, cancelledMonth: 0 })
   })
 
   it('shows a placeholder name when the client has none (edge case)', async () => {

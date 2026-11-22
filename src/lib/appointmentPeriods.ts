@@ -1,21 +1,26 @@
-export type AppointmentPeriod = 'today' | 'week' | 'month' | 'all'
+export type AppointmentPeriod = 'today' | 'week' | 'month' | 'upcoming' | 'past' | 'all'
 
 export const PERIOD_OPTIONS: { value: AppointmentPeriod; label: string }[] = [
   { value: 'today', label: 'Hoy' },
   { value: 'week', label: 'Esta semana' },
   { value: 'month', label: 'Este mes' },
+  { value: 'upcoming', label: 'Próximos' },
+  { value: 'past', label: 'Historial' },
   { value: 'all', label: 'Todos' },
 ]
 
 /**
  * Inclusive ISO range for a period, in the browser's local time.
- * Weeks run Monday to Sunday. "all" has no bounds.
+ * Weeks run Monday to Sunday. "all" has no bounds, "upcoming" has no end and "past" has no start.
  */
 export function getPeriodRange(
   period: AppointmentPeriod,
   now: Date = new Date(),
 ): { dateFrom?: string; dateTo?: string } {
   if (period === 'all') return {}
+  // "Próximos" starts now and has no end; "Historial" ends now and has no start
+  if (period === 'upcoming') return { dateFrom: now.toISOString() }
+  if (period === 'past') return { dateTo: now.toISOString() }
 
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
   let end: Date
@@ -32,4 +37,9 @@ export function getPeriodRange(
   }
 
   return { dateFrom: start.toISOString(), dateTo: end.toISOString() }
+}
+
+/** "Próximos" lists the soonest first; every other period lists the most recent first. */
+export function isAscendingPeriod(period: AppointmentPeriod): boolean {
+  return period === 'upcoming'
 }

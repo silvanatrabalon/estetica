@@ -54,7 +54,7 @@ export function StaffDashboard() {
         <section aria-label="Resumen de tus turnos">
           <div className="grid grid-cols-2 gap-3">
             <StatCard label="Mis turnos hoy" to={AGENDA_PATH} value={agenda.stats.today} loading={agenda.loading} />
-            <StatCard label="Esta semana" to={AGENDA_PATH} value={agenda.stats.week} loading={agenda.loading} />
+            <StatCard label="Próximos turnos" to={AGENDA_PATH} value={agenda.stats.upcoming} loading={agenda.loading} />
             <StatCard label="Este mes" to={AGENDA_PATH} value={agenda.stats.month} loading={agenda.loading} />
             <StatCard
               label="Cancelados este mes"

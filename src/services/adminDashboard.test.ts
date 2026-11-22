@@ -16,6 +16,7 @@ vi.mock('../lib/supabase', () => ({
 const mockRpcRow = {
   today_count: 3,
   week_count: 15,
+  upcoming_count: 12,
   month_count: 42,
   pending_count: 2,
   confirmed_count: 8,
@@ -39,6 +40,7 @@ describe('getAdminDashboardStats', () => {
     expect(result).toEqual({
       todayCount: 3,
       weekCount: 15,
+      upcomingCount: 12,
       monthCount: 42,
       pendingCount: 2,
       confirmedCount: 8,
@@ -53,6 +55,7 @@ describe('getAdminDashboardStats', () => {
     const bigintRow = {
       today_count: '5',
       week_count: '20',
+      upcoming_count: '7',
       month_count: '60',
       pending_count: '3',
       confirmed_count: '10',
@@ -163,5 +166,11 @@ describe('getStatsByRange', () => {
     mockRpc.mockResolvedValueOnce({ data: [], error: null })
 
     await expect(getStatsByRange('2026-05-01', '2026-05-31')).rejects.toThrow()
+  })
+
+  it('treats a missing upcoming_count as zero (older database) (edge case)', async () => {
+    const { upcoming_count: _omit, ...withoutUpcoming } = mockRpcRow
+    mockRpc.mockResolvedValueOnce({ data: [withoutUpcoming], error: null })
+    expect((await getAdminDashboardStats()).upcomingCount).toBe(0)
   })
 })
