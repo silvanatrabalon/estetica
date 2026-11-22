@@ -145,6 +145,7 @@ export interface PublicPromo {
   discountValue: number
   endsOn: string
   serviceNames: string[]
+  serviceIds: string[]
 }
 
 /** Promos the admin chose to show on the website. Empty if the lookup fails. */
@@ -159,6 +160,7 @@ export async function listPublicPromos(): Promise<PublicPromo[]> {
     discount_value: number
     ends_on: string
     service_names: string[] | null
+    service_ids: string[] | null
   }>).map((row) => ({
     promoId: row.promo_id,
     name: row.name,
@@ -167,5 +169,6 @@ export async function listPublicPromos(): Promise<PublicPromo[]> {
     discountValue: row.discount_value,
     endsOn: row.ends_on,
     serviceNames: row.service_names ?? [],
+    serviceIds: row.service_ids ?? [],
   }))
 }

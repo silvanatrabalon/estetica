@@ -127,3 +127,13 @@ The system SHALL apply `primary_color`, `secondary_color`, and `font_family` fro
 #### Scenario: Google Font is injected for configured font_family
 - **WHEN** `landing_config.font_family` is set to a valid Google Font name
 - **THEN** a `<link>` referencing the Google Fonts API for that font is appended to `<head>`
+
+### Requirement: El carrusel de la portada no tiene flechas
+El carrusel de imágenes de la portada SHALL avanzar solo y mostrar los puntos indicadores; MUST NOT mostrar flechas anterior/siguiente.
+
+### Requirement: Servicios en un carrusel que gira
+La sección de servicios SHALL ser una fila horizontal que se mueve sola y en círculo (sin cortes), se pausa al pasar el mouse o enfocar, y queda quieta con scroll manual si la persona pidió menos movimiento. No hay filtro por categoría. Cada tarjeta lleva a `/booking?servicio=<id>` (los visitantes pasan antes por `/signin?redirect=…` y vuelven a esa misma reserva). Los servicios en promo de las promos marcadas para el sitio muestran la insignia PROMO, el precio original tachado y el precio con promo (si hay varias, la de mayor descuento). La copia repetida de la fila queda oculta a lectores de pantalla y teclado.
+
+### Requirement: Promos y cupones llevan a su reserva
+En "Promociones", cada promo SHALL llevar a `/booking?promo=<id>` y cada cupón a `/booking?cupon=<código>[&categoria=<nombre>]`. La reserva abre directo en la fecha si la promo tiene un solo servicio, o filtrada a los servicios de esa promo; un cupón se aplica solo al llegar a la revisión (si el servicio tiene promo o el cupón no es válido, se avisa y se cobra sin él). Un `?servicio=` desconocido o una promo vencida dejan la lista como está.
+

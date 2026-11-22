@@ -53,7 +53,9 @@ export interface RouteAccessInput {
   role: AppRole | null
 }
 
-function normalizePath(path: string): string {
+function normalizePath(rawPath: string): string {
+  // "/booking?servicio=1#x" is the page /booking: the query and the hash do not count
+  const path = rawPath.split(/[?#]/)[0] || '/'
   if (path.length > 1 && path.endsWith('/')) {
     return path.slice(0, -1)
   }

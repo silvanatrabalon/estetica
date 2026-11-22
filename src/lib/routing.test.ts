@@ -9,6 +9,17 @@ import {
 } from './routing'
 
 describe('routing policy', () => {
+  it('ignores the query and the hash of a path (a booking link keeps its rules)', () => {
+    expect(getRoutePolicy('/booking?servicio=abc')).toBe(getRoutePolicy('/booking'))
+    expect(getRoutePolicy('/booking#x')).toBe(getRoutePolicy('/booking'))
+    expect(canAccessRoute({ path: '/booking?promo=1', isAuthenticated: true, role: 'customer' })).toBe(true)
+    expect(canAccessRoute({ path: '/booking?promo=1', isAuthenticated: false, role: null })).toBe(false)
+  })
+
+  it('a query cannot turn an unknown path into a known one (edge case)', () => {
+    expect(isKnownRoute('/nope?x=/booking')).toBe(false)
+  })
+
   it('allows public routes for unauthenticated users', () => {
     expect(
       canAccessRoute({

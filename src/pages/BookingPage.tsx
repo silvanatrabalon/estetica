@@ -1,7 +1,7 @@
 import { BookingStepper } from '../components/booking/BookingStepper'
 import { FilterMenu } from '../components/FilterMenu'
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
 import { useBookingClients } from '../hooks/useBookingClients'
 import {
@@ -33,6 +33,9 @@ type Step = 1 | 2 | 3 | 4
 
 /** Filter value for "only services in promo" (category ids are UUIDs, so no clash). */
 const PROMO_FILTER = 'promo'
+/** Filter to the services of one promo (used by the links from the website). */
+const promoFilterOf = (promoId: string) => `${PROMO_FILTER}:${promoId}`
+const isPromoFilter = (value: string | null) => value === PROMO_FILTER || (value?.startsWith(`${PROMO_FILTER}:`) ?? false)
 
 function addDays(date: Date, days: number): string {
   const result = new Date(date)
@@ -42,6 +45,17 @@ function addDays(date: Date, days: number): string {
 
 export function BookingPage() {
   const navigate = useNavigate()
+  // Links from the website: ?servicio=<id>, ?promo=<id>, ?cupon=<code>&categoria=<name>
+  const [searchParams] = useSearchParams()
+  const [link] = useState(() => ({
+    servicio: searchParams.get('servicio'),
+    promo: searchParams.get('promo'),
+    cupon: searchParams.get('cupon'),
+    categoria: searchParams.get('categoria'),
+  }))
+  const linkHandled = useRef(false)
+  const [promosReady, setPromosReady] = useState(false)
+  const [pendingCoupon, setPendingCoupon] = useState<string | null>(null)
   const { activeRole } = useUser()
   // Admin and staff can book for a client; clients only ever book for themselves
   const canChooseTarget = activeRole === 'admin' || activeRole === 'staff'
@@ -94,7 +108,8 @@ export function BookingPage() {
       listCategories().then(setCategories).catch(() => {}),
       listActivePromos()
         .then((list) => setPromos(Object.fromEntries(list.map((p) => [p.serviceId, p]))))
-        .catch(() => {}),
+        .catch(() => {})
+        .finally(() => setPromosReady(true)),
     ]).catch(() => {
       // Non-critical: fallback values already set
     })
@@ -146,6 +161,48 @@ export function BookingPage() {
       setCouponLoading(false)
     }
   }
+
+  // Open the booking the website link points to, once services and promos are known
+  useEffect(() => {
+    if (linkHandled.current || servicesLoading || !promosReady) return
+    linkHandled.current = true
+
+    if (link.cupon) setPendingCoupon(normalizeCouponCode(link.cupon))
+
+    if (link.servicio) {
+      const service = services.find((s) => s.id === link.servicio)
+      if (service) handleServiceSelect(service)
+      return
+    }
+    if (link.promo) {
+      const ofPromo = services.filter((s) => promos[s.id]?.promoId === link.promo)
+      if (ofPromo.length === 1) handleServiceSelect(ofPromo[0])
+      else if (ofPromo.length > 1) setActiveCategoryId(promoFilterOf(link.promo))
+      return
+    }
+    if (link.categoria) {
+      const wanted = link.categoria.trim().toLowerCase()
+      const category = categories.find((c) => c.name.trim().toLowerCase() === wanted)
+      if (category) setActiveCategoryId(category.id)
+    }
+  }) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A coupon that came from the website is applied when the review is reached
+  useEffect(() => {
+    if (step !== 4 || !pendingCoupon || !selectedService || appliedCoupon) return
+    if (!canUseCoupon(target) || promos[selectedService.id]) {
+      setPendingCoupon(null)
+      return
+    }
+    const code = pendingCoupon
+    setPendingCoupon(null)
+    setCouponInput(code)
+    setCouponLoading(true)
+    validateCoupon(selectedService.id, code)
+      .then((check) => setAppliedCoupon({ code, ...check }))
+      .catch((err) => setCouponError(err instanceof Error ? err.message : 'No pudimos validar el cupón.'))
+      .finally(() => setCouponLoading(false))
+  }, [step, pendingCoupon, selectedService, appliedCoupon, target, promos])
 
   function handleCardClick(service: Service) {
     setPanelService(service)
@@ -291,7 +348,7 @@ export function BookingPage() {
                           .filter((cat) => services.some((s) => s.categoryId === cat.id))
                           .map((cat) => ({ value: cat.id, label: cat.name })),
                       ]}
-                      value={activeCategoryId ?? ''}
+                      value={isPromoFilter(activeCategoryId) ? PROMO_FILTER : (activeCategoryId ?? '')}
                       onSelect={(value) => setActiveCategoryId(value === '' ? null : value)}
                       active={activeCategoryId !== null}
                     >
@@ -300,7 +357,7 @@ export function BookingPage() {
                       </svg>
                       {activeCategoryId === null
                         ? 'Todas las categorías'
-                        : activeCategoryId === PROMO_FILTER
+                        : isPromoFilter(activeCategoryId)
                           ? 'Promos'
                           : (categories.find((c) => c.id === activeCategoryId)?.name ?? 'Categoría')}
                       <span aria-hidden="true" className="text-xs text-shell-subtleText">▾</span>
@@ -323,7 +380,7 @@ export function BookingPage() {
                         type="button"
                         onClick={() => setActiveCategoryId(PROMO_FILTER)}
                         className={`px-3 py-1.5 rounded-full text-sm font-bold transition-colors ${
-                          activeCategoryId === PROMO_FILTER
+                          isPromoFilter(activeCategoryId)
                             ? 'bg-[var(--color-peach-ink)] text-white'
                             : 'bg-[var(--color-peach)] text-[var(--color-peach-ink)] hover:brightness-95'
                         }`}
@@ -353,8 +410,12 @@ export function BookingPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {(activeCategoryId === null
                   ? services
-                  : activeCategoryId === PROMO_FILTER
-                    ? services.filter((s) => promos[s.id])
+                  : isPromoFilter(activeCategoryId)
+                    ? services.filter((s) =>
+                        activeCategoryId === PROMO_FILTER
+                          ? promos[s.id]
+                          : promoFilterOf(promos[s.id]?.promoId ?? '') === activeCategoryId,
+                      )
                     : services.filter((s) => s.categoryId === activeCategoryId)
                 ).map((svc) => (
                   <ServiceCard

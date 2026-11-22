@@ -1171,3 +1171,145 @@ describe('BookingPage — promo', () => {
     expect(screen.getByText(/no se suma con cupones/)).toBeDefined()
   })
 })
+
+describe('BookingPage — links from the website', () => {
+  const promo = {
+    serviceId: 'svc-1',
+    promoId: 'promo-1',
+    name: 'Semana de manos',
+    description: null,
+    discountType: 'percent' as const,
+    discountValue: 20,
+    discountCents: 1000,
+    finalPriceCents: 4000,
+    endsOn: '2026-12-31',
+  }
+  const secondRow = { ...mockServiceRow, id: 'svc-2', name: 'Masaje' }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListActivePromos.mockResolvedValue([])
+    mockGetBusinessSettings.mockResolvedValue({ timezone: 'UTC', bookingMaxHorizonDays: 60, weeklyHours: [] })
+    mockListCategories.mockResolvedValue([])
+    mockGetLandingConfig.mockResolvedValue({
+      primaryColor: '#f3e8ff', businessName: 'Test', tagline: null, logoUrl: null, heroImageUrl: null, carouselImages: [],
+    })
+    mockGetAvailableDays.mockResolvedValue([{ day: todayKey(), slotCount: 3 }])
+    mockGetAvailableSlots.mockResolvedValue([mockSlot])
+  })
+
+  function renderAt(url: string) {
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [mockServiceRow, secondRow], error: null }))
+    return render(
+      <MemoryRouter initialEntries={[url]}>
+        <TestUserProvider
+          user={mockSessions.authenticatedCustomer.user}
+          roles={['customer']}
+          activeRole="customer"
+          isLoading={false}
+        >
+          <BookingPage />
+        </TestUserProvider>
+      </MemoryRouter>,
+    )
+  }
+
+  it('?servicio=<id> goes straight to choosing the date for that service', async () => {
+    renderAt('/booking?servicio=svc-1')
+    await waitFor(() => expect(currentStep()).toBe('Fecha'))
+    expect(screen.queryByText('Masaje')).toBeNull()
+  })
+
+  it('an unknown service id leaves the list as it is (edge case)', async () => {
+    renderAt('/booking?servicio=nope')
+    await screen.findByText('Masaje')
+    expect(currentStep()).toBe('Servicio')
+  })
+
+  it('?promo=<id> of a single service goes straight to the date', async () => {
+    mockListActivePromos.mockResolvedValue([promo])
+    renderAt('/booking?promo=promo-1')
+    await waitFor(() => expect(currentStep()).toBe('Fecha'))
+  })
+
+  it('?promo=<id> of several services lists only those (edge case)', async () => {
+    mockListActivePromos.mockResolvedValue([promo, { ...promo, serviceId: 'svc-3' }])
+    mockSupabaseFrom.mockReset()
+    mockSupabaseFrom.mockReturnValueOnce(
+      buildQueryChain({ data: [mockServiceRow, secondRow, { ...mockServiceRow, id: 'svc-3', name: 'Facial' }], error: null }),
+    )
+    render(
+      <MemoryRouter initialEntries={['/booking?promo=promo-1']}>
+        <TestUserProvider user={mockSessions.authenticatedCustomer.user} roles={['customer']} activeRole="customer" isLoading={false}>
+          <BookingPage />
+        </TestUserProvider>
+      </MemoryRouter>,
+    )
+    await screen.findByText('Facial')
+    expect(screen.getByText('Corte de cabello')).toBeDefined()
+    expect(screen.queryByText('Masaje')).toBeNull()
+    expect(currentStep()).toBe('Servicio')
+  })
+
+  it('an expired promo id leaves the list as it is (edge case)', async () => {
+    renderAt('/booking?promo=gone')
+    await screen.findByText('Masaje')
+    expect(currentStep()).toBe('Servicio')
+  })
+
+  it('?cupon=<code> is applied when the review is reached', async () => {
+    mockValidateCoupon.mockResolvedValue({ discountCents: 500, finalPriceCents: 4500 })
+    renderAt('/booking?cupon=verano10')
+    await screen.findByText('Masaje')
+    await selectService()
+    await pickDay()
+    await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId('slot-block'))
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await waitFor(() => expect(mockValidateCoupon).toHaveBeenCalledWith('svc-1', 'VERANO10'))
+    expect(await screen.findByText(/aplicado/)).toBeDefined()
+  })
+
+  it('a link coupon is dropped when the service has a promo (edge case)', async () => {
+    mockListActivePromos.mockResolvedValue([promo])
+    renderAt('/booking?cupon=VERANO10')
+    await screen.findByText('PROMO 20% OFF')
+    await selectService()
+    await pickDay()
+    await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId('slot-block'))
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await screen.findByText(/no se suma con cupones/)
+    expect(mockValidateCoupon).not.toHaveBeenCalled()
+  })
+
+  it('a link coupon that is not valid shows why and leaves the full price (edge case)', async () => {
+    mockValidateCoupon.mockRejectedValue(new Error('Ese cupón ya venció.'))
+    renderAt('/booking?cupon=VIEJO')
+    await screen.findByText('Masaje')
+    await selectService()
+    await pickDay()
+    await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId('slot-block'))
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    expect(await screen.findByText('Ese cupón ya venció.')).toBeDefined()
+  })
+
+  it('?categoria=<name> opens the list filtered by that category (edge case)', async () => {
+    mockListCategories.mockResolvedValue([{ id: 'cat-1', name: 'Uñas', displayOrder: 0 }])
+    mockSupabaseFrom.mockReset()
+    mockSupabaseFrom.mockReturnValueOnce(
+      buildQueryChain({ data: [{ ...mockServiceRow, category_id: 'cat-1' }, secondRow], error: null }),
+    )
+    render(
+      <MemoryRouter initialEntries={['/booking?categoria=u%C3%B1as']}>
+        <TestUserProvider user={mockSessions.authenticatedCustomer.user} roles={['customer']} activeRole="customer" isLoading={false}>
+          <BookingPage />
+        </TestUserProvider>
+      </MemoryRouter>,
+    )
+    await screen.findByText('Corte de cabello')
+    await waitFor(() => expect(screen.queryByText('Masaje')).toBeNull())
+  })
+})
+

@@ -31,3 +31,7 @@ Las tarjetas de servicio en promo SHALL mostrar la insignia "PROMO", el precio o
 
 ### Requirement: Promo visible en la página web
 La sección Promociones de la landing SHALL listar solo las promos activas, vigentes, con `show_on_site` y con al menos un servicio activo, junto a los cupones públicos. Las promos no muestran código.
+
+### Requirement: Links desde la web
+`list_public_promos` SHALL devolver también `service_ids` para que la web lleve cada promo a su reserva.
+

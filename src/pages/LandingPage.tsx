@@ -9,11 +9,13 @@ import { listPublicPromos, type PublicPromo } from '../services/promos'
 import { listPublicCoupons, type PublicCoupon } from '../services/coupons'
 import type { SocialLink } from '../lib/socialLinks'
 import { formatPriceARS } from '../lib/formatPrice'
+import { applyPromo } from '../lib/promos'
+import { shortDiscount } from '../lib/coupons'
+import { bookingHref } from '../lib/bookingLinks'
 import { initSupabase } from '../lib/supabase'
 import { resolveRoleHomePath } from '../lib/routing'
 import type { LandingConfig, CarouselImage, UpcomingClosure } from '../services/landing'
 import type { Service } from '../services/adminServices'
-import type { ServiceCategory } from '../services/adminCategories'
 import { RouteLoadingState } from '../components/routing'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -100,21 +102,6 @@ function Carousel({ images, primaryColor }: CarouselProps) {
           />
         ))}
       </div>
-      {/* Prev/next arrows */}
-      <button
-        onClick={() => { setCurrent((c) => (c - 1 + images.length) % images.length); stopAutoplay() }}
-        className="absolute left-3 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white rounded-full w-9 h-9 flex items-center justify-center transition-colors"
-        aria-label="Imagen anterior"
-      >
-        ‹
-      </button>
-      <button
-        onClick={() => { setCurrent((c) => (c + 1) % images.length); stopAutoplay() }}
-        className="absolute right-3 top-1/2 -translate-y-1/2 z-10 bg-black/30 hover:bg-black/50 text-white rounded-full w-9 h-9 flex items-center justify-center transition-colors"
-        aria-label="Imagen siguiente"
-      >
-        ›
-      </button>
     </div>
   )
 }
@@ -175,124 +162,146 @@ function HeroSection({ config, isCustomer, isAuthenticated, activeRole }: HeroSe
 interface ServiceCardProps {
   service: Service
   primaryColor: string
+  /** Best promo running on this service (only those the admin chose to show on the website). */
+  promo?: PublicPromo
+  isAuthenticated: boolean
+  /** The repeated half of the loop: hidden from screen readers and the keyboard. */
+  duplicate?: boolean
 }
 
-function ServiceCard({ service, primaryColor }: ServiceCardProps) {
+function ServiceCard({ service, primaryColor, promo, isAuthenticated, duplicate = false }: ServiceCardProps) {
+  const promoPrice = promo
+    ? applyPromo(service.priceCents, { type: promo.discountType, value: promo.discountValue }).finalCents
+    : null
+
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-lg group">
-      <div className="overflow-hidden">
+    <Link
+      to={bookingHref(isAuthenticated, { servicio: service.id })}
+      aria-hidden={duplicate || undefined}
+      tabIndex={duplicate ? -1 : undefined}
+      aria-label={duplicate ? undefined : `Reservar ${service.name}`}
+      className={`bg-white rounded-2xl overflow-hidden border flex flex-col w-56 shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg group focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-primary)] ${
+        promo ? 'border-[var(--color-peach-ink)]/40' : 'border-gray-100'
+      }`}
+    >
+      <div className="overflow-hidden relative">
         {service.imageUrl ? (
           <img
             src={service.imageUrl}
-            alt={service.name}
-            className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-105"
+            alt={duplicate ? '' : service.name}
+            className="w-full h-40 object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div
-            className="w-full h-44 flex items-center justify-center text-white text-4xl font-light"
+            className="w-full h-40 flex items-center justify-center text-white text-4xl font-light"
             style={{ backgroundColor: primaryColor }}
             aria-hidden
           >
             {service.name.charAt(0).toUpperCase()}
           </div>
         )}
+        {promo && (
+          <span className="absolute left-2 top-2 rounded-full bg-[var(--color-peach)] px-2.5 py-1 text-xs font-bold text-[var(--color-peach-ink)] shadow-sm">
+            PROMO {shortDiscount({ type: promo.discountType, value: promo.discountValue })}
+          </span>
+        )}
       </div>
-      <div className="p-5 flex flex-col gap-1.5 flex-1">
+      <div className="p-4 flex flex-col gap-1 flex-1">
         <h3 className="font-semibold text-gray-800 leading-snug">{service.name}</h3>
         <p className="text-xs text-gray-400 uppercase tracking-wider">{service.durationMinutes} min</p>
-        <p className="font-bold text-sm mt-auto pt-2" style={{ color: primaryColor }}>
-          {formatPriceARS(service.priceCents)}
-        </p>
+        {promo && promoPrice !== null ? (
+          <p className="mt-auto pt-2 text-sm">
+            <s className="text-gray-400">{formatPriceARS(service.priceCents)}</s>{' '}
+            <strong className="text-[var(--color-peach-ink)]">{formatPriceARS(promoPrice)}</strong>
+          </p>
+        ) : (
+          <p className="font-bold text-sm mt-auto pt-2" style={{ color: primaryColor }}>
+            {formatPriceARS(service.priceCents)}
+          </p>
+        )}
       </div>
-    </div>
+    </Link>
   )
+}
+
+/** The promo with the biggest discount on each service. */
+function bestPromoByService(services: Service[], promos: PublicPromo[]): Record<string, PublicPromo> {
+  const best: Record<string, PublicPromo> = {}
+  for (const service of services) {
+    let top: PublicPromo | undefined
+    let topDiscount = -1
+    for (const promo of promos) {
+      if (!promo.serviceIds.includes(service.id)) continue
+      const { discountCents } = applyPromo(service.priceCents, { type: promo.discountType, value: promo.discountValue })
+      if (discountCents > topDiscount) {
+        top = promo
+        topDiscount = discountCents
+      }
+    }
+    if (top) best[service.id] = top
+  }
+  return best
 }
 
 interface ServicesSectionProps {
   services: Service[]
-  categories: ServiceCategory[]
+  promos: PublicPromo[]
   loading: boolean
   primaryColor: string
+  isAuthenticated: boolean
 }
 
-function ServicesSection({ services, categories, loading, primaryColor }: ServicesSectionProps) {
-  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
+/** Seconds a service takes to cross the screen: the more services, the longer the loop. */
+const SECONDS_PER_SERVICE = 6
+/** A half of the loop has at least this many cards, so it is wider than the screen. */
+const MIN_CARDS_PER_HALF = 8
 
-  const categoriesWithServices = categories.filter((cat) =>
-    services.some((s) => s.categoryId === cat.id),
-  )
-  const hasUncategorized = services.some((s) => s.categoryId == null)
-  const showTabs = categoriesWithServices.length > 0 || hasUncategorized
+function ServicesSection({ services, promos, loading, primaryColor, isAuthenticated }: ServicesSectionProps) {
+  const promoOf = bestPromoByService(services, promos)
 
-  const filteredServices =
-    activeCategoryId === null
-      ? services
-      : activeCategoryId === '__uncategorized__'
-        ? services.filter((s) => s.categoryId == null)
-        : services.filter((s) => s.categoryId === activeCategoryId)
-
-  const activeTabStyle = {
-    backgroundColor: primaryColor || '#374151',
-    color: '#fff',
-  }
+  // The loop is the list repeated until it is wide enough, rendered twice
+  const repeats = services.length > 0 ? Math.max(1, Math.ceil(MIN_CARDS_PER_HALF / services.length)) : 1
+  const half = Array.from({ length: repeats }, () => services).flat()
 
   return (
-    <section className="py-20 px-6 max-w-5xl mx-auto" id="servicios">
-      <div className="text-center mb-10">
+    <section className="py-20 max-w-5xl mx-auto" id="servicios">
+      <div className="text-center mb-10 px-6">
         <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">Nuestros servicios</h2>
         <div className="w-10 h-0.5 mx-auto rounded-full" style={{ backgroundColor: 'var(--lp-primary)' }} />
+        {!loading && services.length > 0 && (
+          <p className="mt-3 text-gray-500">Tocá un servicio para reservarlo.</p>
+        )}
       </div>
       {loading && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 px-6">
           {[...Array(3)].map((_, i) => (
             <div key={i} className="bg-white rounded-2xl shadow-sm h-52 animate-pulse" />
           ))}
         </div>
       )}
       {!loading && services.length === 0 && (
-        <p className="text-center text-gray-500">No hay servicios disponibles por el momento.</p>
+        <p className="text-center text-gray-500 px-6">No hay servicios disponibles por el momento.</p>
       )}
       {!loading && services.length > 0 && (
-        <>
-          {showTabs && (
-            <div className="flex flex-wrap gap-2 justify-center mb-8">
-              <button
-                type="button"
-                onClick={() => setActiveCategoryId(null)}
-                className="px-4 py-1.5 rounded-full text-sm font-medium transition-colors border"
-                style={activeCategoryId === null ? activeTabStyle : {}}
-              >
-                Todos
-              </button>
-              {categoriesWithServices.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setActiveCategoryId(cat.id)}
-                  className="px-4 py-1.5 rounded-full text-sm font-medium transition-colors border"
-                  style={activeCategoryId === cat.id ? activeTabStyle : {}}
-                >
-                  {cat.name}
-                </button>
-              ))}
-              {hasUncategorized && (categoriesWithServices.length > 0) && (
-                <button
-                  type="button"
-                  onClick={() => setActiveCategoryId('__uncategorized__')}
-                  className="px-4 py-1.5 rounded-full text-sm font-medium transition-colors border"
-                  style={activeCategoryId === '__uncategorized__' ? activeTabStyle : {}}
-                >
-                  Otros
-                </button>
-              )}
-            </div>
-          )}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
-            {filteredServices.map((service) => (
-              <ServiceCard key={service.id} service={service} primaryColor={primaryColor} />
-            ))}
+        <div className="landing-marquee overflow-hidden" data-testid="services-carousel">
+          <div
+            className="landing-marquee-track flex gap-5 px-3"
+            style={{ ['--marquee-duration' as string]: `${half.length * SECONDS_PER_SERVICE}s` }}
+          >
+            {[0, 1].map((copy) =>
+              half.map((service, i) => (
+                <ServiceCard
+                  key={`${copy}-${i}-${service.id}`}
+                  service={service}
+                  primaryColor={primaryColor}
+                  promo={promoOf[service.id]}
+                  isAuthenticated={isAuthenticated}
+                  duplicate={copy === 1 || i >= services.length}
+                />
+              )),
+            )}
           </div>
-        </>
+        </div>
       )}
     </section>
   )
@@ -516,7 +525,6 @@ export function LandingPage() {
   const [hours, setHours] = useState<BusinessHourRow[]>([])
   const [loadingConfig, setLoadingConfig] = useState(true)
   const [loadingServices, setLoadingServices] = useState(true)
-  const [categories, setCategories] = useState<ServiceCategory[]>([])
   const [upcomingClosures, setUpcomingClosures] = useState<UpcomingClosure[]>([])
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([])
   const [promotions, setPromotions] = useState<PublicCoupon[]>([])
@@ -623,24 +631,6 @@ export function LandingPage() {
       }
     })
 
-    // Fetch categories (anon-safe)
-    supabase
-      .from('service_categories')
-      .select('id, name, display_order')
-      .order('display_order')
-      .order('name')
-      .then(({ data }) => {
-        if (!cancelled) {
-          setCategories(
-            (data ?? []).map((row) => ({
-              id: row.id,
-              name: row.name,
-              displayOrder: row.display_order,
-            })),
-          )
-        }
-      })
-
     // Fetch business hours
     supabase
       .from('business_hours')
@@ -742,11 +732,12 @@ export function LandingPage() {
       />
       <ServicesSection
         services={services}
-        categories={categories}
+        promos={publicPromos}
         loading={loadingServices}
         primaryColor={effectiveConfig.primaryColor}
+        isAuthenticated={isAuthenticated}
       />
-      <PromotionsSection coupons={promotions} promos={publicPromos} />
+      <PromotionsSection coupons={promotions} promos={publicPromos} isAuthenticated={isAuthenticated} />
       <AboutSection aboutText={effectiveConfig.aboutText} />
       <HoursSection showHours={effectiveConfig.showHours} hours={hours} />
       <UpcomingClosuresSection closures={futureClosures} />
