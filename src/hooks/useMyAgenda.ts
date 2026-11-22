@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listMyStaffAppointments, type AppointmentSummary } from '../services/appointments'
-import { pickNextAppointment, todayAgendaItems, type AgendaItem } from '../lib/todayAgenda'
+import { pickFeaturedAppointments, todayAgendaItems, type AgendaItem } from '../lib/todayAgenda'
 import { computeStaffStats, type StaffStats } from '../lib/staffStats'
 
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
@@ -17,7 +17,7 @@ function toAgendaItem(apt: AppointmentSummary): AgendaItem {
   }
 }
 
-/** The logged-in professional's own appointments: today's agenda, the next one, and counters. */
+/** The logged-in professional's own appointments: today's agenda, what is on now or next, and counters. */
 export function useMyAgenda() {
   const [appointments, setAppointments] = useState<AppointmentSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,11 +51,11 @@ export function useMyAgenda() {
     () => todayAgendaItems(appointments.map(toAgendaItem), timezone, now),
     [appointments, timezone, now],
   )
-  const next = useMemo(() => pickNextAppointment(items, now), [items, now])
+  const featured = useMemo(() => pickFeaturedAppointments(items, now), [items, now])
   const stats: StaffStats = useMemo(
     () => computeStaffStats(appointments, timezone, now),
     [appointments, timezone, now],
   )
 
-  return { items, next, timezone, now, stats, loading, error }
+  return { items, featured, timezone, now, stats, loading, error }
 }

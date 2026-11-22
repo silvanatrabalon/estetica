@@ -42,7 +42,7 @@ describe('useTodayAgenda', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.items.map((i) => i.id)).toEqual(['d', 'a'])
-    expect(result.current.next?.id).toBe('a')
+    expect(result.current.featured[0]?.id).toBe('a')
     expect(result.current.error).toBeNull()
   })
 
@@ -94,7 +94,7 @@ describe('useTodayAgenda', () => {
       return realSetInterval(fn, ms)
     }) as unknown as typeof window.setInterval)
     const { result } = renderHook(() => useTodayAgenda())
-    await waitFor(() => expect(result.current.next?.id).toBe('a'))
+    await waitFor(() => expect(result.current.featured[0]?.id).toBe('a'))
 
     act(() => {
       vi.setSystemTime(new Date('2026-11-21T14:40:00Z'))
@@ -102,7 +102,7 @@ describe('useTodayAgenda', () => {
     })
     spy.mockRestore()
 
-    expect(result.current.next?.id).toBe('b')
+    expect(result.current.featured[0]?.id).toBe('b')
   })
 
   it('does not update state after unmount (edge case)', async () => {

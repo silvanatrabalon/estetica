@@ -54,7 +54,7 @@ describe('NavBar', () => {
 describe.each([
   ['admin', AdminShell, mockSessions.authenticatedAdmin, ['Inicio', 'Turnos']],
   ['customer', CustomerShell, mockSessions.authenticatedCustomer, ['Inicio', 'Reservar', 'Mis turnos']],
-  ['staff', StaffShell, mockSessions.authenticatedStaff, ['Inicio', 'Agenda', 'Disponibilidad']],
+  ['staff', StaffShell, mockSessions.authenticatedStaff, ['Inicio', 'Turnos', 'Disponibilidad']],
 ] as const)('%s shell on a phone', (_role, Shell, session, labels) => {
   it('has the bottom bar with its own shortcuts plus "Más", and no header hamburger', () => {
     wrap(<Shell>contenido</Shell>, session)

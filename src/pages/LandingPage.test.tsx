@@ -32,7 +32,7 @@ function renderLanding() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/admin/dashboard" element={<div>Panel admin</div>} />
-        <Route path="/staff/schedule" element={<div>Panel staff</div>} />
+        <Route path="/dashboard" element={<div>Panel staff</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -60,7 +60,7 @@ describe('LandingPage role redirect', () => {
         <MemoryRouter initialEntries={['/']}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/staff/schedule" element={<div>Panel staff</div>} />
+            <Route path="/dashboard" element={<div>Panel staff</div>} />
           </Routes>
         </MemoryRouter>,
       ),

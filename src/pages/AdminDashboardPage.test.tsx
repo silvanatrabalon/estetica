@@ -117,31 +117,39 @@ describe('AdminDashboardPage — routing', () => {
 
     // The date is the page heading
     expect(await screen.findByRole('heading', { level: 1 })).toBeDefined()
-    expect(screen.getByText('Turnos hoy')).toBeDefined()
+    expect(await screen.findByRole('link', { name: '5 turnos hoy' })).toBeDefined()
   })
 })
 
-describe('AdminDashboardPage — card links', () => {
-  it('each card links to Turnos with its filter', async () => {
+describe('AdminDashboardPage — total de hoy', () => {
+  it('shows the day total as a compact pill that opens today\'s appointments', async () => {
     vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockResolvedValue(mockStats)
     renderDashboard('admin')
-
-    const href = async (name: string) =>
-      (await screen.findByRole('link', { name: new RegExp(name) })).getAttribute('href')
-    expect(await href('Turnos hoy')).toBe('/admin/appointments?periodo=today')
-    expect(await href('Próximos turnos')).toBe('/admin/appointments?periodo=upcoming')
-    expect(await href('Turnos este mes')).toBe('/admin/appointments?periodo=month')
-    expect(await href('Cancelados este mes')).toBe('/admin/appointments?periodo=month&estado=cancelled')
+    const pill = await screen.findByRole('link', { name: '5 turnos hoy' })
+    expect(pill).toHaveAttribute('href', '/admin/appointments?periodo=today')
+    expect(pill.textContent).toContain('5')
   })
-})
 
-describe('AdminDashboardPage — Hoy y Próximos turnos', () => {
-  it('shows the number of upcoming appointments instead of the weekly count', async () => {
+  it('uses the singular for one appointment (edge case)', async () => {
+    vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockResolvedValue({ ...mockStats, todayCount: 1 })
+    renderDashboard('admin')
+    expect(await screen.findByRole('link', { name: '1 turno hoy' })).toBeDefined()
+  })
+
+  it('shows 0 when there is nothing today (edge case)', async () => {
+    vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockResolvedValue({ ...mockStats, todayCount: 0 })
+    renderDashboard('admin')
+    expect(await screen.findByRole('link', { name: '0 turnos hoy' })).toBeDefined()
+  })
+
+  it('has no counter cards anymore', async () => {
     vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockResolvedValue(mockStats)
     renderDashboard('admin')
-    const card = await screen.findByRole('link', { name: /Próximos turnos/ })
-    expect(card.textContent).toContain('11')
-    expect(screen.queryByRole('link', { name: /esta semana/ })).toBeNull()
+    await screen.findByRole('link', { name: '5 turnos hoy' })
+    for (const label of ['Próximos turnos', 'Turnos este mes', 'Cancelados este mes', 'Turnos esta semana']) {
+      expect(screen.queryByText(label)).toBeNull()
+    }
+    expect(screen.queryByTestId('stat-card-skeleton')).toBeNull()
   })
 })
 
@@ -150,22 +158,10 @@ describe('AdminDashboardPage — content', () => {
     vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockResolvedValue(mockStats)
   })
 
-  it('renders KPI card labels', async () => {
-    renderDashboard('admin')
-
-    await waitFor(() => {
-      expect(screen.getByText('Turnos hoy')).toBeDefined()
-      expect(screen.getByText('Próximos turnos')).toBeDefined()
-      expect(screen.queryByText('Turnos esta semana')).toBeNull()
-      expect(screen.getByText('Turnos este mes')).toBeDefined()
-      expect(screen.getByText('Cancelados este mes')).toBeDefined()
-    })
-  })
-
   it('no longer shows the removed pieces: title, live chip, two cards and the summary block', async () => {
     renderDashboard('admin')
 
-    await screen.findByText('Turnos hoy')
+    await screen.findByRole('link', { name: /turnos? hoy/ })
     expect(screen.queryByText('Panel de administración')).toBeNull()
     expect(screen.queryByText('En vivo')).toBeNull()
     expect(screen.queryByText('Confirmados + pendientes hoy')).toBeNull()
@@ -178,7 +174,7 @@ describe('AdminDashboardPage — content', () => {
     const spy = vi.spyOn(adminDashboardService, 'getStatsByRange').mockResolvedValue(mockRangeStats)
     renderDashboard('admin')
 
-    await screen.findByText('Turnos hoy')
+    await screen.findByRole('link', { name: /turnos? hoy/ })
     expect(spy).not.toHaveBeenCalled()
   })
 
@@ -192,16 +188,6 @@ describe('AdminDashboardPage — content', () => {
     vi.useRealTimers()
   })
 
-  it('renders the Cancelados KPI card as a monthly figure and no longer renders "No presentado"', async () => {
-    renderDashboard('admin')
-
-    await waitFor(() => {
-      expect(screen.getByText('Cancelados este mes')).toBeDefined()
-    })
-    // The old, ambiguous label (it used to count all time) is gone
-    expect(screen.queryByText('Cancelados')).toBeNull()
-    expect(screen.queryByText('No presentado')).toBeNull()
-  })
 })
 
 describe('AdminDashboardPage — error state', () => {
@@ -218,14 +204,10 @@ describe('AdminDashboardPage — error state', () => {
 })
 
 describe('AdminDashboardPage — loading state', () => {
-  it('shows loading skeletons before stats load', () => {
-    vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockReturnValue(
-      new Promise(() => {}),
-    )
+  it('shows a placeholder total before stats load (edge case)', () => {
+    vi.spyOn(adminDashboardService, 'getAdminDashboardStats').mockReturnValue(new Promise(() => {}))
     renderDashboard('admin')
-
-    const skeletons = screen.getAllByTestId('stat-card-skeleton')
-    expect(skeletons).toHaveLength(4)
+    expect(screen.getByRole('link', { name: 'Turnos hoy' }).textContent).toContain('–')
   })
 })
 
@@ -253,7 +235,7 @@ describe('AdminDashboardPage — today agenda', () => {
     vi.useRealTimers()
   })
 
-  it('shows the next appointment first, then the day', async () => {
+  it('shows what is on now or next, and no list of the whole day', async () => {
     vi.spyOn(adminAppointmentsService, 'adminListAppointments').mockResolvedValue({
       rows: [TODAY_ROW],
       totalCount: 1,
@@ -263,7 +245,8 @@ describe('AdminDashboardPage — today agenda', () => {
     expect(await screen.findByRole('heading', { name: 'Siguiente turno de hoy' })).toBeDefined()
     expect(screen.getByText('en 12 min')).toBeDefined()
     expect(screen.getAllByText('Camila Ríos').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByRole('heading', { name: 'Hoy · 1 turno' })).toBeDefined()
+    expect(screen.queryByRole('heading', { name: /^Hoy ·/ })).toBeNull()
+    expect(screen.getByRole('link', { name: '5 turnos hoy' })).toHaveAttribute('href', '/admin/appointments?periodo=today')
   })
 
   it('tells the owner when there is nothing today (edge case)', async () => {
@@ -276,6 +259,6 @@ describe('AdminDashboardPage — today agenda', () => {
     renderDashboard('admin')
 
     expect(await screen.findByText(/No pudimos cargar los turnos de hoy/)).toBeDefined()
-    expect(screen.getByText('Turnos hoy')).toBeDefined()
+    expect(await screen.findByRole('link', { name: '5 turnos hoy' })).toBeDefined()
   })
 })

@@ -66,9 +66,9 @@ describe('MobileTabBar', () => {
     expect(screen.getByRole('link', { name: /Mis turnos/ })).toHaveAttribute('href', '/appointments')
   })
 
-  it('the staff set links to agenda and availability', () => {
+  it('the staff set links to Turnos and availability', () => {
     renderBar('/staff/schedule', {}, STAFF_TABS)
-    expect(screen.getByRole('link', { name: /Agenda/ })).toHaveAttribute('href', '/staff/appointments')
+    expect(screen.getByRole('link', { name: /Turnos/ })).toHaveAttribute('href', '/staff/appointments')
     expect(screen.getByRole('link', { name: /Disponibilidad/ })).toHaveAttribute('aria-current', 'page')
   })
 

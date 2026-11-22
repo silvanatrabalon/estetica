@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { TodayAgenda } from './TodayAgenda'
 import type { AgendaItem } from '../../lib/todayAgenda'
 
@@ -17,7 +18,9 @@ const items = [done, nextOne, pending]
 
 function renderAgenda(props: Partial<React.ComponentProps<typeof TodayAgenda>> = {}) {
   return render(
-    <TodayAgenda items={items} next={nextOne} timezone={TZ} now={NOW} loading={false} error={null} {...props} />,
+    <MemoryRouter>
+      <TodayAgenda items={items} featured={[nextOne]} timezone={TZ} now={NOW} loading={false} error={null} {...props} />
+    </MemoryRouter>,
   )
 }
 
@@ -32,38 +35,33 @@ describe('TodayAgenda', () => {
     expect(within(card).getByText('Semi permanentes · con Sil')).toBeInTheDocument()
   })
 
-  it('lists the day in order with a state pill per row and counts the turns', () => {
-    renderAgenda()
-    expect(screen.getByRole('heading', { name: 'Hoy · 3 turnos' })).toBeInTheDocument()
-    const rows = screen.getAllByRole('listitem')
-    expect(rows).toHaveLength(3)
-    expect(within(rows[0]).getByText('Hecho')).toBeInTheDocument()
-    expect(within(rows[1]).getByText('Confirmado')).toBeInTheDocument()
-    expect(within(rows[2]).getByText('Pendiente')).toBeInTheDocument()
+  it('shows one card per appointment in progress or next, with a plural heading (edge case)', () => {
+    const other = item('4', '2026-11-21T13:30:00Z', '2026-11-21T14:00:00Z', 'confirmed', 'Rosa Pérez', 'Perfilado de cejas')
+    renderAgenda({ items: [done, nextOne, other, pending], featured: [nextOne, other] })
+    expect(screen.getByRole('heading', { name: 'Ahora y siguientes' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Siguiente turno de hoy' })).toBeNull()
+    expect(screen.getByText('Camila Ríos')).toBeInTheDocument()
+    expect(screen.getByText('Rosa Pérez')).toBeInTheDocument()
+    expect(screen.queryByText('Laura Gómez')).toBeNull() // done: not featured
   })
 
-  it('marks only the next appointment as current', () => {
+  it('does not list the whole day, only the featured cards', () => {
     renderAgenda()
-    const rows = screen.getAllByRole('listitem')
-    expect(rows.map((r) => r.getAttribute('aria-current'))).toEqual([null, 'true', null])
-  })
-
-  it('uses singular for a single turn (edge case)', () => {
-    renderAgenda({ items: [nextOne] })
-    expect(screen.getByRole('heading', { name: 'Hoy · 1 turno' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: /^Hoy ·/ })).toBeNull()
+    expect(screen.queryByText('Sofía Benítez')).toBeNull()
+    expect(screen.queryByRole('list')).toBeNull()
   })
 
   it('says there are no turns today and promises where they will appear (edge case)', () => {
-    renderAgenda({ items: [], next: null })
+    renderAgenda({ items: [], featured: [] })
     expect(screen.getByText('Hoy no tenés turnos.')).toBeInTheDocument()
     expect(screen.getByText(/lo vas a ver acá/)).toBeInTheDocument()
     expect(screen.queryByRole('list')).toBeNull()
   })
 
   it('says the day is over when every turn has passed (edge case)', () => {
-    renderAgenda({ items: [done], next: null })
+    renderAgenda({ items: [done], featured: [] })
     expect(screen.getByText('No quedan turnos por hoy.')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Hoy · 1 turno' })).toBeInTheDocument()
   })
 
   it('shows a busy placeholder while loading (edge case)', () => {
@@ -80,8 +78,31 @@ describe('TodayAgenda', () => {
 
   it('keeps a long client name fully visible instead of truncating it (edge case)', () => {
     const long = item('9', '2026-11-21T13:30:00Z', '2026-11-21T14:30:00Z', 'confirmed', 'María de los Ángeles Fernández de Kirchner', 'Semi permanentes')
-    renderAgenda({ items: [long], next: long })
-    const row = screen.getByRole('listitem')
-    expect(within(row).getByText('María de los Ángeles Fernández de Kirchner').className).not.toContain('truncate')
+    renderAgenda({ items: [long], featured: [long] })
+    expect(screen.getByText('María de los Ángeles Fernández de Kirchner').className).not.toContain('truncate')
+  })
+
+  describe('links to the appointment', () => {
+    const href = (id: string) => `/admin/appointments/${id}`
+
+    it('without detailHref nothing is a link', () => {
+      renderAgenda()
+      expect(screen.queryAllByRole('link')).toHaveLength(0)
+    })
+
+    it('each card links to its appointment, covering the whole card', () => {
+      const other = item('4', '2026-11-21T13:30:00Z', '2026-11-21T14:00:00Z', 'confirmed', 'Rosa Pérez', 'Perfilado de cejas')
+      renderAgenda({ detailHref: href, featured: [nextOne, other] })
+      const first = screen.getByRole('link', { name: 'Camila Ríos' })
+      expect(first).toHaveAttribute('href', '/admin/appointments/2')
+      expect(screen.getByRole('link', { name: 'Rosa Pérez' })).toHaveAttribute('href', '/admin/appointments/4')
+      expect(first.className).toContain('after:absolute')
+      expect(first.className).toContain('after:inset-0')
+    })
+
+    it('without featured cards there is no link (edge case)', () => {
+      renderAgenda({ detailHref: href, featured: [] })
+      expect(screen.queryAllByRole('link')).toHaveLength(0)
+    })
   })
 })

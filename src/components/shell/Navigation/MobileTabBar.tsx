@@ -20,7 +20,7 @@ const ICON = {
 // Labels match the side menu so the same thing is never called two names.
 export const ADMIN_TABS: MobileTab[] = [
   { href: '/admin/dashboard', label: 'Inicio', icon: ICON.home },
-  { href: '/admin/appointments', label: 'Turnos', icon: ICON.list },
+  { href: '/admin/appointments', label: 'Turnos', icon: ICON.calendar },
 ]
 
 export const CUSTOMER_TABS: MobileTab[] = [
@@ -31,7 +31,7 @@ export const CUSTOMER_TABS: MobileTab[] = [
 
 export const STAFF_TABS: MobileTab[] = [
   { href: '/dashboard', label: 'Inicio', icon: ICON.home },
-  { href: '/staff/appointments', label: 'Agenda', icon: ICON.calendar },
+  { href: '/staff/appointments', label: 'Turnos', icon: ICON.calendar },
   { href: '/staff/schedule', label: 'Disponibilidad', icon: ICON.clock },
 ]
 

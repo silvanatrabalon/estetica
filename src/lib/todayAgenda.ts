@@ -18,10 +18,18 @@ export function todayAgendaItems(rows: AgendaItem[], timezone: string, now: Date
     .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
 }
 
-/** The appointment in progress or the first one still to come; null when the day is over. */
-export function pickNextAppointment(items: AgendaItem[], now: Date = new Date()): AgendaItem | null {
+/**
+ * What to put in the top cards: every appointment in progress right now (there can be several, one
+ * per professional) plus every one that starts at the next start time. Empty when the day is over.
+ */
+export function pickFeaturedAppointments(items: AgendaItem[], now: Date = new Date()): AgendaItem[] {
   const nowMs = now.getTime()
-  return items.find((item) => new Date(item.endsAt).getTime() > nowMs && item.status !== 'completed') ?? null
+  const open = items.filter((item) => new Date(item.endsAt).getTime() > nowMs && item.status !== 'completed')
+  const inProgress = open.filter((item) => new Date(item.startsAt).getTime() <= nowMs)
+  const upcoming = open.filter((item) => new Date(item.startsAt).getTime() > nowMs)
+  if (upcoming.length === 0) return inProgress
+  const nextStart = Math.min(...upcoming.map((item) => new Date(item.startsAt).getTime()))
+  return [...inProgress, ...upcoming.filter((item) => new Date(item.startsAt).getTime() === nextStart)]
 }
 
 /** "Ahora", "en 12 min", "en 1 h 20 min". */
@@ -53,10 +61,4 @@ export function clockTime(isoUtc: string, timezone: string): string {
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(date)
-}
-
-export const AGENDA_STATUS_LABEL: Record<string, string> = {
-  confirmed: 'Confirmado',
-  pending: 'Pendiente',
-  completed: 'Hecho',
 }

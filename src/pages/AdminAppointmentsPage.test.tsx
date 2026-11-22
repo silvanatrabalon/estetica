@@ -10,8 +10,10 @@ import { mockSessions } from '../hooks/__test-utils__/fixtures'
 const mockAdminListAppointments = vi.fn()
 const mockGetBusinessSettings = vi.fn()
 
+const mockStaffListAppointments = vi.fn()
 vi.mock('../services/adminAppointments', () => ({
   adminListAppointments: (...args: unknown[]) => mockAdminListAppointments(...args),
+  staffListAppointments: (...args: unknown[]) => mockStaffListAppointments(...args),
 }))
 
 const mockListStaff = vi.fn()
@@ -40,6 +42,21 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     totalCount: 1,
     ...overrides,
   }
+}
+
+function renderStaffPage(url = '/staff/appointments') {
+  return render(
+    <MemoryRouter initialEntries={[url]}>
+      <TestUserProvider
+        user={mockSessions.authenticatedStaff.user}
+        roles={['staff']}
+        activeRole="staff"
+        isLoading={false}
+      >
+        <AdminAppointmentsPage mode="staff" />
+      </TestUserProvider>
+    </MemoryRouter>,
+  )
 }
 
 function renderPage(url = '/admin/appointments') {
@@ -520,5 +537,57 @@ describe('AdminAppointmentsPage', () => {
       expect(mockAdminListAppointments.mock.calls[0][0].dateTo).toBeDefined()
       expect(screen.getByRole('button', { name: 'Filtrar por período' }).textContent).toContain('Historial')
     })
+  })
+})
+
+describe('AdminAppointmentsPage — staff mode (own appointments only)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetBusinessSettings.mockResolvedValue({ timezone: 'UTC' })
+    mockStaffListAppointments.mockResolvedValue({ rows: [makeRow()], totalCount: 1 })
+    mockListStaff.mockResolvedValue([{ id: 'sm-1', displayName: 'Sil' }])
+  })
+
+  it('loads from the staff list, not the admin list, with the same title and filters', async () => {
+    renderStaffPage()
+    expect(await screen.findByRole('heading', { name: 'Turnos' })).toBeInTheDocument()
+    await waitFor(() => expect(mockStaffListAppointments).toHaveBeenCalled())
+    expect(mockAdminListAppointments).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Buscar cliente')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Filtrar por período' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Filtrar por estado' })).toBeInTheDocument()
+  })
+
+  it('has no professional filter and never asks for the professionals (edge case)', async () => {
+    renderStaffPage()
+    await screen.findByText('Juan Pérez')
+    expect(screen.queryByRole('button', { name: 'Filtrar por profesional' })).toBeNull()
+    expect(mockListStaff).not.toHaveBeenCalled()
+    expect(mockStaffListAppointments.mock.calls[0][0].staffMemberId).toBeUndefined()
+  })
+
+  it('cards link to the staff detail and do not repeat the professional', async () => {
+    renderStaffPage()
+    const link = (await screen.findByText('Juan Pérez')).closest('a')!
+    expect(link).toHaveAttribute('href', '/staff/appointments/appt-1')
+    expect(link.textContent).toContain('Corte de cabello')
+    expect(link.textContent).not.toContain('María López')
+  })
+
+  it('search, Historial and ?periodo= work the same way (edge case)', async () => {
+    renderStaffPage('/staff/appointments?periodo=past')
+    await waitFor(() => expect(mockStaffListAppointments).toHaveBeenCalled())
+    expect(mockStaffListAppointments.mock.calls[0][0].dateTo).toBeDefined()
+    fireEvent.change(screen.getByLabelText('Buscar cliente'), { target: { value: 'ana' } })
+    await waitFor(
+      () => expect(mockStaffListAppointments).toHaveBeenLastCalledWith(expect.objectContaining({ search: 'ana' }), 1, PAGE_SIZE),
+      { timeout: 2000 },
+    )
+  })
+
+  it('shows the error state when the staff list fails (edge case)', async () => {
+    mockStaffListAppointments.mockRejectedValue(new Error('STAFF_NOT_AUTHORIZED'))
+    renderStaffPage()
+    expect(await screen.findByText('Ocurrió un error al cargar los turnos.')).toBeInTheDocument()
   })
 })

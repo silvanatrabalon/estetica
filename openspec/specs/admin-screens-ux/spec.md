@@ -34,3 +34,6 @@ La lista de Turnos usa tarjetas con un color por estado, filtro de período (Hoy
 
 ### Requirement: Historial, Próximos y buscador de cliente en Turnos
 "Próximos" SHALL listar los turnos desde ahora, el más cercano primero; "Historial" los anteriores a ahora, el más reciente primero. Un buscador "Buscar cliente" SHALL filtrar por nombre, email o teléfono del cliente (con cuenta o sin cuenta), sin importar mayúsculas ni acentos, esperando una pausa al escribir, y combinarse con período, estado y profesional. Un texto vacío equivale a no buscar, y si no hay resultados se dice qué se buscó.
+
+### Requirement: Un turno completado sigue siendo editable
+Que la hora de un turno ya haya pasado (estado "completado") NO SHALL impedir que admin y staff lo editen, lo cancelen o lo reprogramen. Solo "cancelado" no ofrece acciones. Los clientes siguen sin poder tocar un turno completado. Reprogramar un turno completado a una fecha futura lo deja confirmado.

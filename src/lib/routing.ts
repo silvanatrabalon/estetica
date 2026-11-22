@@ -10,7 +10,7 @@ export interface RoutePolicy {
 
 export const roleHomeByRole: Record<AppRole, string> = {
   customer: '/dashboard',
-  staff: '/staff/schedule',
+  staff: '/dashboard',
   admin: '/admin/dashboard',
 }
 

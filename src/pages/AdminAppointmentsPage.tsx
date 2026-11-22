@@ -7,6 +7,7 @@ import { getBusinessSettings } from '../services/businessSettings'
 import { listAdminStaffMembers, type AdminStaffMember } from '../services/adminStaff'
 import {
   adminListAppointments,
+  staffListAppointments,
   type AdminAppointmentFilters,
   type AdminAppointmentPage,
   type AdminAppointmentRow,
@@ -107,7 +108,14 @@ function FilterMenu({
   )
 }
 
-export function AdminAppointmentsPage() {
+interface AppointmentsPageProps {
+  /** 'staff': only the professional's own appointments (no professional filter, staff detail links). */
+  mode?: 'admin' | 'staff'
+}
+
+export function AdminAppointmentsPage({ mode = 'admin' }: AppointmentsPageProps) {
+  const isStaff = mode === 'staff'
+  const basePath = isStaff ? '/staff/appointments' : '/admin/appointments'
   const [searchParams] = useSearchParams()
   const [period, setPeriod] = useState<AppointmentPeriod>(() => {
     const fromUrl = searchParams.get('periodo')
@@ -139,6 +147,7 @@ export function AdminAppointmentsPage() {
   }, [searchInput, search])
 
   useEffect(() => {
+    if (isStaff) return
     listAdminStaffMembers()
       .then(setProfessionals)
       .catch(() => {
@@ -161,13 +170,14 @@ export function AdminAppointmentsPage() {
 
     const activeFilters: AdminAppointmentFilters = {
       statuses: selectedStatus ? [selectedStatus] : undefined,
-      staffMemberId: selectedStaff || undefined,
+      staffMemberId: isStaff ? undefined : selectedStaff || undefined,
       search: search || undefined,
       ascending: isAscendingPeriod(period),
       ...getPeriodRange(period),
     }
 
-    adminListAppointments(activeFilters, page, PAGE_SIZE)
+    const load = isStaff ? staffListAppointments : adminListAppointments
+    load(activeFilters, page, PAGE_SIZE)
       .then((data) => {
         if (!cancelled) setResult(data)
       })
@@ -182,7 +192,7 @@ export function AdminAppointmentsPage() {
     return () => {
       cancelled = true
     }
-  }, [period, selectedStatus, selectedStaff, search, page])
+  }, [period, selectedStatus, selectedStaff, search, page, isStaff])
 
   function handleStatusChange(value: string) {
     setSelectedStatus(value)
@@ -246,7 +256,7 @@ export function AdminAppointmentsPage() {
             </span>
           )}
         </FilterMenu>
-        {professionals.length > 0 && (
+        {!isStaff && professionals.length > 0 && (
           <FilterMenu
             label="Filtrar por profesional"
             options={[
@@ -296,7 +306,7 @@ export function AdminAppointmentsPage() {
             {result.rows.map((row: AdminAppointmentRow) => (
               <li key={row.id}>
                 <Link
-                  to={`/admin/appointments/${row.id}`}
+                  to={`${basePath}/${row.id}`}
                   className={cn(
                     'block rounded-xl border border-l-4 px-3 py-2.5 transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]',
                     STATUS_CARD[row.status] ?? 'border-slate-200 bg-slate-50',
@@ -309,7 +319,7 @@ export function AdminAppointmentsPage() {
                     </span>
                   </div>
                   <p className="mt-0.5 truncate text-xs text-shell-subtleText">
-                    {row.serviceName} · {row.staffDisplayName}
+                    {isStaff ? row.serviceName : `${row.serviceName} · ${row.staffDisplayName}`}
                   </p>
                   <p className="mt-0.5 text-xs font-medium text-shell-text">
                     {formatSlotDateTime(row.startsAt, orgTimezone)}

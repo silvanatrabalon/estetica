@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clockTime, pickNextAppointment, todayAgendaItems, untilLabel, type AgendaItem } from './todayAgenda'
+import { clockTime, pickFeaturedAppointments, todayAgendaItems, untilLabel, type AgendaItem } from './todayAgenda'
 
 const TZ = 'America/Argentina/Buenos_Aires' // UTC-3
 const NOW = new Date('2026-11-21T13:18:00Z') // 10:18 in Buenos Aires
@@ -34,29 +34,29 @@ describe('todayAgendaItems', () => {
   })
 })
 
-describe('pickNextAppointment', () => {
+describe('pickFeaturedAppointments', () => {
   const today = todayAgendaItems(rows, TZ, NOW)
 
   it('skips finished appointments and picks the first one still ahead', () => {
-    expect(pickNextAppointment(today, NOW)?.id).toBe('now')
+    expect(pickFeaturedAppointments(today, NOW).map((i) => i.id)[0]).toBe('now')
   })
 
   it('picks the appointment in progress (edge case)', () => {
-    expect(pickNextAppointment(today, new Date('2026-11-21T13:45:00Z'))?.id).toBe('now')
+    expect(pickFeaturedAppointments(today, new Date('2026-11-21T13:45:00Z')).map((i) => i.id)[0]).toBe('now')
   })
 
   it('moves on to the next one once the current one ends (edge case)', () => {
-    expect(pickNextAppointment(today, new Date('2026-11-21T14:31:00Z'))?.id).toBe('late')
+    expect(pickFeaturedAppointments(today, new Date('2026-11-21T14:31:00Z')).map((i) => i.id)[0]).toBe('late')
   })
 
   it('returns null when the day is over or empty (edge case)', () => {
-    expect(pickNextAppointment(today, new Date('2026-11-21T21:00:00Z'))).toBeNull()
-    expect(pickNextAppointment([], NOW)).toBeNull()
+    expect(pickFeaturedAppointments(today, new Date('2026-11-21T21:00:00Z'))).toEqual([])
+    expect(pickFeaturedAppointments([], NOW)).toEqual([])
   })
 
   it('does not treat a completed appointment as upcoming (edge case)', () => {
     const done = [item('d', '2026-11-21T13:30:00Z', '2026-11-21T14:30:00Z', 'completed')]
-    expect(pickNextAppointment(done, NOW)).toBeNull()
+    expect(pickFeaturedAppointments(done, NOW)).toEqual([])
   })
 })
 
@@ -90,5 +90,45 @@ describe('clockTime', () => {
   it('falls back to UTC for an invalid zone and flags invalid dates (edge case)', () => {
     expect(clockTime('2026-11-21T13:30:00Z', 'Not/AZone')).toBe('13:30')
     expect(clockTime('nope', TZ)).toBe('--:--')
+  })
+})
+
+describe('pickFeaturedAppointments — several at once', () => {
+  const mk = (id: string, start: string, end: string, status = 'confirmed') =>
+    ({ id, startsAt: start, endsAt: end, status, customerName: id, serviceName: 's', staffDisplayName: 'p' }) as AgendaItem
+  const now = new Date('2026-11-21T15:00:00Z')
+
+  it('returns every appointment in progress plus the next ones', () => {
+    const items = [
+      mk('a', '2026-11-21T14:30:00Z', '2026-11-21T15:30:00Z'), // in progress
+      mk('b', '2026-11-21T14:45:00Z', '2026-11-21T16:00:00Z'), // in progress, other professional
+      mk('c', '2026-11-21T16:00:00Z', '2026-11-21T17:00:00Z'), // next
+      mk('d', '2026-11-21T16:00:00Z', '2026-11-21T16:45:00Z'), // next, same time
+      mk('e', '2026-11-21T17:30:00Z', '2026-11-21T18:30:00Z'), // later: not featured
+    ]
+    expect(pickFeaturedAppointments(items, now).map((i) => i.id)).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('only the earliest upcoming start time is featured (edge case)', () => {
+    const items = [mk('x', '2026-11-21T16:30:00Z', '2026-11-21T17:00:00Z'), mk('y', '2026-11-21T18:00:00Z', '2026-11-21T19:00:00Z')]
+    expect(pickFeaturedAppointments(items, now).map((i) => i.id)).toEqual(['x'])
+  })
+
+  it('with only appointments in progress, returns those (edge case)', () => {
+    const items = [mk('a', '2026-11-21T14:30:00Z', '2026-11-21T15:30:00Z'), mk('b', '2026-11-21T14:00:00Z', '2026-11-21T15:10:00Z')]
+    expect(pickFeaturedAppointments(items, now).map((i) => i.id)).toEqual(['a', 'b'])
+  })
+
+  it('skips completed ones and ones that already ended (edge case)', () => {
+    const items = [
+      mk('done', '2026-11-21T14:30:00Z', '2026-11-21T15:30:00Z', 'completed'),
+      mk('over', '2026-11-21T13:00:00Z', '2026-11-21T14:00:00Z'),
+      mk('next', '2026-11-21T16:00:00Z', '2026-11-21T17:00:00Z'),
+    ]
+    expect(pickFeaturedAppointments(items, now).map((i) => i.id)).toEqual(['next'])
+  })
+
+  it('an appointment ending exactly now is no longer in progress (edge case)', () => {
+    expect(pickFeaturedAppointments([mk('z', '2026-11-21T14:00:00Z', '2026-11-21T15:00:00Z')], now)).toEqual([])
   })
 })

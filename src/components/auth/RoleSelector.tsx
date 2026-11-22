@@ -11,7 +11,7 @@ const roleLabels: Record<AppRole, string> = {
 
 const roleDescriptions: Record<AppRole, string> = {
   customer: 'Reservar y gestionar tus turnos',
-  staff: 'Gestionar tu agenda y clientes',
+  staff: 'Gestionar tus turnos y clientes',
   admin: 'Administrar el negocio y el equipo',
 }
 

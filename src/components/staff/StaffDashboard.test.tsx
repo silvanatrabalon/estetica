@@ -16,7 +16,7 @@ vi.mock('../../hooks/useMyAgenda', () => ({ useMyAgenda: () => mockAgenda() }))
 
 const base = {
   items: [],
-  next: null,
+  featured: [],
   timezone: 'America/Argentina/Buenos_Aires',
   now: new Date('2026-11-21T13:00:00Z'),
   stats: { today: 2, upcoming: 5, month: 9, cancelledMonth: 1 },
@@ -30,24 +30,34 @@ describe('StaffDashboard', () => {
     mockUseUser.mockReturnValue({ roles: ['staff'], setActiveRole: vi.fn() })
   })
 
-  it('shows the four counters, each linking to the agenda', () => {
+  it('shows the day total as a pill linking to the day\'s Turnos, and no counter cards', () => {
     mockAgenda.mockReturnValue(base)
     render(
       <MemoryRouter>
         <StaffDashboard />
       </MemoryRouter>,
     )
-    for (const label of ['Mis turnos hoy', 'Próximos turnos', 'Este mes', 'Cancelados este mes']) {
-      expect(screen.getByRole('link', { name: new RegExp(label) })).toHaveAttribute('href', '/staff/appointments')
+    expect(screen.getByRole('link', { name: '2 turnos hoy' })).toHaveAttribute('href', '/staff/appointments?periodo=today')
+    for (const label of ['Próximos turnos', 'Este mes', 'Cancelados este mes', 'Mis turnos hoy']) {
+      expect(screen.queryByText(label)).toBeNull()
     }
-    expect(screen.getByText('9')).toBeInTheDocument()
+  })
+
+  it('uses the singular and shows 0 when there are none (edge case)', () => {
+    mockAgenda.mockReturnValue({ ...base, stats: { ...base.stats, today: 1 } })
+    const { unmount } = render(<MemoryRouter><StaffDashboard /></MemoryRouter>)
+    expect(screen.getByRole('link', { name: '1 turno hoy' })).toBeInTheDocument()
+    unmount()
+    mockAgenda.mockReturnValue({ ...base, stats: { ...base.stats, today: 0 } })
+    render(<MemoryRouter><StaffDashboard /></MemoryRouter>)
+    expect(screen.getByRole('link', { name: '0 turnos hoy' })).toBeInTheDocument()
   })
 
   it('links the next appointment to its staff detail and hides the professional name', () => {
     mockAgenda.mockReturnValue({
       ...base,
       items: [],
-      next: {
+      featured: [{
         id: 'a1',
         startsAt: '2026-11-21T14:00:00Z',
         endsAt: '2026-11-21T15:00:00Z',
@@ -55,7 +65,7 @@ describe('StaffDashboard', () => {
         customerName: 'Ana Pérez',
         serviceName: 'Belleza de pies',
         staffDisplayName: 'Sil',
-      },
+      }],
     })
     render(
       <MemoryRouter>
@@ -86,40 +96,19 @@ describe('StaffDashboard', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('No pudimos cargar tus turnos')
   })
 
-  it('offers the way to the public site', () => {
-    mockAgenda.mockReturnValue(base)
-    render(
-      <MemoryRouter>
-        <StaffDashboard />
-      </MemoryRouter>,
-    )
-    expect(screen.getByRole('link', { name: 'Ir al sitio web' })).toHaveAttribute('href', '/')
-    expect(screen.queryByText(/página principal/i)).toBeNull()
-  })
-
-  it('a professional who is not a customer is told to ask the admin (edge case)', () => {
-    mockAgenda.mockReturnValue(base)
-    render(
-      <MemoryRouter>
-        <StaffDashboard />
-      </MemoryRouter>,
-    )
-    expect(screen.getByText(/pedile a tu administrador que te haga cliente/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Reservar turno' })).toBeNull()
-  })
-
-  it('a professional who is also a customer switches to the customer role to book', () => {
-    const setActiveRole = vi.fn()
-    mockUseUser.mockReturnValue({ roles: ['staff', 'customer'], setActiveRole })
-    mockAgenda.mockReturnValue(base)
-    render(
-      <MemoryRouter>
-        <StaffDashboard />
-      </MemoryRouter>,
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Reservar turno' }))
-    expect(setActiveRole).toHaveBeenCalledWith('customer')
-    expect(mockNavigate).toHaveBeenCalledWith('/booking')
-    expect(screen.queryByText(/pedile a tu administrador/)).toBeNull()
+  it('has no booking section or public-site link, like the admin Inicio (edge case)', () => {
+    for (const roles of [['staff'], ['staff', 'customer']]) {
+      mockUseUser.mockReturnValue({ roles, setActiveRole: vi.fn() })
+      mockAgenda.mockReturnValue(base)
+      const { unmount } = render(
+        <MemoryRouter>
+          <StaffDashboard />
+        </MemoryRouter>,
+      )
+      expect(screen.queryByText(/pedile a tu administrador/)).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Reservar turno' })).toBeNull()
+      expect(screen.queryByRole('link', { name: 'Ir al sitio web' })).toBeNull()
+      unmount()
+    }
   })
 })

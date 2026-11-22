@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { adminListAppointments } from '../services/adminAppointments'
 import { getBusinessSettings } from '../services/businessSettings'
-import { pickNextAppointment, todayAgendaItems, type AgendaItem } from '../lib/todayAgenda'
+import { pickFeaturedAppointments, todayAgendaItems, type AgendaItem } from '../lib/todayAgenda'
 
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 const DAY_MS = 24 * 60 * 60 * 1000
 
-/** Today's appointments (business time zone) and the next one, refreshed every minute. */
+/** Today's appointments (business time zone) and what is on now or next, refreshed every minute. */
 export function useTodayAgenda() {
   const [rows, setRows] = useState<AgendaItem[]>([])
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE)
@@ -49,7 +49,7 @@ export function useTodayAgenda() {
   }, [])
 
   const items = useMemo(() => todayAgendaItems(rows, timezone, now), [rows, timezone, now])
-  const next = useMemo(() => pickNextAppointment(items, now), [items, now])
+  const featured = useMemo(() => pickFeaturedAppointments(items, now), [items, now])
 
-  return { items, next, timezone, now, loading, error }
+  return { items, featured, timezone, now, loading, error }
 }

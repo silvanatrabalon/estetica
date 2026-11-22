@@ -129,7 +129,7 @@ export function BookingConfirmationPage() {
     activeRole === 'admin'
       ? { to: '/admin/appointments', label: 'Ver turnos' }
       : activeRole === 'staff'
-        ? { to: '/staff/appointments', label: 'Ver mi agenda' }
+        ? { to: '/staff/appointments', label: 'Ver turnos' }
         : { to: '/appointments', label: 'Ver mis turnos' }
   // Admin or staff looking at an appointment they booked for someone else
   const isForSomeoneElse = apt.customerUserId !== (user?.id ?? null)

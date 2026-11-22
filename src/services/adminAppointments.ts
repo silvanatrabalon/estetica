@@ -88,6 +88,36 @@ export async function adminListAppointments(
   }
 }
 
+/** The logged-in professional's own appointments, same filters as the admin list (no professional filter). */
+export async function staffListAppointments(
+  filters: Omit<AdminAppointmentFilters, 'staffMemberId'>,
+  page: number,
+  pageSize?: number,
+): Promise<AdminAppointmentPage> {
+  const supabase = initSupabase()
+
+  const { data, error } = await supabase.rpc('staff_list_appointments', {
+    p_statuses: filters.statuses?.length ? filters.statuses : null,
+    p_date_from: filters.dateFrom ? new Date(filters.dateFrom).toISOString() : null,
+    p_date_to: filters.dateTo ? new Date(filters.dateTo).toISOString() : null,
+    p_page: page,
+    p_page_size: pageSize ?? null,
+    p_search: filters.search?.trim() || null,
+    p_ascending: filters.ascending ?? false,
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  const rows = (data as AdminAppointmentRpcRow[] | null) ?? []
+
+  return {
+    rows: rows.map(toAdminAppointmentRow),
+    totalCount: rows[0]?.total_count ?? 0,
+  }
+}
+
 // ── Danger zone ───────────────────────────────────────────────────────────────
 
 export async function adminDeleteAllAppointments(): Promise<number> {

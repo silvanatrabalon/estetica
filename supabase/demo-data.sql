@@ -312,8 +312,8 @@ begin
     ) as t(staff_id, start_t, service_name, guest, phone, email)
     join public.services sv on sv.name = t.service_name;
 
-  -- Y dos relativos a este momento, para que siempre haya uno en curso y uno por venir
-  -- (si ya es muy tarde, el segundo cae mañana a la mañana).
+  -- Y varios relativos a este momento: tres en curso a la vez y tres que empiezan juntos, para ver
+  -- cómo se muestran varios turnos "ahora" y "siguientes" en el Inicio. Pueden pasar de medianoche.
   insert into public.appointments (
     organization_id, service_id, staff_member_id, customer_user_id, created_by_user_id,
     starts_at, ends_at, status, price_cents, original_price_cents, discount_cents,
@@ -323,8 +323,16 @@ begin
          'confirmed', sv.price_cents, sv.price_cents, 0,
          t.guest, t.phone, t.email, now() - interval '2 days', now() - interval '2 days'
     from (values
+      -- tres en curso a la vez (distintas profesionales)
       (v_julieta,   date_trunc('minute', now()) - interval '15 minutes', 'Uñas esculpidas',   'Pamela Ortiz',   '11-5555-1333', 'pamela.ortiz@example.com'),
-      (v_valentina, date_trunc('minute', now()) + interval '90 minutes', 'Masaje descontracturante', 'Valeria Medina', null, null)
+      (v_lucia,     date_trunc('minute', now()) - interval '20 minutes', 'Hidratación facial', 'Daniela Silva',  null, 'daniela.silva@example.com'),
+      (v_prof_silvana, date_trunc('minute', now()) - interval '5 minutes', 'Masaje relajante', 'Lucrecia Vega',  '11-5555-1371', null),
+      -- tres que empiezan a la misma hora, en 40 minutos
+      (v_camila,    date_trunc('minute', now()) + interval '40 minutes', 'Pedicura spa',      'Paula Rojas',    '11-5555-1408', null),
+      (v_sunny,     date_trunc('minute', now()) + interval '40 minutes', 'Manicura clásica',  'Laura Gómez',    '11-5555-1037', 'laura.gomez@example.com'),
+      (v_valentina, date_trunc('minute', now()) + interval '40 minutes', 'Peeling suave',     'Sofía Álvarez',  null, 'sofia.alvarez@example.com'),
+      -- y uno más tarde, que no debería destacarse
+      (v_julieta,   date_trunc('minute', now()) + interval '150 minutes', 'Perfilado de cejas', 'Valeria Medina', null, null)
     ) as t(staff_id, starts, service_name, guest, phone, email)
     join public.services sv on sv.name = t.service_name;
 

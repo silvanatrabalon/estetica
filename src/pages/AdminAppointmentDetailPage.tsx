@@ -22,7 +22,8 @@ const STATUS_LABELS: Record<string, string> = {
   no_show: 'No asistió',
 }
 
-const ACTIONABLE = ['pending', 'confirmed']
+// A completed appointment (its time passed) can still be edited, cancelled or rescheduled
+const ACTIONABLE = ['pending', 'confirmed', 'completed']
 
 interface AppointmentDetailPageProps {
   /** admin: full actions (reprogramar, editar, cancelar). staff: own appointments, no editing. */
@@ -144,7 +145,7 @@ export function AdminAppointmentDetailPage({ mode = 'admin' }: AppointmentDetail
   const backLink = (
     <Link
       to={listPath}
-      aria-label={mode === 'staff' ? 'Volver a la agenda' : 'Volver a turnos'}
+      aria-label={mode === 'staff' ? 'Volver a turnos' : 'Volver a turnos'}
       className="flex h-9 w-9 items-center justify-center rounded-full text-xl text-brand-primary hover:bg-shell-muted"
     >
       ←

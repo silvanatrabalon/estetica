@@ -256,7 +256,7 @@ export function AdminUserEditPage() {
           ))}
         </div>
         <p className="text-xs text-shell-subtleText">
-          Cliente reserva turnos. Staff atiende y ve su agenda. Administrador gestiona todo el negocio.
+          Cliente reserva turnos. Staff atiende y ve sus turnos. Administrador gestiona todo el negocio.
         </p>
       </div>
 

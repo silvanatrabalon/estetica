@@ -44,7 +44,7 @@ describe('useMyAgenda', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
 
     expect(result.current.items.map((i) => i.id)).toEqual(['a'])
-    expect(result.current.next?.id).toBe('a')
+    expect(result.current.featured[0]?.id).toBe('a')
     expect(result.current.stats).toEqual({ today: 1, upcoming: 1, month: 2, cancelledMonth: 1 })
   })
 
@@ -53,7 +53,7 @@ describe('useMyAgenda', () => {
     const { result } = renderHook(() => useMyAgenda())
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.items).toEqual([])
-    expect(result.current.next).toBeNull()
+    expect(result.current.featured).toEqual([])
     expect(result.current.stats).toEqual({ today: 0, upcoming: 0, month: 0, cancelledMonth: 0 })
   })
 

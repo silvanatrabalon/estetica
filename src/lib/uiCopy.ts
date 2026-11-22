@@ -18,7 +18,7 @@ export const navigationCopy = {
   booking: 'Reservar turno',
   appointments: 'Mis turnos',
   schedule: 'Disponibilidad',
-  staffAppointments: 'Agenda',
+  staffAppointments: 'Turnos',
   clients: 'Clientes',
   businessSettings: 'Negocio',
   users: 'Usuarios y roles',

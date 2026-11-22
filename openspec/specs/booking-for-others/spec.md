@@ -39,4 +39,4 @@ Al cliente con cuenta le llega el email de siempre; a la persona sin cuenta, sol
 `list_booking_clients` SHALL devolver todas las cuentas con rol cliente (las desactivadas con la marca "inactivo") y, sin repetir por nombre y email, las personas sin cuenta de turnos anteriores (con los datos más recientes), marcadas "sin cuenta". Elegir una persona sin cuenta cambia la opción a "Otra persona" con sus datos ya completos, editables.
 
 ### Requirement: Después de reservar
-La pantalla de turno confirmado SHALL llevar a "Ver turnos" (`/admin/appointments`) para admin, "Ver mi agenda" (`/staff/appointments`) para staff y "Ver mis turnos" (`/appointments`) para clientes, porque "Mis turnos" es solo de clientes.
+La pantalla de turno confirmado SHALL llevar a "Ver turnos" (`/admin/appointments`) para admin, "Ver turnos" (`/staff/appointments`) para staff y "Ver mis turnos" (`/appointments`) para clientes, porque "Mis turnos" es solo de clientes.

@@ -124,13 +124,22 @@ describe('AdminAppointmentDetailPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos cargar el turno.')
   })
 
-  it.each(['cancelled', 'completed', 'no_show'])('turno %s no ofrece acciones', async (status) => {
+  it.each(['cancelled', 'no_show'])('turno %s no ofrece acciones', async (status) => {
     mocks.getAdminAppointment.mockResolvedValue({ ...base, status })
     renderPage()
     await screen.findByText('Ana Pérez')
     expect(screen.queryByRole('button', { name: 'Reprogramar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancelar' })).not.toBeInTheDocument()
     expect(screen.getByText(/ya no se puede modificar/)).toBeInTheDocument()
+  })
+
+  it('un turno completado se puede editar, reprogramar y cancelar (edge case)', async () => {
+    mocks.getAdminAppointment.mockResolvedValue({ ...base, status: 'completed' })
+    renderPage()
+    await screen.findByText('Ana Pérez')
+    expect(screen.getByRole('button', { name: 'Reprogramar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
+    expect(screen.queryByText(/ya no se puede modificar/)).not.toBeInTheDocument()
   })
 
   it('reprogramar navega indicando a dónde volver', async () => {
@@ -259,10 +268,10 @@ describe('AdminAppointmentDetailPage', () => {
       expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument()
     })
 
-    it('goes back to the agenda and returns there after reprogramar', async () => {
+    it('goes back to Turnos and returns there after reprogramar', async () => {
       const user = userEvent.setup()
       renderStaffPage()
-      expect(await screen.findByRole('link', { name: 'Volver a la agenda' })).toHaveAttribute('href', '/staff/appointments')
+      expect(await screen.findByRole('link', { name: 'Volver a turnos' })).toHaveAttribute('href', '/staff/appointments')
       await user.click(screen.getByRole('button', { name: 'Reprogramar' }))
       expect(mocks.navigate).toHaveBeenCalledWith('/appointments/a1/reschedule', {
         state: { returnTo: '/staff/appointments/a1' },

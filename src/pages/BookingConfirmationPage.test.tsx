@@ -294,10 +294,10 @@ describe('BookingConfirmationPage', () => {
       expect(screen.queryByRole('link', { name: 'Ver mis turnos' })).toBeNull()
     })
 
-    it('staff go to their agenda (edge case)', async () => {
+    it('staff go to their Turnos (edge case)', async () => {
       mockGetAppointment.mockResolvedValue({ ...mockDetail, customerUserId: 'someone-else' })
       renderAs(mockSessions.authenticatedStaff)
-      expect(await screen.findByRole('link', { name: 'Ver mi agenda' })).toHaveAttribute('href', '/staff/appointments')
+      expect(await screen.findByRole('link', { name: 'Ver turnos' })).toHaveAttribute('href', '/staff/appointments')
     })
 
     it('a cancelled appointment also follows the role (edge case)', async () => {

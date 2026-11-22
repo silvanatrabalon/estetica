@@ -210,7 +210,7 @@ describe('redirect resolution', () => {
 
   it('maps role home paths deterministically', () => {
     expect(resolveRoleHomePath('customer')).toBe('/dashboard')
-    expect(resolveRoleHomePath('staff')).toBe('/staff/schedule')
+    expect(resolveRoleHomePath('staff')).toBe('/dashboard')
     expect(resolveRoleHomePath('admin')).toBe('/admin/dashboard')
   })
 

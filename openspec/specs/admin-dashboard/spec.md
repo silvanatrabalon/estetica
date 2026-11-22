@@ -120,3 +120,18 @@ The "Cancelados este mes" card MUST show only the cancelled appointments of the 
 
 ### Requirement: Hoy como lista, "Próximos turnos" como contador
 El Inicio del admin SHALL mostrar "Siguiente turno de hoy" y la lista "Hoy" con los turnos del día (no los de otros días). Los contadores son: Turnos hoy, **Próximos turnos** (pendientes o confirmados desde ahora en adelante, que lleva a Turnos > Próximos), Turnos este mes y Cancelados este mes. El contador de "esta semana" se quitó.
+
+### Requirement: Varios turnos "ahora" y "siguientes"
+Como puede haber varios turnos en curso a la vez (uno por profesional) y varios que empiezan a la misma hora, la sección superior del Inicio (admin y staff) SHALL mostrar una tarjeta por cada turno en curso más una por cada turno que empieza en el próximo horario, con el título "Ahora y siguientes" (o "Siguiente turno de hoy" si es una sola). Cada tarjeta y cada fila de "Hoy" abre el turno. En celular la fecha y la sección ocupan menos espacio, para que los turnos queden cerca del encabezado.
+
+### Requirement: Sin lista de "Hoy" en el Inicio
+El Inicio (admin y staff) NO SHALL mostrar la lista "Hoy · N turnos". Arriba queda solo "Ahora y siguientes" (o "Siguiente turno de hoy"), y el total del día está en la tarjeta contador "Turnos hoy" (en staff, "Mis turnos hoy"), que sigue siendo acceso directo a Turnos con el filtro de hoy. Esto reemplaza lo dicho antes sobre la lista "Hoy".
+
+### Requirement: Sin contadores, total de hoy como indicador
+El Inicio (admin y staff) NO SHALL mostrar tarjetas contador. El total del día se muestra como un indicador compacto junto a la fecha ("14 turnos hoy", "1 turno hoy"), que es acceso directo a Turnos con el filtro de hoy (en staff, a la agenda). Queda solo eso más "Ahora y siguientes". Esto reemplaza lo dicho antes sobre los contadores y "Próximos turnos" en el Inicio; el período "Próximos" sigue existiendo en Turnos.
+
+### Requirement: Staff tiene "Turnos", igual que el admin
+Para el rol staff la sección SHALL llamarse "Turnos" (no "Agenda") y ser la misma pantalla que la del admin (buscador de cliente, período con Próximos e Historial, estado, tarjetas por estado y detalle), mostrando solo los turnos propios y sin filtro por profesional. No hay calendario ni lista aparte. En el celular su icono es el del calendario, igual que en el admin. La base ofrece `staff_list_appointments`, que solo devuelve los turnos de quien llama y rechaza cuentas sin ficha de profesional.
+
+### Requirement: Cambiar de rol lleva al Inicio
+Al elegir un rol (por ejemplo pasar a staff) la app SHALL llevar a su Inicio: `/dashboard` para cliente y staff, `/admin/dashboard` para admin.

@@ -3,6 +3,7 @@ import {
   adminListAppointments,
   adminUpdateAppointment,
   getAdminAppointment,
+  staffListAppointments,
   translateAdminUpdateError,
 } from './adminAppointments'
 
@@ -235,6 +236,39 @@ describe('adminListAppointments search and order', () => {
       'admin_list_appointments',
       expect.objectContaining({ p_search: null, p_ascending: false }),
     )
+  })
+})
+
+describe('staffListAppointments', () => {
+  beforeEach(() => mockRpc.mockReset())
+
+  it('calls staff_list_appointments with the filters and no professional id', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null })
+    await staffListAppointments({ search: ' ana ', ascending: true, statuses: ['confirmed'] }, 2, 50)
+    expect(mockRpc).toHaveBeenCalledWith('staff_list_appointments', {
+      p_statuses: ['confirmed'],
+      p_date_from: null,
+      p_date_to: null,
+      p_page: 2,
+      p_page_size: 50,
+      p_search: 'ana',
+      p_ascending: true,
+    })
+  })
+
+  it('maps rows and the total, and is empty without rows (edge case)', async () => {
+    mockRpc.mockResolvedValueOnce({
+      data: [{ id: 'a', starts_at: 's', ends_at: 'e', status: 'confirmed', service_id: 'sv', service_name: 'Corte', staff_display_name: 'Sil', customer_name: 'Ana', created_at: 'c', total_count: 7 }],
+      error: null,
+    })
+    expect(await staffListAppointments({}, 1)).toMatchObject({ totalCount: 7, rows: [{ id: 'a', customerName: 'Ana' }] })
+    mockRpc.mockResolvedValueOnce({ data: null, error: null })
+    expect(await staffListAppointments({}, 1)).toEqual({ rows: [], totalCount: 0 })
+  })
+
+  it('throws the server message on error, e.g. an account without a professional profile (edge case)', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'STAFF_NOT_AUTHORIZED' } })
+    await expect(staffListAppointments({}, 1)).rejects.toThrow('STAFF_NOT_AUTHORIZED')
   })
 })
 
