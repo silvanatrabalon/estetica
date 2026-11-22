@@ -383,9 +383,6 @@ export function BookingPage() {
       {/* Step 2: Date picker */}
       {step === 2 && selectedService && (
         <div>
-          <p className="text-shell-subtleText mb-4">
-            Seleccioná una fecha para <strong>{selectedService.name}</strong>.
-          </p>
           <BookingCalendar
             serviceId={selectedService.id}
             minDate={today}
@@ -609,7 +606,7 @@ function ServiceCard({ service, selected, primaryColor, promo, onClick }: Servic
     <button
       type="button"
       onClick={onClick}
-      className={`relative w-full text-left rounded-xl border transition-all duration-150 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] ${
+      className={`relative flex h-full w-full flex-col justify-start text-left rounded-xl border transition-all duration-150 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] ${
         selected
           ? 'border-brand-primary shadow-md ring-1 ring-brand-primary'
           : promo
@@ -619,7 +616,7 @@ function ServiceCard({ service, selected, primaryColor, promo, onClick }: Servic
     >
       {/* Image area */}
       <div
-        className="h-32 w-full flex items-center justify-center"
+        className="h-32 w-full shrink-0 flex items-center justify-center"
         style={
           !service.imageUrl || imgError
             ? { backgroundColor: primaryColor }

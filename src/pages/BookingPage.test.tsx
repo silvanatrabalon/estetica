@@ -228,7 +228,8 @@ describe('BookingPage', () => {
 
       await selectService()
 
-      expect(screen.getByText(/Seleccioná una fecha para/)).toBeDefined()
+      expect(currentStep()).toBe('Fecha')
+      expect(screen.queryByText(/Seleccioná una fecha para/)).toBeNull()
     })
   })
 
@@ -248,9 +249,9 @@ describe('BookingPage', () => {
       expect(screen.getByRole('grid')).toBeDefined()
     })
 
-    it('shows selected service name', async () => {
+    it('does not repeat the instruction line above the calendar', async () => {
       await goToStep2()
-      expect(screen.getByText('Corte de cabello', { selector: 'strong' })).toBeDefined()
+      expect(screen.queryByText(/Seleccioná una fecha para/)).toBeNull()
     })
 
     it('goes back to step 1 on back button click', async () => {
@@ -669,8 +670,7 @@ describe('BookingPage', () => {
     it('back from step 3 returns to the date picker and keeps service', async () => {
       await goToStep3WithSlot()
       fireEvent.click(screen.getByRole('button', { name: 'Volver al paso anterior' }))
-      expect(screen.getByText(/Seleccioná una fecha para/)).toBeDefined()
-      expect(screen.getByText('Corte de cabello', { selector: 'strong' })).toBeDefined()
+      expect(currentStep()).toBe('Fecha')
     })
 
     it('back to step 1 clears the service and shows the list again', async () => {
@@ -786,7 +786,7 @@ describe('BookingPage — step by step menu and phone category filter', () => {
     await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
     fireEvent.click(screen.getByRole('button', { name: 'Volver a Fecha' }))
     expect(currentStep()).toBe('Fecha')
-    expect(screen.getByText('Corte de cabello', { selector: 'strong' })).toBeDefined()
+    expect(screen.getByRole('grid')).toBeDefined()
   })
 
   it('on phones the categories are one button with a drop-down; chips remain for larger screens', async () => {
