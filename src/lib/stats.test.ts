@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { barPercent, formatMoney, getStatsRange, monthLongLabel, monthShortLabel } from './stats'
+import { barPercent, formatMoney, getStatsRange, monthLongLabel, monthShortLabel, statsRangeError } from './stats'
 
 describe('getStatsRange', () => {
   const now = new Date(2026, 10, 21) // 21 Nov 2026
@@ -60,5 +60,18 @@ describe('formatMoney', () => {
   it('formats cents as pesos without decimals', () => {
     expect(formatMoney(150000)).toMatch(/1\.500/)
     expect(formatMoney(0)).toMatch(/0/)
+  })
+})
+
+describe('statsRangeError', () => {
+  it('accepts a valid, a same-day, and an open range (edge cases)', () => {
+    expect(statsRangeError('2026-01-01', '2026-02-01')).toBe('')
+    expect(statsRangeError('2026-01-01', '2026-01-01')).toBe('')
+    expect(statsRangeError('', '2026-02-01')).toBe('')
+    expect(statsRangeError('2026-01-01', '')).toBe('')
+    expect(statsRangeError('', '')).toBe('')
+  })
+  it('rejects a start after the end', () => {
+    expect(statsRangeError('2026-03-01', '2026-02-01')).toMatch(/Desde/)
   })
 })

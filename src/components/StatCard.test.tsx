@@ -61,4 +61,12 @@ describe('StatCard', () => {
     render(<StatCard label="Turnos hoy" value={3} />)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
+
+  it('inlineOnMobile puts label and number in one row on phones and keeps the stacked card by default', () => {
+    const { container, rerender } = render(<StatCard label="Ingresos" value="$ 15.000.000" inlineOnMobile />)
+    expect(container.firstElementChild).toHaveClass('max-sm:flex-row')
+    expect(screen.getByText('$ 15.000.000')).toHaveClass('max-sm:self-auto')
+    rerender(<StatCard label="Ingresos" value="$ 15.000.000" />)
+    expect(container.firstElementChild).not.toHaveClass('max-sm:flex-row')
+  })
 })

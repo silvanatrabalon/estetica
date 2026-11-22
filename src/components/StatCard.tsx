@@ -11,9 +11,11 @@ interface StatCardProps {
   accent?: string
   /** When set, the whole card is a link to this path. */
   to?: string
+  /** On phones show label and number side by side in one row (long numbers fit); stacked from sm up. */
+  inlineOnMobile?: boolean
 }
 
-export function StatCard({ label, value, loading = false, variant = 'light', icon, accent, to }: StatCardProps) {
+export function StatCard({ label, value, loading = false, variant = 'light', icon, accent, to, inlineOnMobile = false }: StatCardProps) {
   if (variant === 'dark') {
     return (
       <div
@@ -47,6 +49,7 @@ export function StatCard({ label, value, loading = false, variant = 'light', ico
 
   const cardClass = cn(
     'bg-white rounded-2xl border border-shell-border p-4 flex flex-col gap-3',
+    inlineOnMobile && 'max-sm:flex-row max-sm:items-center max-sm:justify-between',
     to && 'transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]',
   )
   const body = (
@@ -60,10 +63,20 @@ export function StatCard({ label, value, loading = false, variant = 'light', ico
       {loading ? (
         <div
           data-testid="stat-card-skeleton"
-          className="mt-auto h-8 w-24 self-end rounded bg-gray-200 animate-pulse"
+          className={cn(
+            'mt-auto h-8 w-24 self-end rounded bg-gray-200 animate-pulse',
+            inlineOnMobile && 'max-sm:mt-0 max-sm:self-auto',
+          )}
         />
       ) : (
-        <span className="mt-auto self-end text-2xl font-bold tabular-nums text-gray-900">{value}</span>
+        <span
+          className={cn(
+            'mt-auto self-end text-2xl font-bold tabular-nums text-gray-900',
+            inlineOnMobile && 'max-sm:mt-0 max-sm:self-auto',
+          )}
+        >
+          {value}
+        </span>
       )}
     </>
   )

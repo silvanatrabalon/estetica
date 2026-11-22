@@ -40,20 +40,40 @@ describe('AdminStatsPage', () => {
     expect(screen.getByText(/nov 2026: .*11\.000/)).toBeInTheDocument()
   })
 
-  it('starts on "Este mes" and asks for a month range', async () => {
+  it('starts on the current month in the Desde/Hasta fields and asks for that range', async () => {
     render(<AdminStatsPage />)
     await screen.findByText('Sil')
-    expect(screen.getByRole('tab', { name: 'Este mes' })).toHaveAttribute('aria-selected', 'true')
     const [from, to] = mockGetStats.mock.calls[0]
     expect(from).toMatch(/^\d{4}-\d{2}-01$/)
     expect(to > from).toBe(true)
+    expect(screen.getByLabelText('Desde')).toHaveValue(from)
+    expect(screen.getByLabelText('Hasta')).toHaveValue(to)
+    expect(screen.queryByRole('tab')).toBeNull()
   })
 
-  it('changing the period asks again, "Todo" without bounds', async () => {
+  it('changing a date asks again with that range', async () => {
     render(<AdminStatsPage />)
     await screen.findByText('Sil')
-    fireEvent.click(screen.getByRole('tab', { name: 'Todo' }))
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-01-15' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-03-20' } })
+    await waitFor(() => expect(mockGetStats).toHaveBeenLastCalledWith('2026-01-15', '2026-03-20'))
+  })
+
+  it('an empty date means no limit on that side (edge case)', async () => {
+    render(<AdminStatsPage />)
+    await screen.findByText('Sil')
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '' } })
     await waitFor(() => expect(mockGetStats).toHaveBeenLastCalledWith(null, null))
+  })
+
+  it('a Desde after Hasta shows the error and does not ask the server (edge case)', async () => {
+    render(<AdminStatsPage />)
+    await screen.findByText('Sil')
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-01-01' } })
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-02-01' } })
+    expect(await screen.findByRole('alert')).toHaveTextContent('no puede ser posterior')
+    expect(mockGetStats).not.toHaveBeenLastCalledWith('2026-02-01', '2026-01-01')
   })
 
   it('says so when nothing happened in the period (edge case)', async () => {

@@ -42,6 +42,11 @@ async function openForm() {
   fireEvent.click(await screen.findByRole('button', { name: '+ Nueva promo' }))
 }
 
+async function pickService(name: string) {
+  fireEvent.click(await screen.findByRole('button', { name: 'Servicios en promo' }))
+  fireEvent.click(await screen.findByRole('option', { name: new RegExp(name) }))
+}
+
 function fillBasics() {
   fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Verano' } })
   fireEvent.change(screen.getByLabelText('Porcentaje (%)'), { target: { value: '15' } })
@@ -92,8 +97,8 @@ describe('AdminPromosPage', () => {
     render(<AdminPromosPage />)
     await openForm()
     fillBasics()
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Manicura' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: /Mostrar esta promo en el sitio web/ }))
+    await pickService('Manicura')
+    fireEvent.click(screen.getByRole('checkbox', { name: /Mostrar en la web/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     await waitFor(() => expect(mockSave).toHaveBeenCalled())
     expect(mockSave.mock.calls[0][0]).toMatchObject({
@@ -106,7 +111,7 @@ describe('AdminPromosPage', () => {
   it('a new promo starts hidden from the website (edge case)', async () => {
     render(<AdminPromosPage />)
     await openForm()
-    expect(screen.getByRole('checkbox', { name: /Mostrar esta promo en el sitio web/ })).not.toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /Mostrar en la web/ })).not.toBeChecked()
   })
 
   it('does not save an incomplete form and shows each problem (edge case)', async () => {
@@ -124,7 +129,7 @@ describe('AdminPromosPage', () => {
     render(<AdminPromosPage />)
     await openForm()
     fillBasics()
-    fireEvent.click(await screen.findByRole('checkbox', { name: 'Manicura' }))
+    await pickService('Manicura')
     fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Elegí al menos un servicio.')
     expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -134,7 +139,7 @@ describe('AdminPromosPage', () => {
     render(<AdminPromosPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'Editar Semana de manos' }))
     expect(screen.getByLabelText('Nombre')).toHaveValue('Semana de manos')
-    expect(screen.getByRole('checkbox', { name: 'Manicura' })).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Servicios en promo' })).toHaveTextContent('Manicura')
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(mockSave).not.toHaveBeenCalled()
@@ -143,14 +148,16 @@ describe('AdminPromosPage', () => {
   it('marks inactive services in the picker (edge case)', async () => {
     render(<AdminPromosPage />)
     await openForm()
-    expect(await screen.findByText(/Pedicura/)).toHaveTextContent('(inactivo)')
+    fireEvent.click(await screen.findByRole('button', { name: 'Servicios en promo' }))
+    expect(await screen.findByRole('option', { name: /Pedicura/ })).toHaveTextContent('(inactivo)')
   })
 
   it('still opens the form when services fail to load (edge case)', async () => {
     mockServices.mockRejectedValue(new Error('x'))
     render(<AdminPromosPage />)
     await openForm()
-    expect(await screen.findByText('No hay servicios para elegir.')).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: 'Servicios en promo' }))
+    expect(await screen.findByText('No hay opciones.')).toBeInTheDocument()
   })
 
   it('deactivates and activates a promo', async () => {

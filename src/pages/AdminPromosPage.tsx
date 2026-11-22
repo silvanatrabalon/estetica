@@ -19,6 +19,7 @@ import {
 import { listServices, type Service } from '../services/adminServices'
 import { ActionButton, ActionRow } from '../components/ActionButton'
 import { ConfirmModal } from '../components/ConfirmModal'
+import { MultiListbox } from '../components/MultiListbox'
 
 interface FormState {
   id: string | null
@@ -151,18 +152,6 @@ export function AdminPromosPage() {
     setErrorMessage(null)
   }
 
-  const toggleService = (id: string) =>
-    setForm((current) =>
-      current
-        ? {
-            ...current,
-            serviceIds: current.serviceIds.includes(id)
-              ? current.serviceIds.filter((s) => s !== id)
-              : [...current.serviceIds, id],
-          }
-        : current,
-    )
-
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
     if (!form) return
@@ -227,21 +216,20 @@ export function AdminPromosPage() {
   return (
     <>
       <div className="mx-auto max-w-3xl space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+        <div>
+          <div className="flex items-center justify-between gap-3">
             <h1 className="font-heading text-2xl font-semibold text-shell-text">Promos</h1>
-            <p className="text-sm text-shell-subtleText">
-              Descuentos en servicios elegidos, por fechas. Se aplican solos al reservar y el servicio se ve en
-              promo.
-            </p>
+            <button
+              type="button"
+              onClick={openCreate}
+              className="shrink-0 rounded-lg bg-brand-primary px-3 py-2 text-sm font-medium text-white hover:bg-brand-strong"
+            >
+              + Nueva promo
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="shrink-0 rounded-lg bg-brand-primary px-3 py-2 text-sm font-medium text-white hover:bg-brand-strong"
-          >
-            + Nueva promo
-          </button>
+          <p className="mt-1 text-sm text-shell-subtleText">
+            Descuentos en servicios elegidos, por fechas. Se aplican solos al reservar y el servicio se ve en promo.
+          </p>
         </div>
 
         {errorMessage && !isFormOpen && (
@@ -335,7 +323,7 @@ export function AdminPromosPage() {
             aria-labelledby="promo-form-title"
             noValidate
             onSubmit={(e) => void handleSubmit(e)}
-            className="max-h-[92dvh] w-full max-w-lg space-y-3 overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
+            className="max-h-[88dvh] w-full max-w-lg space-y-2.5 overflow-y-auto rounded-t-2xl bg-white px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-xl sm:max-h-[92dvh] sm:space-y-3 sm:rounded-2xl sm:p-4"
           >
             <h2 id="promo-form-title" className="text-base font-semibold text-shell-text">
               {form.id ? 'Editar promo' : 'Nueva promo'}
@@ -371,82 +359,67 @@ export function AdminPromosPage() {
               />
             </div>
 
-            <div>
-              <span className="mb-1 block text-sm font-medium text-gray-700">Tipo de descuento</span>
-              <div role="radiogroup" aria-label="Tipo de descuento" className="grid grid-cols-2 gap-2">
-                {([
-                  { value: 'percent', label: 'Porcentaje' },
-                  { value: 'fixed', label: 'Monto fijo' },
-                ] as const).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={form.discountType === opt.value}
-                    onClick={() => setField('discountType', opt.value)}
-                    className={cn(
-                      'rounded-xl border px-3 py-2 text-sm font-medium transition-colors',
-                      form.discountType === opt.value
-                        ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
-                        : 'border-shell-border bg-white text-shell-text hover:bg-shell-muted',
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor="promo-value" className="mb-1 block text-sm font-medium text-gray-700">
+                  {form.discountType === 'percent' ? 'Porcentaje (%)' : 'Monto a descontar ($)'}
+                </label>
+                <input
+                  id="promo-value"
+                  type="number"
+                  min="1"
+                  step={form.discountType === 'percent' ? '1' : 'any'}
+                  value={form.discountValue}
+                  onChange={(e) => setField('discountValue', e.target.value)}
+                  className={fieldCls}
+                  placeholder={form.discountType === 'percent' ? 'Ej: 20' : 'Ej: 1500'}
+                />
               </div>
+              <div>
+                <span className="mb-1 block text-sm font-medium text-gray-700">Tipo</span>
+                <div role="radiogroup" aria-label="Tipo de descuento" className="grid grid-cols-2 gap-1">
+                  {([
+                    { value: 'percent', label: 'Porcentaje' },
+                    { value: 'fixed', label: 'Monto fijo' },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={form.discountType === opt.value}
+                      onClick={() => setField('discountType', opt.value)}
+                      className={cn(
+                        'h-[38px] rounded-lg border px-1 text-xs font-medium transition-colors',
+                        form.discountType === opt.value
+                          ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
+                          : 'border-shell-border bg-white text-shell-text hover:bg-shell-muted',
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {errors.discountValue && <p className="col-span-2 text-sm text-red-600">{errors.discountValue}</p>}
             </div>
 
             <div>
-              <label htmlFor="promo-value" className="mb-1 block text-sm font-medium text-gray-700">
-                {form.discountType === 'percent' ? 'Porcentaje (%)' : 'Monto a descontar ($)'}
+              <label htmlFor="promo-services" className="mb-1 block text-sm font-medium text-gray-700">
+                Servicios en promo
               </label>
-              <input
-                id="promo-value"
-                type="number"
-                min="1"
-                step={form.discountType === 'percent' ? '1' : 'any'}
-                value={form.discountValue}
-                onChange={(e) => setField('discountValue', e.target.value)}
-                className={fieldCls}
-                placeholder={form.discountType === 'percent' ? 'Ej: 20' : 'Ej: 1500'}
+              <MultiListbox
+                id="promo-services"
+                ariaLabel="Servicios en promo"
+                placeholder="Elegí los servicios"
+                values={form.serviceIds}
+                onChange={(ids) => setField('serviceIds', ids)}
+                options={serviceOptions.map((service) => ({
+                  value: service.id,
+                  label: service.isActive ? service.name : `${service.name} (inactivo)`,
+                }))}
               />
-              {errors.discountValue && <p className="mt-1 text-sm text-red-600">{errors.discountValue}</p>}
-            </div>
-
-            <fieldset>
-              <legend className="mb-1.5 text-sm font-medium text-gray-700">Servicios en promo</legend>
-              {serviceOptions.length === 0 ? (
-                <p className="rounded-lg bg-shell-muted px-3 py-3 text-sm text-shell-subtleText">
-                  No hay servicios para elegir.
-                </p>
-              ) : (
-                <ul className="max-h-44 divide-y divide-shell-border overflow-y-auto overscroll-contain rounded-lg border border-shell-border">
-                  {serviceOptions.map((service) => (
-                    <li key={service.id}>
-                      <label className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-shell-muted">
-                        <input
-                          type="checkbox"
-                          checked={form.serviceIds.includes(service.id)}
-                          onChange={() => toggleService(service.id)}
-                          className="h-4 w-4 rounded accent-teal-600"
-                        />
-                        <span className="min-w-0 flex-1 truncate text-shell-text">
-                          {service.name}
-                          {!service.isActive && <span className="text-shell-subtleText"> (inactivo)</span>}
-                        </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <p className="mt-1 text-xs text-shell-subtleText">
-                {form.serviceIds.length === 0
-                  ? 'Ninguno elegido.'
-                  : `${form.serviceIds.length} ${form.serviceIds.length === 1 ? 'servicio elegido' : 'servicios elegidos'}.`}
-              </p>
               {errors.services && <p className="mt-1 text-sm text-red-600">{errors.services}</p>}
-            </fieldset>
+            </div>
 
             <fieldset>
               <legend className="mb-1.5 text-sm font-medium text-gray-700">Vigencia</legend>
@@ -485,30 +458,26 @@ export function AdminPromosPage() {
               </div>
             </fieldset>
 
-            <label className="flex items-start gap-2 text-sm text-shell-text">
-              <input
-                type="checkbox"
-                checked={form.showOnSite}
-                onChange={(e) => setField('showOnSite', e.target.checked)}
-                className="mt-0.5 h-4 w-4"
-              />
-              <span>
-                Mostrar esta promo en el sitio web
-                <span className="block text-xs text-shell-subtleText">
-                  Aparece en la sección Promociones de la página. En la reserva siempre se ve.
-                </span>
-              </span>
-            </label>
-
-            <label className="flex items-center gap-2 text-sm text-shell-text">
-              <input
-                type="checkbox"
-                checked={form.isActive}
-                onChange={(e) => setField('isActive', e.target.checked)}
-                className="h-4 w-4"
-              />
-              Promo activa
-            </label>
+            <div className="grid grid-cols-2 gap-2 text-sm text-shell-text">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.showOnSite}
+                  onChange={(e) => setField('showOnSite', e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Mostrar en la web
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) => setField('isActive', e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Promo activa
+              </label>
+            </div>
 
             {formError && (
               <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -516,7 +485,7 @@ export function AdminPromosPage() {
               </p>
             )}
 
-            <div className="flex gap-3 pt-1">
+            <div className="sticky bottom-0 -mx-4 flex gap-3 border-t border-shell-border bg-white px-4 pt-2.5 sm:static sm:mx-0 sm:border-0 sm:px-0 sm:pt-1">
               <button
                 type="submit"
                 disabled={isSaving}

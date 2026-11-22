@@ -2,24 +2,26 @@ import { useEffect, useMemo, useState } from 'react'
 import { StatCard } from '../components/StatCard'
 import { BarList } from '../components/stats/BarList'
 import { ColumnChart } from '../components/stats/ColumnChart'
-import { Tabs } from '../components/Tabs'
-import { formatMoney, getStatsRange, monthLongLabel, monthShortLabel, STATS_PERIODS, type StatsPeriod } from '../lib/stats'
+import { formatMoney, getStatsRange, monthLongLabel, monthShortLabel, statsRangeError } from '../lib/stats'
 import { getAdminStats, type AdminStats } from '../services/adminStats'
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 export function AdminStatsPage() {
-  const [period, setPeriod] = useState<StatsPeriod>('month')
+  // Starts on the current month; an empty date means no limit on that side
+  const [from, setFrom] = useState(() => getStatsRange('month').from ?? '')
+  const [to, setTo] = useState(() => getStatsRange('month').to ?? '')
+  const rangeError = statsRangeError(from, to)
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    const { from, to } = getStatsRange(period)
+    if (rangeError) return
     setLoading(true)
     setError(null)
-    getAdminStats(from, to)
+    getAdminStats(from || null, to || null)
       .then((data) => {
         if (!cancelled) setStats(data)
       })
@@ -32,7 +34,7 @@ export function AdminStatsPage() {
     return () => {
       cancelled = true
     }
-  }, [period])
+  }, [from, to, rangeError])
 
   const professionalItems = useMemo(
     () =>
@@ -77,12 +79,46 @@ export function AdminStatsPage() {
         </p>
       </div>
 
-      <Tabs
-        ariaLabel="Período"
-        active={period}
-        onChange={setPeriod}
-        tabs={STATS_PERIODS.map((p) => ({ key: p.value, label: p.label }))}
-      />
+      <fieldset className="shell-surface rounded-2xl border p-3 shadow-sm">
+        <legend className="sr-only">Período</legend>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="stats-from" className="mb-1 block text-xs font-medium text-shell-subtleText">
+              Desde
+            </label>
+            <input
+              id="stats-from"
+              type="date"
+              value={from}
+              max={to || undefined}
+              onChange={(e) => setFrom(e.target.value)}
+              aria-invalid={rangeError ? true : undefined}
+              className="dt-field"
+            />
+          </div>
+          <div>
+            <label htmlFor="stats-to" className="mb-1 block text-xs font-medium text-shell-subtleText">
+              Hasta
+            </label>
+            <input
+              id="stats-to"
+              type="date"
+              value={to}
+              min={from || undefined}
+              onChange={(e) => setTo(e.target.value)}
+              aria-invalid={rangeError ? true : undefined}
+              className="dt-field"
+            />
+          </div>
+        </div>
+        {rangeError ? (
+          <p role="alert" className="mt-2 text-sm text-red-600">
+            {rangeError}
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-shell-subtleText">Si dejás una fecha vacía, no se limita de ese lado.</p>
+        )}
+      </fieldset>
 
       {error && (
         <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -90,10 +126,10 @@ export function AdminStatsPage() {
         </div>
       )}
 
-      <section aria-label="Resumen" className="grid grid-cols-3 gap-3">
-        <StatCard label="Servicios" value={stats?.totals.services ?? 0} loading={loading} />
-        <StatCard label="Ingresos brutos" value={formatMoney(stats?.totals.revenueCents ?? 0)} loading={loading} />
-        <StatCard label="Clientes" value={stats?.totals.clients ?? 0} loading={loading} />
+      <section aria-label="Resumen" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatCard label="Servicios" value={stats?.totals.services ?? 0} loading={loading} inlineOnMobile />
+        <StatCard label="Ingresos brutos" value={formatMoney(stats?.totals.revenueCents ?? 0)} loading={loading} inlineOnMobile />
+        <StatCard label="Clientes" value={stats?.totals.clients ?? 0} loading={loading} inlineOnMobile />
       </section>
 
       <section className="shell-surface rounded-2xl border p-4 shadow-sm">

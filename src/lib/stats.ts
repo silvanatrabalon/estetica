@@ -29,6 +29,12 @@ export function getStatsRange(period: StatsPeriod, now: Date = new Date()): { fr
   return { from: key(start.getFullYear(), start.getMonth(), 1), to }
 }
 
+/** Error in Spanish when the range is not valid (empty string = fine). A missing end means "no limit". */
+export function statsRangeError(from: string, to: string): string {
+  if (from && to && from > to) return 'La fecha “Desde” no puede ser posterior a “Hasta”.'
+  return ''
+}
+
 const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
 /** "2026-11" -> "nov". Invalid input is returned unchanged. */
