@@ -258,7 +258,7 @@ export function getCouponTheme(id: string): CouponTheme {
 
 // ── SVG ───────────────────────────────────────────────────────────────────────
 
-function escapeXml(text: string): string {
+export function escapeXml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -279,7 +279,7 @@ function fitFontSize(text: string, max: number, widthBudget: number, factor = 0.
 }
 
 /** Cuts a long line so it does not overflow the ticket. */
-function clip(text: string, max: number): string {
+export function clip(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text
 }
 
@@ -340,16 +340,21 @@ export function couponFileName(code: string, theme: CouponThemeId): string {
   return `cupon-${safe}-${theme}`
 }
 
-/** Draws the SVG on a canvas and returns it as a PNG. Rejects if the browser cannot do it. */
-export function svgToPngBlob(svg: string, scale = 1): Promise<Blob> {
+/** Draws the SVG on a canvas and returns it as a PNG (defaults to the coupon size). Rejects if the browser cannot. */
+export function svgToPngBlob(
+  svg: string,
+  scale = 1,
+  width = COUPON_IMAGE_WIDTH,
+  height = COUPON_IMAGE_HEIGHT,
+): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }))
     const img = new Image()
     img.onload = () => {
       try {
         const canvas = document.createElement('canvas')
-        canvas.width = COUPON_IMAGE_WIDTH * scale
-        canvas.height = COUPON_IMAGE_HEIGHT * scale
+        canvas.width = width * scale
+        canvas.height = height * scale
         const ctx = canvas.getContext('2d')
         if (!ctx) throw new Error('canvas-unavailable')
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
