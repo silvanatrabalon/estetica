@@ -81,7 +81,7 @@ describe('StaffSchedulePage permission', () => {
 
     expect(screen.getByText(/Navidad/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Eliminar' })).toBeInTheDocument()
-    expect(screen.getByText('+ Agregar día')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '+ Agregar' })).toBeInTheDocument()
   })
 
   it('days off are read-only with a notice when not allowed, but still listed (edge case)', () => {
@@ -92,7 +92,7 @@ describe('StaffSchedulePage permission', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Tu administrador carga tus días libres')
     expect(screen.getByText(/Navidad/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Eliminar' })).toBeNull()
-    expect(screen.queryByText('+ Agregar día')).toBeNull()
+    expect(screen.queryByRole('button', { name: '+ Agregar' })).toBeNull()
   })
 
   it('the two permissions are independent (edge case)', () => {
@@ -100,7 +100,7 @@ describe('StaffSchedulePage permission', () => {
     render(<StaffSchedulePage />)
     expect(screen.queryByRole('button', { name: 'Guardar horario' })).toBeNull()
     openDaysTab()
-    expect(screen.getByText('+ Agregar día')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '+ Agregar' })).toBeInTheDocument()
   })
 })
 

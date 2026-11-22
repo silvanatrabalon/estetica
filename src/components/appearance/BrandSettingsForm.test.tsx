@@ -71,8 +71,21 @@ describe('BrandSettingsForm', () => {
     fireEvent.change(screen.getByLabelText('Subir logo'), {
       target: { files: [new File(['x'], 'doc.pdf', { type: 'application/pdf' })] },
     })
-    expect(await screen.findByText('El logo debe ser una imagen JPG, PNG, WEBP o GIF.')).toBeDefined()
+    expect(await screen.findByText('El logo debe ser una imagen JPG, PNG, WEBP, GIF o SVG.')).toBeDefined()
     expect(mockUpload).not.toHaveBeenCalled()
+  })
+
+  it('accepts an SVG logo: the file picker offers it and it is uploaded', async () => {
+    mockUpload.mockResolvedValue('https://cdn.test/media/logo/logo-1.svg')
+    render(<BrandSettingsForm />)
+    await openLogo()
+    expect((screen.getByLabelText('Subir logo') as HTMLInputElement).accept).toContain('image/svg+xml')
+    const svg = new File(['<svg xmlns="http://www.w3.org/2000/svg"/>'], 'logo.svg', { type: 'image/svg+xml' })
+    fireEvent.change(screen.getByLabelText('Subir logo'), { target: { files: [svg] } })
+    await waitFor(() =>
+      expect(mockUpload).toHaveBeenCalledWith('media', expect.stringMatching(/^logo\/logo-\d+\.svg$/), svg),
+    )
+    expect(await screen.findByAltText('Logo elegido')).toBeDefined()
   })
 
   it('rejects a file over 2 MB without uploading (edge case)', async () => {

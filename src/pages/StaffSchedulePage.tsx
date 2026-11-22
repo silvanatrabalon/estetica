@@ -129,8 +129,8 @@ export function StaffSchedulePage() {
             </div>
           )}
           {canEditDaysOff && (
-            <div className="mb-4">
-              <ExceptionDateForm split={split} isSaving={isSaving} onAdd={(exc) => void addException(exc)} />
+            <div className="mb-3">
+              <ExceptionDateForm split={split} isSaving={isSaving} onAdd={addException} error={errorMessage} />
             </div>
           )}
           <ExceptionDateList

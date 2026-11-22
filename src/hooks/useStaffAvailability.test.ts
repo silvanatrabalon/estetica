@@ -114,11 +114,33 @@ describe('useStaffAvailability', () => {
       reason: null,
     }
 
+    let saved: boolean | undefined
     await act(async () => {
-      await result.current.addException(newException)
+      saved = await result.current.addException(newException)
     })
 
+    expect(saved).toBe(true)
     expect(result.current.successMessage).toBe('Día guardado correctamente.')
+  })
+
+  it('addException says it was not saved when the request fails (edge case)', async () => {
+    const { result } = renderHook(() => useStaffAvailability('staff-1'))
+    await act(async () => {})
+    vi.mocked(staffAvailabilityService.addStaffException).mockRejectedValueOnce(new Error('boom'))
+
+    let saved: boolean | undefined
+    await act(async () => {
+      saved = await result.current.addException({
+        exceptionDate: '2025-12-25',
+        exceptionType: 'day_off',
+        startsAt: null,
+        endsAt: null,
+        reason: null,
+      })
+    })
+
+    expect(saved).toBe(false)
+    expect(result.current.errorMessage).toBe('No pudimos guardar el día. Intentá de nuevo.')
   })
 
   it('removeException removes from exceptions list and sets success message', async () => {

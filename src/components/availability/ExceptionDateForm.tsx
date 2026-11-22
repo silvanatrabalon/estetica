@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react'
+import { useState } from 'react'
 import type { StaffExceptionInput, StaffExceptionType } from '../../services/staffAvailability'
 import {
   DEFAULT_AFTERNOON,
@@ -9,19 +9,28 @@ import {
 } from '../../lib/shifts'
 import { ShiftsFields } from './ShiftsFields'
 import { Select } from '../Select'
+import { EditPopup } from '../appearance/SectionCard'
 
 interface ExceptionDateFormProps {
   isSaving: boolean
   /** true when the business works in two shifts (matutino / vespertino). */
   split?: boolean
-  onAdd: (exception: StaffExceptionInput) => void
+  /** Adds the day. Resolves to false when it could not be saved: the pop-up then stays open. */
+  onAdd: (exception: StaffExceptionInput) => Promise<boolean | void> | void
+  /** A problem saving, shown inside the pop-up. */
+  error?: string | null
 }
 
 function defaultShifts(split: boolean): DayShifts {
   return split ? { am: DEFAULT_MORNING, pm: DEFAULT_AFTERNOON } : { am: DEFAULT_CONTINUOUS, pm: null }
 }
 
-export function ExceptionDateForm({ isSaving, split = false, onAdd }: ExceptionDateFormProps) {
+const fieldCls =
+  'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)] disabled:opacity-50'
+
+/** The "Agregar" button of the days off list; the form to add a day opens in a pop-up. */
+export function ExceptionDateForm({ isSaving, split = false, onAdd, error }: ExceptionDateFormProps) {
+  const [isOpen, setIsOpen] = useState(false)
   const [exceptionDate, setExceptionDate] = useState('')
   const [exceptionType, setExceptionType] = useState<StaffExceptionType>('day_off')
   const [shifts, setShifts] = useState<DayShifts>(() => defaultShifts(split))
@@ -29,8 +38,21 @@ export function ExceptionDateForm({ isSaving, split = false, onAdd }: ExceptionD
   const [dateError, setDateError] = useState<string | null>(null)
   const [timeError, setTimeError] = useState<string | null>(null)
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+  const reset = () => {
+    setExceptionDate('')
+    setExceptionType('day_off')
+    setShifts(defaultShifts(split))
+    setReason('')
+    setDateError(null)
+    setTimeError(null)
+  }
+
+  const open = () => {
+    reset()
+    setIsOpen(true)
+  }
+
+  const handleSubmit = async () => {
     setDateError(null)
     setTimeError(null)
 
@@ -47,7 +69,7 @@ export function ExceptionDateForm({ isSaving, split = false, onAdd }: ExceptionD
       }
     }
 
-    onAdd({
+    const saved = await onAdd({
       exceptionDate,
       exceptionType,
       startsAt: exceptionType === 'custom_hours' ? (shifts.am?.start ?? null) : null,
@@ -57,96 +79,100 @@ export function ExceptionDateForm({ isSaving, split = false, onAdd }: ExceptionD
       reason: reason.trim() || null,
     })
 
-    setExceptionDate('')
-    setExceptionType('day_off')
-    setShifts(defaultShifts(split))
-    setReason('')
+    // Only a save that failed keeps the pop-up (and what was typed) open
+    if (saved !== false) {
+      setIsOpen(false)
+      reset()
+    }
   }
 
   return (
-    <form
-      onSubmit={(e) => void handleSubmit(e)}
-      className="rounded-2xl border border-shell-border bg-shell-muted/30 p-4"
-      noValidate
-    >
-      <h3 className="text-sm font-semibold text-shell-text mb-4 flex items-center gap-2">
-        <span className="w-5 h-5 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">+</span>
-        Agregar día libre o especial
-      </h3>
+    <>
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={open}
+          className="rounded-lg bg-brand-primary px-3 py-2 text-sm font-medium text-white hover:bg-brand-strong"
+        >
+          + Agregar
+        </button>
+      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="exception-date" className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide">
-            Fecha
-          </label>
-          <input
-            id="exception-date"
-            type="date"
-            value={exceptionDate}
-            onChange={(e) => setExceptionDate(e.target.value)}
-            disabled={isSaving}
-            className="dt-field"
-          />
-          {dateError && <p className="mt-1.5 text-xs text-red-500">{dateError}</p>}
-        </div>
+      {isOpen && (
+        <EditPopup
+          title="Agregar día libre o especial"
+          onClose={() => setIsOpen(false)}
+          onSubmit={handleSubmit}
+          isSaving={isSaving}
+          error={error}
+          submitLabel="Agregar día"
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="exception-date" className="mb-1 block text-sm font-medium text-gray-700">
+                Fecha
+              </label>
+              <input
+                id="exception-date"
+                type="date"
+                value={exceptionDate}
+                onChange={(e) => setExceptionDate(e.target.value)}
+                disabled={isSaving}
+                aria-invalid={dateError ? true : undefined}
+                className="dt-field"
+              />
+              {dateError && <p className="mt-1 text-xs text-red-600">{dateError}</p>}
+            </div>
 
-        <div>
-          <label htmlFor="exception-type" className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide">
-            Tipo
-          </label>
-          <Select
-            id="exception-type"
-            value={exceptionType}
-            onChange={(e) => setExceptionType(e.target.value as StaffExceptionType)}
-            disabled={isSaving}
-            className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
-          >
-            <option value="day_off">Día libre</option>
-            <option value="custom_hours">Horario especial</option>
-          </Select>
-        </div>
+            <div>
+              <label htmlFor="exception-type" className="mb-1 block text-sm font-medium text-gray-700">
+                Tipo
+              </label>
+              <Select
+                id="exception-type"
+                value={exceptionType}
+                onChange={(e) => setExceptionType(e.target.value as StaffExceptionType)}
+                disabled={isSaving}
+                className={fieldCls}
+              >
+                <option value="day_off">Día libre</option>
+                <option value="custom_hours">Horario especial</option>
+              </Select>
+            </div>
+          </div>
 
-        {exceptionType === 'custom_hours' && (
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide">Horario</label>
-            <ShiftsFields
-              split={split}
-              value={shifts}
-              onChange={(next) => {
-                setShifts(next)
-                setTimeError(null)
-              }}
+          {exceptionType === 'custom_hours' && (
+            <div>
+              <span className="mb-1 block text-sm font-medium text-gray-700">Horario</span>
+              <ShiftsFields
+                split={split}
+                value={shifts}
+                onChange={(next) => {
+                  setShifts(next)
+                  setTimeError(null)
+                }}
+                disabled={isSaving}
+                error={timeError}
+              />
+            </div>
+          )}
+
+          <div>
+            <label htmlFor="exception-reason" className="mb-1 block text-sm font-medium text-gray-700">
+              Motivo <span className="font-normal text-gray-400">(opcional)</span>
+            </label>
+            <input
+              id="exception-reason"
+              type="text"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
               disabled={isSaving}
-              error={timeError}
+              placeholder="Ej: Vacaciones, feriado, etc."
+              className={fieldCls}
             />
           </div>
-        )}
-
-        <div className="sm:col-span-2">
-          <label htmlFor="exception-reason" className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide">
-            Motivo <span className="normal-case font-normal">(opcional)</span>
-          </label>
-          <input
-            id="exception-reason"
-            type="text"
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            disabled={isSaving}
-            placeholder="Ej: Vacaciones, feriado, etc."
-            className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
-          />
-        </div>
-
-        <div className="sm:col-span-2 flex justify-end">
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="px-5 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 active:bg-teal-800 text-sm font-semibold disabled:opacity-50 transition-colors shadow-sm"
-          >
-            {isSaving ? 'Guardando...' : '+ Agregar día'}
-          </button>
-        </div>
-      </div>
-    </form>
+        </EditPopup>
+      )}
+    </>
   )
 }

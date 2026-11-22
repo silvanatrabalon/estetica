@@ -29,7 +29,7 @@ export interface UseMyStaffAvailabilityResult {
   errorMessage: string | null
   successMessage: string | null
   saveSchedule: (days: StaffScheduleDayInput[]) => Promise<void>
-  addException: (exception: StaffExceptionInput) => Promise<void>
+  addException: (exception: StaffExceptionInput) => Promise<boolean>
   removeException: (exceptionDate: string) => Promise<void>
   setIsDirty: (dirty: boolean) => void
 }
@@ -120,6 +120,7 @@ export function useMyStaffAvailability(): UseMyStaffAvailabilityResult {
           )
         })
         setSuccessMessage('Día guardado correctamente.')
+        return true
       } catch (err) {
         const msg = err instanceof Error ? err.message : ''
         if (msg.includes('past')) {
@@ -127,6 +128,7 @@ export function useMyStaffAvailability(): UseMyStaffAvailabilityResult {
         } else {
           setErrorMessage('No pudimos guardar el día. Intentá de nuevo.')
         }
+        return false
       } finally {
         setIsSaving(false)
       }

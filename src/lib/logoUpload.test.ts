@@ -3,14 +3,15 @@ import { LOGO_MAX_BYTES, buildLogoPath, validateLogoFile } from './logoUpload'
 
 describe('validateLogoFile', () => {
   it('accepts supported image types', () => {
-    for (const type of ['image/jpeg', 'image/png', 'image/webp', 'image/gif']) {
+    for (const type of ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml']) {
       expect(validateLogoFile({ type, size: 1000 })).toBeNull()
     }
   })
 
   it('rejects non-image and unsupported types (edge case)', () => {
     expect(validateLogoFile({ type: 'application/pdf', size: 1000 })).toMatch(/imagen/)
-    expect(validateLogoFile({ type: 'image/svg+xml', size: 1000 })).toMatch(/imagen/)
+    expect(validateLogoFile({ type: 'image/svg', size: 1000 })).toMatch(/imagen/)
+    expect(validateLogoFile({ type: 'text/html', size: 1000 })).toMatch(/imagen/)
     expect(validateLogoFile({ type: '', size: 1000 })).toMatch(/imagen/)
   })
 
@@ -32,6 +33,10 @@ describe('buildLogoPath', () => {
   it('falls back to png when there is no extension (edge case)', () => {
     expect(buildLogoPath('logo', 5)).toBe('logo/logo-5.png')
     expect(buildLogoPath('logo.', 5)).toBe('logo/logo-5.png')
+  })
+
+  it('keeps svg as the extension', () => {
+    expect(buildLogoPath('logo.SVG', 9)).toBe('logo/logo-9.svg')
   })
 
   it('strips unsafe characters from the extension (edge case)', () => {

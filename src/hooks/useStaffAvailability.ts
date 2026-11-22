@@ -20,7 +20,7 @@ export interface UseStaffAvailabilityResult {
   errorMessage: string | null
   successMessage: string | null
   saveSchedule: (days: StaffScheduleDayInput[]) => Promise<void>
-  addException: (exception: StaffExceptionInput) => Promise<void>
+  addException: (exception: StaffExceptionInput) => Promise<boolean>
   removeException: (exceptionDate: string) => Promise<void>
   setIsDirty: (dirty: boolean) => void
 }
@@ -96,6 +96,7 @@ export function useStaffAvailability(staffId: string): UseStaffAvailabilityResul
           )
         })
         setSuccessMessage('Día guardado correctamente.')
+        return true
       } catch (err) {
         const msg = err instanceof Error ? err.message : ''
         if (msg.includes('duplicate') || msg.includes('unique')) {
@@ -103,6 +104,7 @@ export function useStaffAvailability(staffId: string): UseStaffAvailabilityResul
         } else {
           setErrorMessage('No pudimos guardar el día. Intentá de nuevo.')
         }
+        return false
       } finally {
         setIsSaving(false)
       }

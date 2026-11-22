@@ -149,7 +149,7 @@ export function StaffAvailabilityPage() {
               onChange={(allowed) => void permissionsState.setCanEditDaysOff(allowed)}
             />
           )}
-          <ExceptionDateForm split={split} isSaving={isSaving} onAdd={(exc) => void addException(exc)} />
+          <ExceptionDateForm split={split} isSaving={isSaving} onAdd={addException} error={errorMessage} />
           <ExceptionDateList
             exceptions={exceptions}
             isSaving={isSaving}

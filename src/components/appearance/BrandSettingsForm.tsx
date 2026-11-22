@@ -136,7 +136,7 @@ export function BrandSettingsForm() {
             <input
               id="brand-logo-file"
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
+              accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,.svg"
               disabled={isUploading}
               className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--color-lilac)] file:px-3 file:py-2 file:text-sm file:font-medium file:text-brand-primary"
               onChange={(e) => {
@@ -145,7 +145,7 @@ export function BrandSettingsForm() {
               }}
             />
             <p className="mt-1 text-xs text-gray-400">
-              {isUploading ? 'Subiendo…' : 'JPG, PNG, WEBP o GIF. Máximo 2 MB.'}
+              {isUploading ? 'Subiendo…' : 'JPG, PNG, WEBP, GIF o SVG. Máximo 2 MB.'}
             </p>
             {logoError && <p className="mt-1 text-xs text-red-600">{logoError}</p>}
           </div>

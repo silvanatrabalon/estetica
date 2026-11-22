@@ -14,7 +14,7 @@ The system SHALL provide an admin-only menu entry **Apariencia** at `/admin/appe
 - **THEN** they are redirected to `/admin/appearance`
 
 ### Requirement: Brand form manages the logo
-The "Logo" block MUST let the admin upload a logo (JPG, PNG, WEBP or GIF, up to 2 MB) or paste its URL, and remove it. Saving MUST write only the logo (the booking texts stored before stay untouched) and never business rules. Invalid files MUST be rejected with a Spanish message before anything is saved.
+The "Logo" block MUST let the admin upload a logo (JPG, PNG, WEBP, GIF or SVG, up to 2 MB) or paste its URL, and remove it. Saving MUST write only the logo (the booking texts stored before stay untouched) and never business rules. Invalid files MUST be rejected with a Spanish message before anything is saved.
 
 #### Scenario: Admin uploads and saves a logo
 - **WHEN** the admin picks a valid image and presses "Guardar"
