@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AdminUsersPage } from './AdminUsersPage'
 import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
 import { mockSessions } from '../hooks/__test-utils__/fixtures'
@@ -118,16 +118,12 @@ describe('AdminUsersPage (simple directory)', () => {
     expect(screen.queryByLabelText(/Eliminar usuario/)).toBeNull()
   })
 
-  it('each row links to its own edit screen', async () => {
+  it('each row has its own "Editar roles" button', async () => {
     mockListAdminUsers.mockResolvedValue([ana, admin])
     renderPage()
 
-    const link = await screen.findByRole('link', { name: 'Editar roles de Ana' })
-    expect(link).toHaveAttribute('href', '/admin/users/u-1')
-    expect(screen.getByRole('link', { name: 'Editar roles de Admin' })).toHaveAttribute(
-      'href',
-      `/admin/users/${admin.userId}`,
-    )
+    expect(await screen.findByRole('button', { name: 'Editar roles de Ana' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Editar roles de Admin' })).toBeInTheDocument()
   })
 
   it('deactivates a user after confirmation', async () => {
@@ -789,5 +785,125 @@ describe('AdminUsersPage — link an account in a pop-up', () => {
     await waitFor(() =>
       expect(screen.getByRole('option', { name: /Maxi Insfran/ })).not.toHaveAttribute('aria-disabled'),
     )
+  })
+})
+
+describe('AdminUsersPage — "Agregar usuario" is a pop-up', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListAdminUsers.mockResolvedValue([ana])
+    mockListInvitations.mockResolvedValue([])
+  })
+
+  async function openInvitePopup() {
+    renderPage()
+    await screen.findByText('Ana')
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar usuario' }))
+    return screen.findByRole('dialog', { name: 'Agregar usuario' })
+  }
+
+  it('opens as a modal dialog over the list, with the email field ready', async () => {
+    const dialog = await openInvitePopup()
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(dialog.parentElement?.className).toContain('fixed inset-0')
+    expect(screen.getByLabelText('Email')).toHaveFocus()
+  })
+
+  it('is a bottom sheet on phones and a centered card on larger screens', async () => {
+    const dialog = await openInvitePopup()
+    expect(dialog.parentElement?.className).toContain('items-end')
+    expect(dialog.parentElement?.className).toContain('sm:items-center')
+    expect(dialog.className).toContain('rounded-t-2xl')
+    expect(dialog.className).toContain('sm:rounded-2xl')
+    expect(dialog.className).toContain('max-h-[92dvh]')
+  })
+
+  it('Cancelar and Escape close it without saving (edge case)', async () => {
+    await openInvitePopup()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog', { name: 'Agregar usuario' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar usuario' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog', { name: 'Agregar usuario' })).toBeNull()
+    expect(mockInviteUser).not.toHaveBeenCalled()
+  })
+
+  it('shows the errors inside the pop-up, not behind it (edge case)', async () => {
+    mockInviteUser.mockRejectedValue(new Error('Ya hay una invitación pendiente para ese email.'))
+    const dialog = await openInvitePopup()
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'nora@mail.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(dialog).toHaveTextContent('Ya hay una invitación pendiente para ese email.'))
+    expect(screen.getAllByText('Ya hay una invitación pendiente para ese email.')).toHaveLength(1)
+  })
+
+  it('an email that already has an account points to Editar roles from inside the pop-up (edge case)', async () => {
+    mockInviteUser.mockResolvedValue({ status: 'exists', userId: 'u-1' })
+    const dialog = await openInvitePopup()
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'ana@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    const link = await screen.findByRole('link', { name: 'Ir a Editar roles de esa cuenta' })
+    expect(dialog).toContainElement(link)
+    expect(link).toHaveAttribute('href', '/admin/users/u-1')
+  })
+
+  it('it closes by itself after saving and the success notice shows on the page', async () => {
+    mockInviteUser.mockResolvedValue({ status: 'invited', invitationId: 'i1' })
+    await openInvitePopup()
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'nora@mail.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await screen.findByText(/Listo\. Cuando nora@mail\.com entre a la app/)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Agregar usuario' })).toBeNull()
+  })
+
+  it('needs at least one role, saying so inside the pop-up (edge case)', async () => {
+    const dialog = await openInvitePopup()
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'nora@mail.com' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Cliente' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(dialog).toHaveTextContent('Elegí al menos un rol.')
+    expect(mockInviteUser).not.toHaveBeenCalled()
+  })
+})
+
+describe('AdminUsersPage — "Editar roles" is a pop-up', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListAdminUsers.mockResolvedValue([ana])
+    mockListInvitations.mockResolvedValue([])
+  })
+
+  it('opens the editor over the list instead of navigating', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar roles de Ana' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ana' })
+    expect(dialog).toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(screen.getByRole('checkbox', { name: 'Cliente' })).toBeChecked()
+  })
+
+  it('closing it goes back to the list (edge case)', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Editar roles de Ana' }))
+    await screen.findByRole('dialog', { name: 'Ana' })
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+    expect(screen.queryByRole('dialog', { name: 'Ana' })).toBeNull()
+    expect(screen.getByText('Ana')).toBeInTheDocument()
+  })
+
+  it('opening /admin/users/:userId shows the list with that editor already open, and closing returns to /admin/users (edge case)', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/users/u-1']}>
+        <TestUserProvider user={mockSessions.authenticatedAdmin.user} roles={['admin']} activeRole="admin" isLoading={false}>
+          <Routes>
+            <Route path="/admin/users/:userId" element={<AdminUsersPage />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+          </Routes>
+        </TestUserProvider>
+      </MemoryRouter>,
+    )
+    await screen.findByRole('dialog', { name: 'Ana' })
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/users', { replace: true })
   })
 })

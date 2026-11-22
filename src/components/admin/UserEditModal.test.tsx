@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { AdminUserEditPage } from './AdminUserEditPage'
-import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
-import { mockSessions } from '../hooks/__test-utils__/fixtures'
+import { MemoryRouter } from 'react-router-dom'
+import { UserEditModal } from './UserEditModal'
+import { TestUserProvider } from '../../hooks/__test-utils__/test-providers'
+import { mockSessions } from '../../hooks/__test-utils__/fixtures'
 
 const mockListAdminUsers = vi.fn()
 const mockUpdateProfile = vi.fn()
@@ -11,13 +11,13 @@ const mockAssignRole = vi.fn()
 const mockRevokeRole = vi.fn()
 const mockInvoke = vi.fn()
 
-vi.mock('../services/adminUsers', () => ({
+vi.mock('../../services/adminUsers', () => ({
   listAdminUsers: (...a: unknown[]) => mockListAdminUsers(...a),
   adminUpdateUserProfile: (...a: unknown[]) => mockUpdateProfile(...a),
   adminAssignUserRole: (...a: unknown[]) => mockAssignRole(...a),
   adminRevokeUserRole: (...a: unknown[]) => mockRevokeRole(...a),
 }))
-vi.mock('../lib/supabase', () => ({
+vi.mock('../../lib/supabase', () => ({
   initSupabase: () => ({ functions: { invoke: (...a: unknown[]) => mockInvoke(...a) } }),
 }))
 
@@ -44,31 +44,33 @@ const admin = {
   isActive: true,
 }
 
-function renderAt(userId: string) {
-  return render(
-    <MemoryRouter initialEntries={[`/admin/users/${userId}`]}>
+function renderModal(userId: string) {
+  const onClose = vi.fn()
+  const onChanged = vi.fn()
+  const onDeleted = vi.fn()
+  render(
+    <MemoryRouter>
       <TestUserProvider user={mockSessions.authenticatedAdmin.user} roles={['admin']} activeRole="admin" isLoading={false}>
-        <Routes>
-          <Route path="/admin/users/:userId" element={<AdminUserEditPage />} />
-          <Route path="/admin/users" element={<p>LISTA</p>} />
-        </Routes>
+        <UserEditModal userId={userId} onClose={onClose} onChanged={onChanged} onDeleted={onDeleted} />
       </TestUserProvider>
     </MemoryRouter>,
   )
+  return { onClose, onChanged, onDeleted }
 }
 
-describe('AdminUserEditPage', () => {
+describe('UserEditModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockListAdminUsers.mockResolvedValue([ana, admin])
   })
 
-  it('shows the user with roles, data and a way back', async () => {
-    renderAt('u-1')
-
-    expect(await screen.findByRole('heading', { name: 'Ana' })).toBeDefined()
+  it('is a pop-up with the user, roles and data', async () => {
+    renderModal('u-1')
+    const dialog = await screen.findByRole('dialog', { name: 'Ana' })
+    expect(dialog.parentElement?.className).toContain('fixed inset-0')
+    expect(dialog.parentElement?.className).toContain('items-end')
+    expect(dialog.parentElement?.className).toContain('sm:items-center')
     expect(screen.getByText('ana@example.com')).toBeDefined()
-    expect(screen.getByRole('link', { name: /Usuarios y roles/ })).toHaveAttribute('href', '/admin/users')
     for (const label of ['Cliente', 'Staff', 'Administrador']) {
       expect(screen.getByRole('checkbox', { name: label })).toBeDefined()
     }
@@ -76,9 +78,33 @@ describe('AdminUserEditPage', () => {
     expect((screen.getByRole('checkbox', { name: 'Staff' }) as HTMLInputElement).checked).toBe(false)
   })
 
-  it('assigns a role after confirmation', async () => {
+  it('is lean: no explanation under the roles, no "Datos" title, no access/alta/estado box', async () => {
+    renderModal('u-1')
+    await screen.findByRole('dialog', { name: 'Ana' })
+    expect(screen.queryByText(/Cliente reserva turnos/)).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Datos' })).toBeNull()
+    for (const text of ['Último acceso', 'Alta', 'Estado']) {
+      expect(screen.queryByText(text)).toBeNull()
+    }
+    // what is left: roles, name, phone, save and the delete block
+    expect(screen.getByLabelText('Nombre')).toBeInTheDocument()
+    expect(screen.getByLabelText(/Teléfono/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Guardar perfil de usuario' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Eliminar usuario' })).toBeInTheDocument()
+  })
+
+  it('keeps the delete block reachable on phones: dynamic height and room for the bottom bar (edge case)', async () => {
+    renderModal('u-1')
+    const dialog = await screen.findByRole('dialog', { name: 'Ana' })
+    expect(dialog.className).toContain('max-h-[92dvh]')
+    const body = screen.getByRole('button', { name: 'Eliminar usuario' }).closest('div.overflow-y-auto')!
+    expect(body.className).toContain('safe-area-inset-bottom')
+    expect(body.className).toContain('overflow-y-auto')
+  })
+
+  it('assigns a role after confirmation and tells the list to refresh', async () => {
     mockAssignRole.mockResolvedValue(undefined)
-    renderAt('u-1')
+    const { onChanged } = renderModal('u-1')
 
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Staff' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
@@ -86,12 +112,13 @@ describe('AdminUserEditPage', () => {
     await waitFor(() => expect(mockAssignRole).toHaveBeenCalledWith('u-1', 'staff'))
     expect(await screen.findByText('Roles actualizados correctamente.')).toBeDefined()
     expect((screen.getByRole('checkbox', { name: 'Staff' }) as HTMLInputElement).checked).toBe(true)
+    expect(onChanged).toHaveBeenCalled()
   })
 
   it('revokes a role after confirmation', async () => {
     mockRevokeRole.mockResolvedValue(undefined)
     mockListAdminUsers.mockResolvedValue([{ ...ana, roles: ['customer', 'staff'] }, admin])
-    renderAt('u-1')
+    renderModal('u-1')
 
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Staff' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
@@ -100,17 +127,18 @@ describe('AdminUserEditPage', () => {
   })
 
   it('does not change anything if the confirmation is cancelled (edge case)', async () => {
-    renderAt('u-1')
+    const { onChanged } = renderModal('u-1')
 
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Staff' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Cancelar' }))
 
     expect(mockAssignRole).not.toHaveBeenCalled()
+    expect(onChanged).not.toHaveBeenCalled()
     expect((screen.getByRole('checkbox', { name: 'Staff' }) as HTMLInputElement).checked).toBe(false)
   })
 
   it('refuses to remove the last role (edge case)', async () => {
-    renderAt('u-1')
+    renderModal('u-1')
 
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Cliente' }))
 
@@ -119,7 +147,7 @@ describe('AdminUserEditPage', () => {
   })
 
   it('stops an admin from removing their own admin role (edge case)', async () => {
-    renderAt(adminId)
+    renderModal(adminId)
 
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Administrador' }))
 
@@ -129,7 +157,7 @@ describe('AdminUserEditPage', () => {
 
   it('shows an error when the role change fails (edge case)', async () => {
     mockAssignRole.mockRejectedValue(new Error('x'))
-    renderAt('u-1')
+    renderModal('u-1')
 
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Staff' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Confirmar' }))
@@ -139,17 +167,18 @@ describe('AdminUserEditPage', () => {
 
   it('updates name and phone', async () => {
     mockUpdateProfile.mockResolvedValue({ userId: 'u-1', name: 'Ana Maria', phone: null })
-    renderAt('u-1')
+    const { onChanged } = renderModal('u-1')
 
     fireEvent.change(await screen.findByLabelText('Nombre'), { target: { value: 'Ana Maria' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar perfil de usuario' }))
 
     await waitFor(() => expect(mockUpdateProfile).toHaveBeenCalledWith('u-1', { name: 'Ana Maria', phone: '' }))
     expect(await screen.findByText('Perfil de usuario actualizado correctamente.')).toBeDefined()
+    expect(onChanged).toHaveBeenCalled()
   })
 
   it('rejects an empty name without saving (edge case)', async () => {
-    renderAt('u-1')
+    renderModal('u-1')
 
     fireEvent.change(await screen.findByLabelText('Nombre'), { target: { value: ' ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar perfil de usuario' }))
@@ -157,9 +186,9 @@ describe('AdminUserEditPage', () => {
     expect(mockUpdateProfile).not.toHaveBeenCalled()
   })
 
-  it('deletes the user after confirmation and goes back to the list', async () => {
+  it('deletes the user after confirmation and tells the page', async () => {
     mockInvoke.mockResolvedValue({ error: null })
-    renderAt('u-1')
+    const { onDeleted } = renderModal('u-1')
 
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar usuario' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
@@ -167,46 +196,45 @@ describe('AdminUserEditPage', () => {
     await waitFor(() =>
       expect(mockInvoke).toHaveBeenCalledWith('admin-delete-user', { body: { userId: 'u-1' } }),
     )
-    expect(await screen.findByText('LISTA')).toBeDefined()
+    await waitFor(() => expect(onDeleted).toHaveBeenCalled())
   })
 
-  it('stays on the page and shows the error when deleting fails (edge case)', async () => {
+  it('stays open and shows the error when deleting fails (edge case)', async () => {
     mockInvoke.mockResolvedValue({ error: new Error('No se pudo eliminar') })
-    renderAt('u-1')
+    const { onDeleted } = renderModal('u-1')
 
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar usuario' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Eliminar' }))
 
     expect(await screen.findByText('No se pudo eliminar')).toBeDefined()
-    expect(screen.queryByText('LISTA')).toBeNull()
+    expect(onDeleted).not.toHaveBeenCalled()
   })
 
   it('says so when the user does not exist (edge case)', async () => {
-    renderAt('nope')
+    renderModal('nope')
     expect(await screen.findByText('No encontramos a ese usuario.')).toBeDefined()
-    expect(screen.getByRole('link', { name: /Usuarios y roles/ })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toBeDefined()
   })
 
   it('shows an error when the user cannot be loaded (edge case)', async () => {
     mockListAdminUsers.mockRejectedValue(new Error('down'))
-    renderAt('u-1')
+    renderModal('u-1')
     expect(await screen.findByText('No pudimos cargar el usuario en este momento.')).toBeDefined()
   })
 
-  it('starts at the top of the screen when it opens (edge case)', async () => {
-    const scrollIntoView = vi.fn()
-    Element.prototype.scrollIntoView = scrollIntoView
-    renderAt('u-1')
-
-    await screen.findByRole('heading', { name: 'Ana' })
-    await waitFor(() => expect(scrollIntoView).toHaveBeenCalled())
+  it('closes with the × button and with Escape (edge case)', async () => {
+    const { onClose } = renderModal('u-1')
+    await screen.findByRole('dialog', { name: 'Ana' })
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(2)
   })
 
-  it('does not crash when scrollIntoView is unavailable (edge case)', async () => {
-    // @ts-expect-error simulate an environment without scrollIntoView
-    Element.prototype.scrollIntoView = undefined
-    renderAt('u-1')
-
-    expect(await screen.findByRole('heading', { name: 'Ana' })).toBeDefined()
+  it('Escape does not close it while a confirmation is open (edge case)', async () => {
+    const { onClose } = renderModal('u-1')
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Staff' }))
+    await screen.findByRole('button', { name: 'Confirmar' })
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

@@ -81,7 +81,7 @@ export function CouponImageModal({ isOpen, coupon, logoUrl, onClose }: CouponIma
         role="dialog"
         aria-modal="true"
         aria-labelledby="coupon-image-title"
-        className="flex max-h-[95vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+        className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
       >
         <div className="flex items-center justify-between border-b border-shell-border px-4 py-3">
           <h2 id="coupon-image-title" className="text-base font-semibold text-shell-text">
@@ -142,7 +142,7 @@ export function CouponImageModal({ isOpen, coupon, logoUrl, onClose }: CouponIma
           )}
         </div>
 
-        <div className="flex gap-2 border-t border-shell-border p-4">
+        <div className="flex gap-2 border-t border-shell-border p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={() => void downloadPng()}

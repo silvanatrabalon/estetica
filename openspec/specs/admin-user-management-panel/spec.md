@@ -146,3 +146,9 @@ Usuarios y roles SHALL offer "+ Agregar usuario": email (required), name (option
 - **THEN** it is deleted, together with the professional created for it unless that professional already has appointments
 
 An email can have only one pending invitation. The email is the only thing that links the person: they must sign in with exactly that email.
+
+### Requirement: "Editar roles" abre una ventana, no otra pantalla
+"Editar roles" SHALL abrir una ventana emergente sobre el directorio de Usuarios y roles (en el celular sube desde abajo como una hoja, en pantallas más grandes aparece centrada), en lugar de navegar a otra pantalla. La ventana tiene el bloque "Roles" (Cliente, Staff, Administrador, cada cambio con confirmación), el bloque "Datos" (nombre y teléfono, con "Guardar perfil de usuario") y el bloque "Eliminar usuario" (con confirmación). Se cierra con ×, con Escape (salvo que haya una confirmación abierta) o sola al eliminar. Los cambios actualizan la lista de atrás. La dirección `/admin/users/:userId` sigue funcionando y abre el directorio con esa ventana ya abierta; al cerrarla vuelve a `/admin/users`. Esto reemplaza lo dicho antes sobre la pantalla por usuario.
+
+### Requirement: La ventana de "Editar roles" va al grano
+La ventana de "Editar roles" NO SHALL llevar la explicación de los roles bajo las casillas, el título "Datos" ni el recuadro de último acceso, alta y estado. Quedan: los roles, el nombre y el teléfono con su botón de guardar, y el bloque para eliminar al usuario.

@@ -67,3 +67,6 @@ La lista de Usuarios y roles SHALL incluir, junto a las cuentas, a las personas 
 
 ### Requirement: Al vincular no se ofrecen cuentas que ya tienen un profesional
 La ventana de vincular cuenta SHALL listar todas las cuentas, administradores incluidos, pero solo se pueden elegir las que no pertenecen a ningún profesional; las demás aparecen atenuadas con la etiqueta "Ya es profesional" (también las de profesionales que la lista de Profesionales oculta porque su cuenta ya no tiene el rol staff). Cada cuenta puede tener un solo profesional. La base lo informa con `admin_staff_linked_user_ids`. Si aun así el servidor rechaza la cuenta (la tomaron mientras tanto), se muestra el error, se actualiza la lista y se descarta la elección.
+
+### Requirement: Agregar usuario en una ventana
+"Agregar usuario" SHALL abrirse como una ventana emergente (modal) sobre Usuarios y roles, en celular y en desktop: en el celular sube desde abajo como una hoja y en pantallas más grandes aparece centrada, con el email ya enfocado. Se cierra con "Cancelar", con Escape o sola al guardar bien. Los errores (rol faltante, invitación repetida, email que ya tiene cuenta con su enlace "Ir a Editar roles de esa cuenta") se muestran dentro de la ventana, no detrás.

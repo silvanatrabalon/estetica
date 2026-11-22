@@ -71,7 +71,7 @@ export function LinkAccountModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="link-account-title"
-        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+        className="flex max-h-[92dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
       >
         <div className="border-b border-shell-border px-4 py-3">
           <h2 id="link-account-title" className="text-base font-semibold text-shell-text">
@@ -160,7 +160,7 @@ export function LinkAccountModal({
           )}
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-shell-border p-4">
+        <div className="flex justify-end gap-2 border-t border-shell-border p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={onCancel}

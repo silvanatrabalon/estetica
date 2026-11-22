@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { commonCopy } from '../lib/uiCopy'
 import { roleLabel } from '../lib/adminUsersView'
 import { isLastActiveAdminDeactivation } from '../lib/adminUserPolicies'
@@ -20,6 +20,7 @@ import {
   type AdminStaffMember,
 } from '../services/adminStaff'
 import { LinkAccountModal } from '../components/admin/LinkAccountModal'
+import { UserEditModal } from '../components/admin/UserEditModal'
 import { listBookingClients, type BookingClient } from '../services/bookingClients'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { FilterMenu } from '../components/FilterMenu'
@@ -46,6 +47,13 @@ const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
 export function AdminUsersPage() {
   const location = useLocation()
   const navigate = useNavigate()
+  // "Editar roles" opens a pop-up over the list; /admin/users/:userId opens it directly
+  const { userId: routeUserId } = useParams<{ userId: string }>()
+  const [editUserId, setEditUserId] = useState<string | null>(routeUserId ?? null)
+  const closeEdit = () => {
+    setEditUserId(null)
+    if (routeUserId) navigate('/admin/users', { replace: true })
+  }
   const [users, setUsers] = useState<AdminManagedUser[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
@@ -268,6 +276,15 @@ export function AdminUsersPage() {
     }
   }
 
+  useEffect(() => {
+    if (!isInviteOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isInviting) setIsInviteOpen(false)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [isInviteOpen, isInviting])
+
   const openInvite = () => {
     setIsInviteOpen(true)
     setInviteEmail('')
@@ -340,7 +357,7 @@ export function AdminUsersPage() {
         </p>
       </div>
 
-      {errorMessage ? (
+      {errorMessage && !isInviteOpen ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <p>{errorMessage}</p>
           {loadFailed ? (
@@ -360,7 +377,7 @@ export function AdminUsersPage() {
         </p>
       ) : null}
 
-      {existingUserId && (
+      {existingUserId && !isInviteOpen && (
         <p className="text-sm">
           <Link to={`/admin/users/${existingUserId}`} className="font-semibold text-brand-primary hover:underline">
             Ir a Editar roles de esa cuenta
@@ -369,12 +386,16 @@ export function AdminUsersPage() {
       )}
 
       {isInviteOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-4">
         <form
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="invite-title"
           onSubmit={(e) => void handleInviteSubmit(e)}
           noValidate
-          className="shell-surface space-y-3 rounded-2xl border p-4 shadow-sm"
+          className="max-h-[92dvh] w-full max-w-md space-y-3 overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
         >
-          <h3 className="text-base font-semibold text-shell-text">Agregar usuario</h3>
+          <h3 id="invite-title" className="text-base font-semibold text-shell-text">Agregar usuario</h3>
           <p className="text-sm text-shell-subtleText">
             Cuando esa persona entre a la app con este email, ya va a tener los roles que elijas.
           </p>
@@ -390,6 +411,7 @@ export function AdminUsersPage() {
               className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text focus:border-brand-primary focus:outline-none"
               placeholder="persona@gmail.com"
               autoComplete="off"
+              autoFocus
             />
           </div>
           <div>
@@ -423,6 +445,20 @@ export function AdminUsersPage() {
               ))}
             </div>
           </fieldset>
+          {/* Errors show here, inside the pop-up, where the person is looking */}
+          {errorMessage && (
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <p>{errorMessage}</p>
+              {existingUserId && (
+                <Link
+                  to={`/admin/users/${existingUserId}`}
+                  className="mt-1 inline-block font-semibold text-brand-primary hover:underline"
+                >
+                  Ir a Editar roles de esa cuenta
+                </Link>
+              )}
+            </div>
+          )}
           <div className="flex gap-3 pt-1">
             <button
               type="submit"
@@ -440,6 +476,7 @@ export function AdminUsersPage() {
             </button>
           </div>
         </form>
+        </div>
       )}
 
       <div className="shell-surface rounded-2xl border p-3 shadow-sm sm:p-4">
@@ -526,13 +563,14 @@ export function AdminUsersPage() {
               </div>
 
               <div className="mt-2 flex items-center gap-4 text-xs font-semibold">
-                <Link
-                  to={`/admin/users/${user.userId}`}
+                <button
+                  type="button"
+                  onClick={() => setEditUserId(user.userId)}
                   aria-label={`Editar roles de ${user.name || user.email || 'usuario'}`}
                   className="text-brand-primary hover:underline"
                 >
                   Editar roles
-                </Link>
+                </button>
                 <button
                   type="button"
                   disabled={busyUserId === user.userId}
@@ -629,6 +667,20 @@ export function AdminUsersPage() {
         cancelLabel={confirmState.cancelLabel}
         onCancel={closeConfirm}
       />
+
+      {editUserId && (
+        <UserEditModal
+          key={editUserId}
+          userId={editUserId}
+          onClose={closeEdit}
+          onChanged={() => void loadData()}
+          onDeleted={() => {
+            closeEdit()
+            setSuccessMessage('Usuario eliminado correctamente.')
+            void loadData()
+          }}
+        />
+      )}
 
       <LinkAccountModal
         staffName={linkTarget?.displayName ?? null}
