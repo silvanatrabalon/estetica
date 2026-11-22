@@ -19,6 +19,9 @@ import {
 import { adminListCategories, type ServiceCategory } from '../services/adminCategories'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { Listbox } from '../components/Listbox'
+import { copyToClipboard } from '../lib/clipboard'
+import { CouponImageModal } from '../components/admin/CouponImageModal'
+import { getBusinessSettings } from '../services/businessSettings'
 
 interface FormState {
   id: string | null
@@ -49,6 +52,8 @@ const EMPTY_FORM: FormState = {
 interface FormErrors {
   code?: string
   discountValue?: string
+  startsOn?: string
+  endsOn?: string
   dates?: string
 }
 
@@ -74,6 +79,8 @@ function validate(form: FormState): FormErrors {
   if (codeError) errors.code = codeError
   const valueError = validateDiscountValue(form.discountType, form.discountValue)
   if (valueError) errors.discountValue = valueError
+  if (!form.startsOn) errors.startsOn = 'Elegí desde cuándo vale el cupón.'
+  if (!form.endsOn) errors.endsOn = 'Elegí hasta cuándo vale el cupón.'
   if (form.startsOn && form.endsOn && form.startsOn > form.endsOn) {
     errors.dates = 'La fecha de fin no puede ser anterior a la de inicio.'
   }
@@ -107,6 +114,32 @@ export function AdminCouponsPage() {
   const [isSaving, setIsSaving] = useState(false)
 
   const [confirm, setConfirm] = useState<{ coupon: AdminCoupon } | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [imageCoupon, setImageCoupon] = useState<AdminCoupon | null>(null)
+  const [businessName, setBusinessName] = useState('')
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    getBusinessSettings()
+      .then((settings) => {
+        setBusinessName(settings.name)
+        setLogoUrl(settings.logoUrl)
+      })
+      .catch(() => {
+        // The image just goes without the business name
+      })
+  }, [])
+
+  async function copyCode(coupon: AdminCoupon) {
+    const ok = await copyToClipboard(coupon.code)
+    if (!ok) {
+      setErrorMessage(`No pudimos copiar el código. Copialo a mano: ${coupon.code}`)
+      return
+    }
+    setErrorMessage(null)
+    setCopiedId(coupon.id)
+    window.setTimeout(() => setCopiedId((current) => (current === coupon.id ? null : current)), 2000)
+  }
 
   const load = async () => {
     setIsLoading(true)
@@ -332,43 +365,80 @@ export function AdminCouponsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label htmlFor="coupon-starts" className="mb-1 block text-sm font-medium text-gray-700">
-                  Desde <span className="font-normal text-gray-400">(opcional)</span>
-                </label>
-                <input
-                  id="coupon-starts"
-                  type="date"
-                  value={form.startsOn}
-                  onChange={(e) => setField('startsOn', e.target.value)}
-                  className={fieldCls}
-                />
+            <fieldset>
+              <legend className="mb-1.5 text-sm font-medium text-gray-700">Vigencia</legend>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="coupon-starts" className="mb-1 block text-xs text-gray-500">
+                    Desde
+                  </label>
+                  <input
+                    id="coupon-starts"
+                    type="date"
+                    required
+                    value={form.startsOn}
+                    onChange={(e) => setField('startsOn', e.target.value)}
+                    aria-invalid={errors.startsOn ? true : undefined}
+                    className={fieldCls}
+                  />
+                  {errors.startsOn && <p className="mt-1 text-sm text-red-600">{errors.startsOn}</p>}
+                </div>
+                <div>
+                  <label htmlFor="coupon-ends" className="mb-1 block text-xs text-gray-500">
+                    Hasta
+                  </label>
+                  <input
+                    id="coupon-ends"
+                    type="date"
+                    required
+                    value={form.endsOn}
+                    onChange={(e) => setField('endsOn', e.target.value)}
+                    aria-invalid={errors.endsOn ? true : undefined}
+                    className={fieldCls}
+                  />
+                  {errors.endsOn && <p className="mt-1 text-sm text-red-600">{errors.endsOn}</p>}
+                </div>
+                {errors.dates && <p className="col-span-2 text-sm text-red-600">{errors.dates}</p>}
               </div>
-              <div>
-                <label htmlFor="coupon-ends" className="mb-1 block text-sm font-medium text-gray-700">
-                  Hasta <span className="font-normal text-gray-400">(opcional)</span>
-                </label>
-                <input
-                  id="coupon-ends"
-                  type="date"
-                  value={form.endsOn}
-                  onChange={(e) => setField('endsOn', e.target.value)}
-                  className={fieldCls}
-                />
-              </div>
-              {errors.dates && <p className="col-span-2 text-sm text-red-600">{errors.dates}</p>}
-            </div>
+            </fieldset>
 
-            <label className="flex items-center gap-2 text-sm text-shell-text">
-              <input
-                type="checkbox"
-                checked={form.showOnSite}
-                onChange={(e) => setField('showOnSite', e.target.checked)}
-                className="h-4 w-4"
-              />
-              Mostrar este cupón en el sitio web
-            </label>
+            <fieldset>
+              <legend className="mb-1.5 text-sm font-medium text-shell-text">¿Quién puede ver este cupón?</legend>
+              <div className="space-y-2">
+                {[
+                  {
+                    value: true,
+                    title: 'Público',
+                    text: 'Aparece en el sitio web, lo ve cualquiera.',
+                  },
+                  {
+                    value: false,
+                    title: 'Privado',
+                    text: 'No se muestra en ningún lado: solo lo usa quien reciba el código de tu parte.',
+                  },
+                ].map((opt) => (
+                  <label
+                    key={opt.title}
+                    className={cn(
+                      'flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm',
+                      form.showOnSite === opt.value ? 'border-brand-primary bg-[var(--color-lilac)]/40' : 'border-shell-border',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="coupon-visibility"
+                      checked={form.showOnSite === opt.value}
+                      onChange={() => setField('showOnSite', opt.value)}
+                      className="mt-0.5 h-4 w-4"
+                    />
+                    <span>
+                      <span className="block font-semibold text-shell-text">{opt.title}</span>
+                      <span className="block text-shell-subtleText">{opt.text}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <label className="flex items-center gap-2 text-sm text-shell-text">
               <input
                 type="checkbox"
@@ -419,7 +489,45 @@ export function AdminCouponsPage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-mono text-base font-bold text-shell-text">{coupon.code}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-mono text-base font-bold text-shell-text">{coupon.code}</p>
+                      <button
+                        type="button"
+                        onClick={() => void copyCode(coupon)}
+                        aria-label={copiedId === coupon.id ? `Código ${coupon.code} copiado` : `Copiar código ${coupon.code}`}
+                        title={copiedId === coupon.id ? '¡Copiado!' : 'Copiar código'}
+                        className={cn(
+                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]',
+                          copiedId === coupon.id
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'text-shell-subtleText hover:bg-shell-muted hover:text-shell-text',
+                        )}
+                      >
+                        {copiedId === coupon.id ? (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <rect x="9" y="9" width="11" height="11" rx="2" />
+                            <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageCoupon(coupon)}
+                        aria-label={`Descargar imagen del cupón ${coupon.code}`}
+                        title="Descargar como imagen"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-shell-subtleText transition-colors hover:bg-shell-muted hover:text-shell-text focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
+                      >
+                        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <rect x="3" y="3" width="18" height="18" rx="2" />
+                          <circle cx="9" cy="9" r="1.5" />
+                          <path d="M21 15l-5-5L5 21" />
+                        </svg>
+                      </button>
+                    </div>
                     <p className="text-sm text-shell-subtleText">
                       {describeDiscount({ type: coupon.discountType, value: coupon.discountValue })}
                     </p>
@@ -445,11 +553,16 @@ export function AdminCouponsPage() {
                   >
                     {coupon.isActive ? 'Activo' : 'Inactivo'}
                   </span>
-                  {coupon.showOnSite && (
-                    <span className="rounded-full bg-[var(--color-peach)] px-2 py-0.5 text-[var(--color-peach-ink)]">
-                      En el sitio web
-                    </span>
-                  )}
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5',
+                      coupon.showOnSite
+                        ? 'bg-[var(--color-peach)] text-[var(--color-peach-ink)]'
+                        : 'bg-slate-100 text-slate-600',
+                    )}
+                  >
+                    {coupon.showOnSite ? 'Público · en el sitio web' : 'Privado · solo con el código'}
+                  </span>
                 </div>
 
                 <div className="mt-3 flex items-center gap-4 text-xs font-semibold">
@@ -476,6 +589,24 @@ export function AdminCouponsPage() {
           </ul>
         )}
       </div>
+
+      <CouponImageModal
+        isOpen={imageCoupon !== null}
+        logoUrl={logoUrl}
+        coupon={
+          imageCoupon
+            ? {
+                code: imageCoupon.code,
+                discountType: imageCoupon.discountType,
+                discountValue: imageCoupon.discountValue,
+                scope: imageCoupon.categoryName ? `Categoría ${imageCoupon.categoryName}` : 'Todos los servicios',
+                validity: validityText(imageCoupon).replace(/^Del /, 'Válido del ').replace(/^Desde /, 'Válido desde ').replace(/^Hasta /, 'Válido hasta '),
+                businessName,
+              }
+            : null
+        }
+        onClose={() => setImageCoupon(null)}
+      />
 
       <ConfirmModal
         isOpen={confirm !== null}
