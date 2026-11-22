@@ -156,7 +156,7 @@ describe('BusinessSettingsPage', () => {
 
       expect(screen.getByRole('tablist', { name: 'Secciones de Negocio' })).toBeDefined()
       const tabs = screen.getAllByRole('tab')
-      expect(tabs.map((t) => t.textContent)).toEqual(['General', 'Horarios', 'Cierres', 'Política', 'Zona de peligro'])
+      expect(tabs.map((t) => t.textContent)).toEqual(['General', 'Horarios', 'Cierres', 'Política', 'Historial'])
       expect(tabs.map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false', 'false'])
     })
 
@@ -836,22 +836,174 @@ describe('BusinessSettingsPage — look', () => {
     expect(screen.getByRole('button', { name: 'Guardar política' }).textContent).toBe('Guardar')
   })
 
-  it('the danger zone is a tab of the section menu, hidden until chosen (edge case)', async () => {
+  it('the history (delete reservations) is a tab of the section menu, hidden until chosen (edge case)', async () => {
     renderBusinessSettingsPage()
     await screen.findByDisplayValue('Salon Centro')
-    const tab = screen.getByRole('tab', { name: 'Zona de peligro' })
+    const tab = screen.getByRole('tab', { name: 'Historial' })
     expect(tab).toHaveAttribute('aria-selected', 'false')
     const panel = screen.getByText('Eliminar historial de reservas').closest('div[class*="hidden"]')
     expect(panel).not.toBeNull()
     fireEvent.click(tab)
     expect(tab).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText('Eliminar historial de reservas').closest('div[class*="hidden"]')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Zona de peligro' })).toBeNull() // no more collapsible button
+    expect(screen.queryByText('Zona de peligro')).toBeNull() // the old name is gone
   })
 
-  it('the danger tab never shows the unsaved-changes dot (edge case)', async () => {
+  it('the history tab never shows the unsaved-changes dot (edge case)', async () => {
     renderBusinessSettingsPage()
     await screen.findByDisplayValue('Salon Centro')
-    expect(screen.getByRole('tab', { name: 'Zona de peligro' }).textContent).not.toContain('sin guardar')
+    expect(screen.getByRole('tab', { name: 'Historial' }).textContent).not.toContain('sin guardar')
+  })
+})
+
+describe('BusinessSettingsPage — tabs layout', () => {
+  it('every tab is a single word and shares the width, so none wraps or is cut (edge case)', async () => {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(tab.textContent).not.toMatch(/\s/)
+      expect(tab.className).toContain('flex-1')
+      expect(tab.className).toContain('min-w-0')
+      expect(tab.className).toContain('whitespace-nowrap')
+      expect(tab.className).not.toContain('shrink-0')
+    }
+  })
+
+  it('every tab has its icon, shown above the label on phones and beside it on larger screens', async () => {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    for (const tab of screen.getAllByRole('tab')) {
+      expect(tab.querySelector('svg')).not.toBeNull()
+      expect(tab.className).toContain('flex-col')
+      expect(tab.className).toContain('sm:flex-row')
+    }
+  })
+})
+
+describe('BusinessSettingsPage — unsaved changes are never saved on their own', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse())
+    mockSetSplitShifts.mockResolvedValue(undefined)
+  })
+
+  async function open() {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+  }
+  const editName = (value: string) =>
+    fireEvent.change(screen.getByLabelText('Nombre del negocio'), { target: { value } })
+
+  it('leaving a section with unsaved changes asks first, and "Volver y guardar" stays on it', async () => {
+    await open()
+    editName('Salon Norte')
+    fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
+
+    expect(await screen.findByText('Tenés cambios sin guardar en General')).toBeInTheDocument()
+    expect(screen.getByText(/no se guardan solos/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Volver y guardar' }))
+    expect(screen.getByRole('tab', { name: /General/ })).toHaveAttribute('aria-selected', 'true')
+    expect((screen.getByLabelText('Nombre del negocio') as HTMLInputElement).value).toBe('Salon Norte')
+    expect(mockSaveBusinessSettings).not.toHaveBeenCalled()
+  })
+
+  it('"Salir sin guardar" goes on and drops the edits, without saving anything', async () => {
+    await open()
+    editName('Salon Norte')
+    fireEvent.click(screen.getByRole('tab', { name: /Horarios/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Salir sin guardar' }))
+
+    expect(screen.getByRole('tab', { name: 'Horarios' })).toHaveAttribute('aria-selected', 'true')
+    fireEvent.click(screen.getByRole('tab', { name: 'General' }))
+    expect((screen.getByLabelText('Nombre del negocio') as HTMLInputElement).value).toBe('Salon Centro')
+    expect(screen.queryByText('Hay cambios sin guardar')).toBeNull()
+    expect(mockSaveBusinessSettings).not.toHaveBeenCalled()
+  })
+
+  it('changing tab without edits does not ask anything (edge case)', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
+    expect(screen.queryByText(/Tenés cambios sin guardar en/)).toBeNull()
+    expect(screen.getByRole('tab', { name: 'Horarios' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('pressing the tab you are already on does not ask anything (edge case)', async () => {
+    await open()
+    editName('Salon Norte')
+    fireEvent.click(screen.getByRole('tab', { name: /General/ }))
+    expect(screen.queryByText(/Tenés cambios sin guardar en/)).toBeNull()
+  })
+
+  it('the same goes for Horarios and Política', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
+    fireEvent.change(screen.getByLabelText('Lunes: hora de inicio'), { target: { value: '08:30' } })
+    fireEvent.click(screen.getByRole('tab', { name: 'Cierres' }))
+    expect(await screen.findByText('Tenés cambios sin guardar en Horarios')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Volver y guardar' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar horarios' }))
+    await waitFor(() => expect(mockSaveBusinessSettings).toHaveBeenCalled())
+  })
+
+  it('Horarios shows a visible notice while it has unsaved changes, and it goes away when they are undone', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
+    expect(screen.queryByText(/no se guardan solos/)).toBeNull()
+    const start = screen.getByLabelText('Lunes: hora de inicio') as HTMLInputElement
+    const original = start.value
+    fireEvent.change(start, { target: { value: '08:30' } })
+    expect(screen.getByRole('status')).toHaveTextContent(/Apretá Guardar abajo antes de salir de esta sección/)
+    fireEvent.change(start, { target: { value: original } })
+    expect(screen.queryByText(/no se guardan solos/)).toBeNull()
+  })
+
+  it('changing the work mode with unsaved hours warns that they would be lost (edge case)', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
+    fireEvent.change(screen.getByLabelText('Lunes: hora de inicio'), { target: { value: '08:30' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Dos turnos' }))
+
+    expect(await screen.findByText('Tenés horarios sin guardar')).toBeInTheDocument()
+    expect(mockSetSplitShifts).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Volver y guardar' }))
+    expect(mockSetSplitShifts).not.toHaveBeenCalled()
+    expect((screen.getByLabelText('Lunes: hora de inicio') as HTMLInputElement).value).toBe('08:30')
+  })
+
+  it('"Cambiar y descartar" drops the hour edits and then does change the mode', async () => {
+    await open()
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ splitShifts: true }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
+    fireEvent.change(screen.getByLabelText('Lunes: hora de inicio'), { target: { value: '08:30' } })
+    fireEvent.click(screen.getByRole('radio', { name: 'Dos turnos' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cambiar y descartar' }))
+    await waitFor(() => expect(mockSetSplitShifts).toHaveBeenCalledWith(true))
+    expect(mockSaveBusinessSettings).not.toHaveBeenCalled()
+  })
+
+  it('changing the mode with everything saved needs no warning (edge case)', async () => {
+    await open()
+    fireEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
+    fireEvent.click(screen.getByRole('radio', { name: 'Dos turnos' }))
+    await waitFor(() => expect(mockSetSplitShifts).toHaveBeenCalledWith(true))
+    expect(screen.queryByText('Tenés horarios sin guardar')).toBeNull()
+  })
+
+  it('the browser warns before closing the page only while there are unsaved changes (edge case)', async () => {
+    await open()
+    const clean = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(clean)
+    expect(clean.defaultPrevented).toBe(false)
+
+    editName('Salon Norte')
+    const dirty = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(dirty)
+    expect(dirty.defaultPrevented).toBe(true)
+
+    editName('Salon Centro')
+    const back = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(back)
+    expect(back.defaultPrevented).toBe(false)
   })
 })

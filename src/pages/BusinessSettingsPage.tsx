@@ -134,6 +134,7 @@ export function BusinessSettingsPage() {
     onConfirm: () => void
     destructive?: boolean
     confirmLabel?: string
+    cancelLabel?: string
   }>({ isOpen: false, message: '', title: 'Confirmar', onConfirm: () => {} })
 
   // ── Danger zone state ──────────────────────────────────────────────────────
@@ -146,7 +147,7 @@ export function BusinessSettingsPage() {
     title: string,
     message: string,
     onConfirm: () => void,
-    options?: { destructive?: boolean; confirmLabel?: string },
+    options?: { destructive?: boolean; confirmLabel?: string; cancelLabel?: string },
   ) => {
     setConfirmState({ isOpen: true, title, message, onConfirm, ...options })
   }
@@ -233,6 +234,25 @@ export function BusinessSettingsPage() {
 
   const handleModeChange = (enabled: boolean) => {
     if (enabled === splitShifts || isSwitchingMode) return
+    // Changing the mode reloads the hours from the database: unsaved edits would be lost
+    if (hoursDirty) {
+      showConfirm(
+        'Tenés horarios sin guardar',
+        'Cambiar la forma de trabajo recarga los horarios y se pierden los cambios que todavía no guardaste. Volvé y guardalos con el botón "Guardar" de abajo antes de cambiar.',
+        () => {
+          closeConfirm()
+          setWeeklyHours(savedHours)
+          // After dropping the edits, go on with the change the person asked for
+          handleModeChangeConfirmed(enabled)
+        },
+        { destructive: true, confirmLabel: 'Cambiar y descartar', cancelLabel: 'Volver y guardar' },
+      )
+      return
+    }
+    handleModeChangeConfirmed(enabled)
+  }
+
+  const handleModeChangeConfirmed = (enabled: boolean) => {
     if (enabled) {
       void applyShiftMode(true)
       return
@@ -333,6 +353,59 @@ export function BusinessSettingsPage() {
     closures: false,
     policy: policyDirty,
   }
+
+  const TAB_NAMES: Record<string, string> = {
+    identity: 'General',
+    hours: 'Horarios',
+    policy: 'Política',
+  }
+
+  // Edits are never saved on their own: leaving a section with unsaved changes asks first
+  const discardTabEdits = (tab: string) => {
+    if (tab === 'identity') {
+      setName(savedGeneral.name)
+      setTimezone(savedGeneral.timezone)
+    } else if (tab === 'hours') {
+      setWeeklyHours(savedHours)
+    } else if (tab === 'policy') {
+      setBookingMinNoticeMinutes(savedPolicy.minNotice)
+      setBookingMaxHorizonDays(savedPolicy.maxHorizon)
+      setNotificationEmail(savedPolicy.email)
+      setNotificationsEnabled(savedPolicy.enabled)
+    }
+  }
+
+  const goToTab = (next: typeof activeTab) => {
+    if (next === activeTab) return
+    const leaving = activeTab
+    if (!dirtyByTab[leaving]) {
+      setActiveTab(next)
+      return
+    }
+    showConfirm(
+      `Tenés cambios sin guardar en ${TAB_NAME_OF(leaving)}`,
+      'Los cambios no se guardan solos. Volvé y apretá "Guardar" antes de salir de esta sección, o se pierden.',
+      () => {
+        closeConfirm()
+        discardTabEdits(leaving)
+        setActiveTab(next)
+      },
+      { destructive: true, confirmLabel: 'Salir sin guardar', cancelLabel: 'Volver y guardar' },
+    )
+  }
+  const TAB_NAME_OF = (tab: string) => TAB_NAMES[tab] ?? tab
+
+  // Closing or reloading the page with unsaved edits: the browser asks first
+  const anyDirty = generalDirty || hoursDirty || policyDirty
+  useEffect(() => {
+    if (!anyDirty) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [anyDirty])
 
   // Closures change on their own: refresh just them, so unsaved edits in other tabs survive
   const refreshClosures = async () => {
@@ -476,7 +549,7 @@ export function BusinessSettingsPage() {
     },
     {
       key: 'danger' as const,
-      label: 'Zona de peligro',
+      label: 'Historial',
       icon: (
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" />
@@ -522,9 +595,9 @@ export function BusinessSettingsPage() {
               type="button"
               role="tab"
               aria-selected={activeTab === tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => goToTab(tab.key)}
               className={cn(
-                'relative flex min-h-11 flex-1 shrink-0 items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-sm font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-primary sm:px-3',
+                'relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 whitespace-nowrap rounded-xl px-1 py-1.5 text-[11px] font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-primary sm:min-h-11 sm:flex-row sm:gap-1.5 sm:px-3 sm:py-2 sm:text-sm',
                 activeTab === tab.key
                   ? tab.key === 'danger'
                     ? 'bg-red-600 text-white shadow-sm'
@@ -534,8 +607,8 @@ export function BusinessSettingsPage() {
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
               )}
             >
-              {/* Icons only where there is room; on phones the four labels need the space */}
-              <span className="hidden sm:inline-flex">{tab.icon}</span>
+              {/* Phones: icon above the label so the five tabs fit; larger screens: icon beside it */}
+              <span className="inline-flex">{tab.icon}</span>
               <span>{tab.label}</span>
               {tab.key !== 'danger' && dirtyByTab[tab.key] && (
                 <>
@@ -595,6 +668,11 @@ export function BusinessSettingsPage() {
 
       {/* ── HORARIOS ── */}
       <div className={activeTab !== 'hours' ? 'hidden' : ''}>
+        {hoursDirty && (
+          <p role="status" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Tenés cambios sin guardar. Apretá <strong>Guardar</strong> abajo antes de salir de esta sección o de cambiar la forma de trabajo: no se guardan solos.
+          </p>
+        )}
         <form onSubmit={handleSaveHours} className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5">
             <h3 className="font-semibold text-gray-900 text-sm">Horarios del negocio</h3>
@@ -936,13 +1014,14 @@ export function BusinessSettingsPage() {
         onConfirm={confirmState.onConfirm}
         destructive={confirmState.destructive}
         confirmLabel={confirmState.confirmLabel}
+        cancelLabel={confirmState.cancelLabel}
         onCancel={closeConfirm}
       />
 
-      {/* ── ZONA DE PELIGRO ── */}
+      {/* ── HISTORIAL (borrar reservas) ── */}
       <div className={activeTab !== 'danger' ? 'hidden' : ''}>
         <div className="space-y-3 rounded-2xl border border-red-200 bg-white p-4">
-          <h3 className="text-sm font-semibold text-red-700">Zona de peligro</h3>
+          <h3 className="text-sm font-semibold text-red-700">Historial</h3>
           {deleteSuccess && (
             <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
               {deleteSuccess}
