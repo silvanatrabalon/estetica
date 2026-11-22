@@ -5,6 +5,7 @@ import { getLandingConfig, getUpcomingClosures } from '../services/landing'
 import { getPublicSocialLinks } from '../services/socialLinks'
 import { SocialLinksList } from '../components/landing/SocialLinksList'
 import { PromotionsSection } from '../components/landing/PromotionsSection'
+import { listPublicPromos, type PublicPromo } from '../services/promos'
 import { listPublicCoupons, type PublicCoupon } from '../services/coupons'
 import type { SocialLink } from '../lib/socialLinks'
 import { formatPriceARS } from '../lib/formatPrice'
@@ -519,6 +520,7 @@ export function LandingPage() {
   const [upcomingClosures, setUpcomingClosures] = useState<UpcomingClosure[]>([])
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([])
   const [promotions, setPromotions] = useState<PublicCoupon[]>([])
+  const [publicPromos, setPublicPromos] = useState<PublicPromo[]>([])
 
   const isAuthenticated = !!user
   const isCustomer = activeRole === 'customer'
@@ -547,6 +549,21 @@ export function LandingPage() {
       })
       .catch(() => {
         if (!cancelled) setPromotions([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Promos the admin chose to show (failures just hide them)
+  useEffect(() => {
+    let cancelled = false
+    listPublicPromos()
+      .then((list) => {
+        if (!cancelled) setPublicPromos(list)
+      })
+      .catch(() => {
+        if (!cancelled) setPublicPromos([])
       })
     return () => {
       cancelled = true
@@ -729,7 +746,7 @@ export function LandingPage() {
         loading={loadingServices}
         primaryColor={effectiveConfig.primaryColor}
       />
-      <PromotionsSection coupons={promotions} />
+      <PromotionsSection coupons={promotions} promos={publicPromos} />
       <AboutSection aboutText={effectiveConfig.aboutText} />
       <HoursSection showHours={effectiveConfig.showHours} hours={hours} />
       <UpcomingClosuresSection closures={futureClosures} />

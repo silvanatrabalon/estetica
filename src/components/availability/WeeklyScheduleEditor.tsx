@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { StaffScheduleDay } from '../../services/staffAvailability'
 import type { StaffScheduleDayInput } from '../../services/staffAvailability'
 import {
@@ -80,13 +80,20 @@ export function WeeklyScheduleEditor({
 
   const updateDay = (dayOfWeek: number, patch: Partial<DayDraft>) => {
     setDraft((current) => current.map((d) => (d.dayOfWeek === dayOfWeek ? { ...d, ...patch } : d)))
-    onDirtyChange(true)
 
     // Clear time error for the day when user edits
     if (patch.shifts !== undefined) {
       setTimeErrors((current) => ({ ...current, [dayOfWeek]: null }))
     }
   }
+
+  // "Unsaved changes" means the draft differs from what is saved: undoing an edit clears it
+  const savedSnapshot = useMemo(() => JSON.stringify(buildDraft(schedule, split).map(toInput)), [schedule, split])
+  const isDirty = JSON.stringify(draft.map(toInput)) !== savedSnapshot
+  useEffect(() => {
+    onDirtyChange(isDirty)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDirty])
 
   const validate = (): boolean => {
     const errors: Record<number, string | null> = {}
@@ -131,6 +138,12 @@ export function WeeklyScheduleEditor({
           />
         ))}
       </div>
+
+      {!readOnly && isDirty && (
+        <p role="status" className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+          Tenés cambios sin guardar. Apretá “Guardar horario” antes de salir de esta sección: no se guardan solos.
+        </p>
+      )}
 
       {!readOnly && (
       <div className="mt-4 flex justify-end">

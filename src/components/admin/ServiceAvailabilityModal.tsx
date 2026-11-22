@@ -1,11 +1,12 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { ActionButton } from '../ActionButton'
+import { Select } from '../Select'
 import {
   addServiceAvailableDate,
   listServiceAvailableDates,
   removeServiceAvailableDate,
   type ServiceAvailableDate,
-} from '../services/adminServiceAvailability'
+} from '../../services/adminServiceAvailability'
 
 type AddMode = 'single' | 'range' | 'always'
 
@@ -20,9 +21,15 @@ function getDatesInRange(start: string, end: string): string[] {
   return dates
 }
 
-export function AdminServiceAvailabilityPage() {
-  const { serviceId } = useParams<{ serviceId: string }>()
-  const navigate = useNavigate()
+interface ServiceAvailabilityModalProps {
+  serviceId: string
+  /** Shown under the title. */
+  serviceName?: string
+  onClose: () => void
+}
+
+/** Pop-up to choose on which dates a service can be booked (or "always"). Opened from Servicios. */
+export function ServiceAvailabilityModal({ serviceId, serviceName, onClose }: ServiceAvailabilityModalProps) {
 
   const [dates, setDates] = useState<ServiceAvailableDate[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -35,6 +42,15 @@ export function AdminServiceAvailabilityPage() {
   const [rangeEnd, setRangeEnd] = useState('')
   const [isAdding, setIsAdding] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+
+  const busy = isAdding || isClearing
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !busy) onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [busy, onClose])
 
   async function loadDates() {
     if (!serviceId) return
@@ -143,20 +159,32 @@ export function AdminServiceAvailabilityPage() {
   }
 
   return (
-    <section className="space-y-6">
-      <div className="flex items-center gap-3">
-        <button
-          className="text-sm text-shell-subtleText hover:text-shell-text inline-flex items-center gap-1"
-          onClick={() => navigate('/admin/services')}
-          type="button"
-        >
-          ← Servicios
-        </button>
-        <h2 className="font-heading text-2xl font-semibold text-shell-text">
-          Disponibilidad del servicio
-        </h2>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="service-availability-title"
+        className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:rounded-2xl"
+      >
+        <div className="flex items-start justify-between gap-2 border-b border-shell-border px-4 py-3">
+          <div className="min-w-0">
+            <h2 id="service-availability-title" className="text-base font-semibold text-shell-text">
+              Disponibilidad del servicio
+            </h2>
+            {serviceName && <p className="truncate text-sm text-shell-subtleText">{serviceName}</p>}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            aria-label="Cerrar"
+            className="shrink-0 rounded-lg px-2 py-1 text-xl leading-none text-shell-subtleText hover:bg-shell-muted disabled:opacity-50"
+          >
+            ×
+          </button>
+        </div>
 
+        <div className="space-y-4 overflow-y-auto p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
       {errorMessage ? (
         <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {errorMessage}
@@ -169,12 +197,13 @@ export function AdminServiceAvailabilityPage() {
         </p>
       ) : null}
 
-      <section className="shell-surface rounded-2xl border p-5 shadow-sm">
+      <section className="rounded-2xl border border-shell-border p-4">
         <h3 className="text-sm font-semibold text-shell-text">Disponibilidad</h3>
 
         {/* Mobile: select */}
-        <select
-          className="mt-3 md:hidden w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text"
+        <Select
+          aria-label="Tipo de disponibilidad"
+          wrapperClassName="mt-3 md:hidden"
           value={addMode}
           onChange={(e) => {
             setAddMode(e.target.value as AddMode)
@@ -184,7 +213,7 @@ export function AdminServiceAvailabilityPage() {
           <option value="single">Fecha única</option>
           <option value="range">Rango de fechas</option>
           <option value="always">Siempre disponible</option>
-        </select>
+        </Select>
 
         {/* Desktop: button group */}
         <div className="mt-3 hidden md:flex flex-wrap gap-2">
@@ -261,7 +290,7 @@ export function AdminServiceAvailabilityPage() {
               <label className="flex-1 text-sm text-shell-text">
                 Fecha
                 <input
-                  className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+                  className="dt-field mt-1"
                   onChange={(event) => setNewDate(event.target.value)}
                   type="date"
                   value={newDate}
@@ -272,7 +301,7 @@ export function AdminServiceAvailabilityPage() {
                 <label className="flex-1 min-w-[160px] text-sm text-shell-text">
                   Fecha inicio
                   <input
-                    className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+                    className="dt-field mt-1"
                     onChange={(event) => setRangeStart(event.target.value)}
                     type="date"
                     value={rangeStart}
@@ -281,7 +310,7 @@ export function AdminServiceAvailabilityPage() {
                 <label className="flex-1 min-w-[160px] text-sm text-shell-text">
                   Fecha fin
                   <input
-                    className="mt-1 w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
+                    className="dt-field mt-1"
                     onChange={(event) => setRangeEnd(event.target.value)}
                     type="date"
                     value={rangeEnd}
@@ -303,7 +332,7 @@ export function AdminServiceAvailabilityPage() {
         )}
       </section>
 
-      <section className="shell-surface rounded-2xl border p-5 shadow-sm">
+      <section className="rounded-2xl border border-shell-border p-4">
         <h3 className="text-sm font-semibold text-shell-text">Fechas configuradas</h3>
 
         {isLoading ? (
@@ -314,7 +343,7 @@ export function AdminServiceAvailabilityPage() {
             <div>
               <p className="text-sm font-semibold text-emerald-800">Disponible cualquier día</p>
               <p className="mt-0.5 text-sm text-emerald-700">
-                Este servicio no tiene fechas específicas configuradas. Los clientes pueden reservarlo en cualquier fecha disponible.
+                Este servicio no tiene fechas específicas configuradas. Los clientes pueden reservarlo en cualquier fecha disponible. Cargá fechas si solo se ofrece algunos días. Ej: jornadas de depilación.
               </p>
             </div>
           </div>
@@ -326,18 +355,16 @@ export function AdminServiceAvailabilityPage() {
                 className="flex items-center justify-between rounded-xl border border-shell-border px-4 py-3"
               >
                 <span className="text-sm font-medium text-shell-text">{entry.availableDate}</span>
-                <button
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700"
-                  onClick={() => void handleRemoveDate(entry.availableDate)}
-                  type="button"
-                >
+                <ActionButton tone="danger" onClick={() => void handleRemoveDate(entry.availableDate)}>
                   Eliminar
-                </button>
+                </ActionButton>
               </li>
             ))}
           </ul>
         )}
       </section>
-    </section>
+        </div>
+      </div>
+    </div>
   )
 }

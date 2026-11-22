@@ -68,6 +68,7 @@ const COUPON_ERRORS: Record<string, string> = {
   COUPON_DATES_INVALID: 'La fecha de fin no puede ser anterior a la de inicio.',
   COUPON_NOT_FOR_GUEST: 'Los cupones son solo para clientes con cuenta.',
   COUPON_CODE_TAKEN: 'Ya existe un cupón con ese código.',
+  COUPON_NOT_WITH_PROMO: 'Este servicio ya tiene una promo y no se suma con cupones.',
 }
 
 /** Spanish message for a coupon error coming from the database. */

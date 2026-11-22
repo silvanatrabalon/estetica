@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useShellContext } from '../../../features/shell/hooks/useShellContext'
 import type { NavItem } from '../../../features/shell/types'
@@ -9,7 +10,25 @@ interface SidebarProps {
 }
 
 export function Sidebar({ items }: SidebarProps) {
-  const { isMobileMenuOpen, closeMobileMenu, isSidebarOpen } = useShellContext()
+  const { isMobileMenuOpen, closeMobileMenu, isSidebarOpen, toggleSidebar } = useShellContext()
+  const asideRef = useRef<HTMLElement>(null)
+
+  // Desktop: a click outside the menu hides it (the hamburger in the top bar shows it again).
+  // Clicks on the hamburger itself and inside pop-ups do not count.
+  useEffect(() => {
+    if (!isSidebarOpen) return
+    const handleOutside = (event: MouseEvent) => {
+      const isDesktop = typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 768px)').matches
+      if (!isDesktop) return
+      const target = event.target as Element | null
+      if (!target) return
+      if (asideRef.current?.contains(target)) return
+      if (target.closest('[data-sidebar-toggle]') || target.closest('[role="dialog"]')) return
+      toggleSidebar()
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [isSidebarOpen, toggleSidebar])
 
   const location = useLocation()
   const currentPathname = location.pathname
@@ -39,6 +58,7 @@ export function Sidebar({ items }: SidebarProps) {
 
       {/* Sidebar - Desktop: fixed, always visible. Mobile: overlay drawer */}
       <aside
+        ref={asideRef}
         id="primary-sidebar"
         aria-label="Navegación principal"
         className={cn(

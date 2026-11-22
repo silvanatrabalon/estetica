@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
+import { ActionButton, ActionRow } from '../components/ActionButton'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   adminCreateStaffMember,
@@ -118,33 +119,19 @@ function StaffMemberCard({
         </button>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium">
+      <ActionRow className="mt-3">
         {hasAccount ? (
-          <button
-            type="button"
-            onClick={() => onNavigate(`/admin/users/${member.profileUserId}`)}
-            className="text-shell-subtleText hover:text-shell-text hover:underline"
-          >
-            Editar roles
-          </button>
+          <ActionButton onClick={() => onNavigate(`/admin/users/${member.profileUserId}`)}>Editar roles</ActionButton>
         ) : (
           <>
-            <button type="button" onClick={() => onLink(member)} className="text-brand-primary hover:underline">
-              Vincular cuenta
-            </button>
-            <button type="button" onClick={() => onRename(member)} className="text-shell-subtleText hover:text-shell-text hover:underline">
-              Cambiar nombre
-            </button>
+            <ActionButton onClick={() => onLink(member)}>Vincular cuenta</ActionButton>
+            <ActionButton onClick={() => onRename(member)}>Cambiar nombre</ActionButton>
           </>
         )}
-        <button
-          type="button"
-          onClick={() => onToggleActive(member)}
-          className={member.isActive ? 'text-red-500 hover:text-red-700 hover:underline' : 'text-teal-700 hover:underline'}
-        >
+        <ActionButton tone="neutral" onClick={() => onToggleActive(member)}>
           {member.isActive ? 'Desactivar' : 'Reactivar'}
-        </button>
-      </div>
+        </ActionButton>
+      </ActionRow>
     </div>
   )
 }

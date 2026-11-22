@@ -242,7 +242,7 @@ export function AdminGiftCardsPage() {
               type="date"
               value={validUntil}
               onChange={(e) => setValidUntil(e.target.value)}
-              className={fieldCls}
+              className="dt-field"
             />
           </div>
 

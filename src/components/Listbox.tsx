@@ -14,6 +14,8 @@ interface ListboxProps {
   disabled?: boolean
   id?: string
   className?: string
+  /** Accessible name when there is no <label htmlFor>. */
+  ariaLabel?: string
 }
 
 export function Listbox({
@@ -24,6 +26,7 @@ export function Listbox({
   disabled,
   id,
   className,
+  ariaLabel,
 }: ListboxProps) {
   const [isOpen, setIsOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -65,6 +68,7 @@ export function Listbox({
       <button
         id={id}
         type="button"
+        aria-label={ariaLabel}
         disabled={disabled}
         aria-haspopup="listbox"
         aria-expanded={isOpen}

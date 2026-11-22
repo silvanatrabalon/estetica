@@ -24,6 +24,7 @@ describe('MobileTabBar', () => {
     expect(screen.getByRole('navigation', { name: 'Accesos rápidos' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Inicio/ })).toHaveAttribute('href', '/admin/dashboard')
     expect(screen.getByRole('link', { name: /Turnos/ })).toHaveAttribute('href', '/admin/appointments')
+    expect(screen.getByRole('link', { name: /Servicios/ })).toHaveAttribute('href', '/admin/services')
     expect(screen.queryByRole('link', { name: /Calendario/ })).toBeNull()
     expect(screen.getByRole('button', { name: /Más/ })).toBeInTheDocument()
   })
@@ -39,9 +40,31 @@ describe('MobileTabBar', () => {
     expect(screen.getByRole('link', { name: /Turnos/ })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('marks nothing on pages outside the shortcuts (edge case)', () => {
+  it('Servicios is marked on its page and on the pop-up route of a service (edge case)', () => {
     renderBar('/admin/services')
+    expect(screen.getByRole('link', { name: /Servicios/ })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: /Turnos/ })).not.toHaveAttribute('aria-current')
+  })
+
+  it('Servicios stays marked on /admin/services/:id/availability (edge case)', () => {
+    renderBar('/admin/services/svc-1/availability')
+    expect(screen.getByRole('link', { name: /Servicios/ })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('marks nothing on pages outside the shortcuts (edge case)', () => {
+    renderBar('/admin/users')
     expect(screen.queryByRole('link', { current: 'page' })).toBeNull()
+  })
+
+  it('the admin bar has Inicio, Turnos, Servicios and then "Más", each with its icon, and only for admin', () => {
+    renderBar()
+    const bar = screen.getByRole('navigation', { name: 'Accesos rápidos' })
+    expect(Array.from(bar.querySelectorAll('a')).map((a) => a.textContent)).toEqual(['Inicio', 'Turnos', 'Servicios'])
+    for (const link of Array.from(bar.querySelectorAll('a'))) {
+      expect(link.querySelector('svg path')?.getAttribute('d')).toBeTruthy()
+    }
+    expect(CUSTOMER_TABS.some((t) => t.href === '/admin/services')).toBe(false)
+    expect(STAFF_TABS.some((t) => t.href === '/admin/services')).toBe(false)
   })
 
   it('"Más" opens the full menu and reflects its state', () => {

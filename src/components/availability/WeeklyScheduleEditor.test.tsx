@@ -196,3 +196,42 @@ describe('WeeklyScheduleEditor', () => {
     })
   })
 })
+
+describe('WeeklyScheduleEditor — unsaved changes', () => {
+  function setup() {
+    const onDirtyChange = vi.fn()
+    render(<WeeklyScheduleEditor schedule={loadedSchedule} isSaving={false} onSave={vi.fn()} onDirtyChange={onDirtyChange} />)
+    return onDirtyChange
+  }
+
+  it('is clean at the start, with no notice', () => {
+    const onDirtyChange = setup()
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false)
+    expect(screen.queryByText(/Tenés cambios sin guardar/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Guardar horario' })).toBeInTheDocument()
+  })
+
+  it('a change marks it as unsaved and shows the notice next to the Guardar button', () => {
+    const onDirtyChange = setup()
+    fireEvent.click(screen.getByLabelText(/^Martes trabaja/))
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Tenés cambios sin guardar. Apretá “Guardar horario” antes de salir de esta sección: no se guardan solos.',
+    )
+  })
+
+  it('undoing the change makes it clean again (edge case)', () => {
+    const onDirtyChange = setup()
+    fireEvent.click(screen.getByLabelText(/^Martes trabaja/))
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true)
+    fireEvent.click(screen.getByLabelText(/^Martes trabaja/))
+    expect(onDirtyChange).toHaveBeenLastCalledWith(false)
+    expect(screen.queryByRole('status')).toBeNull()
+  })
+
+  it('read-only never shows the notice or the button (edge case)', () => {
+    render(<WeeklyScheduleEditor schedule={loadedSchedule} isSaving={false} onSave={vi.fn()} onDirtyChange={vi.fn()} readOnly />)
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Guardar horario' })).toBeNull()
+  })
+})

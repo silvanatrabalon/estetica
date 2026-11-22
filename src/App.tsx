@@ -11,12 +11,12 @@ import {
   AdminAppointmentsPage,
   AdminAppointmentDetailPage,
   AdminCouponsPage,
+  AdminPromosPage,
   AdminGiftCardsPage,
   AdminStatsPage,
   StaffAppointmentDetailPage,
   AdminDashboardPage,
   AdminReportsPage,
-  AdminServiceAvailabilityPage,
   AdminServicesPage,
   AdminStaffPage,
   AdminStaffServicesPage,
@@ -90,10 +90,11 @@ function AppContent() {
             <Route path="/admin/staff/:staffId/availability" element={<StaffAvailabilityPage />} />
             <Route path="/admin/staff/:staffId/services" element={<AdminStaffServicesPage />} />
             <Route path="/admin/services" element={<AdminServicesPage />} />
-            <Route path="/admin/services/:serviceId/availability" element={<AdminServiceAvailabilityPage />} />
+            <Route path="/admin/services/:serviceId/availability" element={<AdminServicesPage />} />
             <Route path="/admin/appointments" element={<AdminAppointmentsPage />} />
             <Route path="/admin/appointments/:id" element={<AdminAppointmentDetailPage />} />
             <Route path="/admin/coupons" element={<AdminCouponsPage />} />
+            <Route path="/admin/promos" element={<AdminPromosPage />} />
             <Route path="/admin/gift-cards" element={<AdminGiftCardsPage />} />
             <Route path="/admin/stats" element={<AdminStatsPage />} />
             <Route path="/admin/reports" element={<AdminReportsPage />} />

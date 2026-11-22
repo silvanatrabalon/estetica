@@ -1,38 +1,39 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ExceptionDateForm } from '../../components/availability/ExceptionDateForm'
+import { pickOption } from '../../hooks/__test-utils__/select'
 
 describe('ExceptionDateForm', () => {
-  it('renders date and type inputs', () => {
+  it('renders date and type inputs', async () => {
     render(<ExceptionDateForm isSaving={false} onAdd={vi.fn()} />)
 
     expect(screen.getByLabelText('Fecha')).toBeInTheDocument()
     expect(screen.getByLabelText('Tipo')).toBeInTheDocument()
   })
 
-  it('shows validation error when submitting without date', () => {
+  it('shows validation error when submitting without date', async () => {
     render(<ExceptionDateForm isSaving={false} onAdd={vi.fn()} />)
 
     fireEvent.click(screen.getByText('+ Agregar día'))
     expect(screen.getByText('Seleccioná una fecha.')).toBeInTheDocument()
   })
 
-  it('shows time inputs when custom_hours is selected', () => {
+  it('shows time inputs when custom_hours is selected', async () => {
     render(<ExceptionDateForm isSaving={false} onAdd={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'custom_hours' } })
+    await pickOption('Tipo', 'Horario especial')
     expect(screen.getByLabelText('Hora de inicio')).toBeInTheDocument()
     expect(screen.getByLabelText('Hora de fin')).toBeInTheDocument()
   })
 
-  it('hides time inputs when day_off is selected', () => {
+  it('hides time inputs when day_off is selected', async () => {
     render(<ExceptionDateForm isSaving={false} onAdd={vi.fn()} />)
 
     // default is day_off — no time inputs
     expect(screen.queryByLabelText('Hora de inicio')).not.toBeInTheDocument()
   })
 
-  it('calls onAdd with correct data when form is valid (day_off)', () => {
+  it('calls onAdd with correct data when form is valid (day_off)', async () => {
     const onAdd = vi.fn()
     render(<ExceptionDateForm isSaving={false} onAdd={onAdd} />)
 
@@ -50,12 +51,12 @@ describe('ExceptionDateForm', () => {
     })
   })
 
-  it('calls onAdd with correct data when form is valid (custom_hours)', () => {
+  it('calls onAdd with correct data when form is valid (custom_hours)', async () => {
     const onAdd = vi.fn()
     render(<ExceptionDateForm isSaving={false} onAdd={onAdd} />)
 
     fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2025-12-26' } })
-    fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'custom_hours' } })
+    await pickOption('Tipo', 'Horario especial')
     fireEvent.change(screen.getByLabelText('Hora de inicio'), { target: { value: '10:00' } })
     fireEvent.change(screen.getByLabelText('Hora de fin'), { target: { value: '14:00' } })
     fireEvent.click(screen.getByText('+ Agregar día'))
@@ -71,11 +72,11 @@ describe('ExceptionDateForm', () => {
     })
   })
 
-  it('shows time error for invalid range in custom_hours mode', () => {
+  it('shows time error for invalid range in custom_hours mode', async () => {
     render(<ExceptionDateForm isSaving={false} onAdd={vi.fn()} />)
 
     fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2025-12-26' } })
-    fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'custom_hours' } })
+    await pickOption('Tipo', 'Horario especial')
     fireEvent.change(screen.getByLabelText('Hora de inicio'), { target: { value: '18:00' } })
     fireEvent.change(screen.getByLabelText('Hora de fin'), { target: { value: '09:00' } })
     fireEvent.click(screen.getByText('+ Agregar día'))
@@ -85,29 +86,29 @@ describe('ExceptionDateForm', () => {
     ).toBeInTheDocument()
   })
 
-  it('disables button and inputs when isSaving', () => {
+  it('disables button and inputs when isSaving', async () => {
     render(<ExceptionDateForm isSaving={true} onAdd={vi.fn()} />)
 
     expect(screen.getByText('Guardando...')).toBeDisabled()
   })
 
   describe('two shifts (split)', () => {
-    function pickCustomHours() {
+    async function pickCustomHours() {
       fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2025-12-26' } })
-      fireEvent.change(screen.getByLabelText('Tipo'), { target: { value: 'custom_hours' } })
+      await pickOption('Tipo', 'Horario especial')
     }
 
-    it('offers matutino and vespertino for a special day', () => {
+    it('offers matutino and vespertino for a special day', async () => {
       render(<ExceptionDateForm isSaving={false} split onAdd={vi.fn()} />)
-      pickCustomHours()
+      await pickCustomHours()
       expect(screen.getByLabelText('Turno matutino')).toBeChecked()
       expect(screen.getByLabelText('Turno vespertino')).toBeChecked()
     })
 
-    it('can be only matutino', () => {
+    it('can be only matutino', async () => {
       const onAdd = vi.fn()
       render(<ExceptionDateForm isSaving={false} split onAdd={onAdd} />)
-      pickCustomHours()
+      await pickCustomHours()
       fireEvent.click(screen.getByLabelText('Turno vespertino'))
       fireEvent.click(screen.getByText('+ Agregar día'))
       expect(onAdd).toHaveBeenCalledWith(
@@ -115,10 +116,10 @@ describe('ExceptionDateForm', () => {
       )
     })
 
-    it('can be only vespertino', () => {
+    it('can be only vespertino', async () => {
       const onAdd = vi.fn()
       render(<ExceptionDateForm isSaving={false} split onAdd={onAdd} />)
-      pickCustomHours()
+      await pickCustomHours()
       fireEvent.click(screen.getByLabelText('Turno matutino'))
       fireEvent.click(screen.getByText('+ Agregar día'))
       expect(onAdd).toHaveBeenCalledWith(
@@ -126,10 +127,10 @@ describe('ExceptionDateForm', () => {
       )
     })
 
-    it('requires at least one shift (edge case)', () => {
+    it('requires at least one shift (edge case)', async () => {
       const onAdd = vi.fn()
       render(<ExceptionDateForm isSaving={false} split onAdd={onAdd} />)
-      pickCustomHours()
+      await pickCustomHours()
       fireEvent.click(screen.getByLabelText('Turno matutino'))
       fireEvent.click(screen.getByLabelText('Turno vespertino'))
       fireEvent.click(screen.getByText('+ Agregar día'))

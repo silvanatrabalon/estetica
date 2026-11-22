@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Tabs } from '../components/Tabs'
+import { ConfirmModal } from '../components/ConfirmModal'
+import { useBeforeUnloadWarning } from '../hooks/useBeforeUnloadWarning'
 import { useSplitShifts } from '../hooks/useSplitShifts'
 import { useMyStaffAvailability } from '../hooks/useMyStaffAvailability'
 import {
@@ -23,8 +25,13 @@ export function StaffSchedulePage() {
     saveSchedule,
     addException,
     removeException,
+    isDirty,
     setIsDirty,
   } = useMyStaffAvailability()
+
+  // The weekly schedule is only saved with "Guardar horario": changing section asks first
+  const [pendingTab, setPendingTab] = useState<'schedule' | 'days' | null>(null)
+  useBeforeUnloadWarning(isDirty)
 
   if (status === 'loading') {
     return (
@@ -56,7 +63,12 @@ export function StaffSchedulePage() {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-semibold text-gray-900 mb-6">Mi disponibilidad</h1>
+      <h1 className="text-2xl font-semibold text-gray-900 mb-3">Mi disponibilidad</h1>
+      <p className="mb-6 rounded-md border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+        <strong className="font-semibold text-gray-900">Esto define los turnos que ve el cliente.</strong> Los clientes
+        solo pueden reservar con vos en los días y horarios que figuran acá. Si un día o una franja no está, no aparece
+        para reservar; tus días libres y especiales también quitan o cambian esos turnos.
+      </p>
 
       {errorMessage && (
         <div role="alert" className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
@@ -74,7 +86,11 @@ export function StaffSchedulePage() {
         <Tabs
           ariaLabel="Mi disponibilidad"
           active={tab}
-          onChange={setTab}
+          onChange={(next) => {
+            if (next === tab) return
+            if (isDirty) setPendingTab(next)
+            else setTab(next)
+          }}
           tabs={[
             { key: 'schedule', label: 'Horario semanal' },
             { key: 'days', label: 'Días libres y especiales' },
@@ -125,6 +141,22 @@ export function StaffSchedulePage() {
           />
         </section>
       )}
+
+      <ConfirmModal
+        isOpen={pendingTab !== null}
+        title="Tenés cambios sin guardar"
+        message="Los cambios del horario semanal no se guardan solos. Volvé y apretá “Guardar horario”, o se pierden."
+        confirmLabel="Salir sin guardar"
+        cancelLabel="Volver y guardar"
+        destructive
+        onConfirm={() => {
+          const next = pendingTab
+          setPendingTab(null)
+          setIsDirty(false)
+          if (next) setTab(next)
+        }}
+        onCancel={() => setPendingTab(null)}
+      />
     </div>
   )
 }

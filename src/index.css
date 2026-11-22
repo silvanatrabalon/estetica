@@ -72,6 +72,79 @@
   }
 }
 
+/* Date, time and month fields: the same look everywhere (the browser's calendar and clock pop-ups
+   are drawn by the browser, but the field itself and its icon follow the app). */
+@layer components {
+  .dt-field {
+    display: block;
+    width: 100%;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 0.75rem;
+    background-color: var(--color-surface-elevated);
+    color: var(--color-text-primary);
+    font: inherit;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    text-align: left;
+    color-scheme: light;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: border-color var(--motion-micro) var(--motion-ease-standard),
+      box-shadow var(--motion-micro) var(--motion-ease-standard);
+  }
+
+  .dt-field:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgb(91 63 115 / 0.18);
+  }
+
+  .dt-field:disabled {
+    opacity: 0.55;
+    background-color: var(--color-surface-muted);
+    cursor: not-allowed;
+  }
+
+  .dt-field[aria-invalid='true'] {
+    border-color: var(--color-state-cancelled);
+  }
+
+  /* iOS Safari centers the value and adds its own height: keep it like any other field */
+  .dt-field::-webkit-date-and-time-value {
+    text-align: left;
+    min-height: 1.25rem;
+  }
+
+  .dt-field::-webkit-datetime-edit {
+    padding: 0;
+  }
+
+  .dt-field::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+
+  .dt-field::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.6;
+    padding: 0.125rem;
+    margin-left: 0.25rem;
+    border-radius: 0.375rem;
+    transition: opacity var(--motion-micro) var(--motion-ease-standard),
+      background-color var(--motion-micro) var(--motion-ease-standard);
+  }
+
+  .dt-field::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+    background-color: var(--color-lilac);
+  }
+
+  .dt-field::-webkit-inner-spin-button {
+    display: none;
+  }
+}
+
 @layer utilities {
   .transition-structural {
     transition-duration: var(--motion-structural);

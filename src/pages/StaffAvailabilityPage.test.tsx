@@ -65,6 +65,20 @@ describe('StaffAvailabilityPage', () => {
     expect(screen.getByText('Cargando disponibilidad...')).toBeInTheDocument()
   })
 
+  it('explains that the availability defines the appointments the client sees', async () => {
+    renderPage()
+    expect(await screen.findByText('Esto define los turnos que ve el cliente.')).toBeInTheDocument()
+    expect(screen.getByText(/solo pueden reservar con este profesional en los días y horarios que figuran acá/)).toBeInTheDocument()
+    expect(screen.getByText(/los días libres y especiales también quitan o cambian esos turnos/)).toBeInTheDocument()
+  })
+
+  it('does not show the explanation while loading or when the professional is missing (edge case)', async () => {
+    vi.mocked(staffAvailabilityService.getStaffWeeklySchedule).mockReturnValue(new Promise(() => {}))
+    vi.mocked(staffAvailabilityService.listStaffExceptions).mockReturnValue(new Promise(() => {}))
+    renderPage()
+    expect(screen.queryByText('Esto define los turnos que ve el cliente.')).toBeNull()
+  })
+
   it('renders schedule editor and exception sections after load', async () => {
     renderPage()
 
@@ -149,5 +163,83 @@ describe('StaffAvailabilityPage', () => {
     await waitFor(() => {
       expect(screen.getByText('No pudimos guardar el horario. Intenta de nuevo.')).toBeInTheDocument()
     })
+  })
+})
+
+describe('StaffAvailabilityPage — unsaved changes', () => {
+  beforeEach(() => {
+    vi.mocked(staffAvailabilityService.setStaffWeeklySchedule).mockClear()
+    vi.mocked(staffAvailabilityService.getStaffWeeklySchedule).mockResolvedValue(mockSchedule)
+    vi.mocked(staffAvailabilityService.listStaffExceptions).mockResolvedValue([mockException])
+  })
+
+  async function editSchedule() {
+    renderPage()
+    fireEvent.click(await screen.findByLabelText(/^Martes trabaja/))
+    expect(await screen.findByText(/Tenés cambios sin guardar\. Apretá/)).toBeInTheDocument()
+  }
+
+  it('the Guardar horario button stays, with a notice that changes are not saved on their own', async () => {
+    await editSchedule()
+    expect(screen.getByRole('button', { name: 'Guardar horario' })).toBeInTheDocument()
+    expect(screen.getByText(/no se guardan solos/)).toBeInTheDocument()
+  })
+
+  it('changing section with unsaved changes asks first; "Volver y guardar" stays on the schedule', async () => {
+    await editSchedule()
+    fireEvent.click(screen.getByRole('tab', { name: 'Días libres y especiales' }))
+    expect(screen.getByText('Tenés cambios sin guardar')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Volver y guardar' }))
+    expect(screen.getByRole('tab', { name: 'Horario semanal' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: 'Guardar horario' })).toBeInTheDocument()
+  })
+
+  it('"Salir sin guardar" changes section and drops the changes', async () => {
+    await editSchedule()
+    fireEvent.click(screen.getByRole('tab', { name: 'Días libres y especiales' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salir sin guardar' }))
+    expect(screen.getByRole('tab', { name: 'Días libres y especiales' })).toHaveAttribute('aria-selected', 'true')
+    expect(staffAvailabilityService.setStaffWeeklySchedule).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('tab', { name: 'Horario semanal' }))
+    expect(screen.queryByText(/Tenés cambios sin guardar\. Apretá/)).toBeNull()
+    expect(screen.queryByText('Tenés cambios sin guardar')).toBeNull()
+  })
+
+  it('the way back to Profesionales asks too, and leaves if confirmed', async () => {
+    await editSchedule()
+    fireEvent.click(screen.getByRole('button', { name: /Profesionales/ }))
+    expect(screen.getByText('Tenés cambios sin guardar')).toBeInTheDocument()
+    expect(screen.queryByText('Staff List')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Salir sin guardar' }))
+    expect(await screen.findByText('Staff List')).toBeInTheDocument()
+  })
+
+  it('with nothing changed nothing is asked, neither on tabs nor on the way back (edge case)', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: 'Días libres y especiales' }))
+    expect(screen.queryByText('Tenés cambios sin guardar')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: /Profesionales/ }))
+    expect(await screen.findByText('Staff List')).toBeInTheDocument()
+  })
+
+  it('the browser warns before closing only while there are unsaved changes (edge case)', async () => {
+    renderPage()
+    await screen.findByLabelText(/^Martes trabaja/)
+    const clean = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(clean)
+    expect(clean.defaultPrevented).toBe(false)
+    fireEvent.click(screen.getByLabelText(/^Martes trabaja/))
+    await screen.findByText(/Tenés cambios sin guardar\. Apretá/)
+    const dirty = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(dirty)
+    expect(dirty.defaultPrevented).toBe(true)
+  })
+
+  it('undoing the change before leaving asks nothing (edge case)', async () => {
+    await editSchedule()
+    fireEvent.click(screen.getByLabelText(/^Martes trabaja/))
+    await waitFor(() => expect(screen.queryByText(/Tenés cambios sin guardar\. Apretá/)).toBeNull())
+    fireEvent.click(screen.getByRole('tab', { name: 'Días libres y especiales' }))
+    expect(screen.queryByText('Tenés cambios sin guardar')).toBeNull()
   })
 })

@@ -28,6 +28,7 @@ export const navigationCopy = {
   adminAppointments: 'Turnos',
   adminDashboard: 'Inicio',
   coupons: 'Cupones',
+  promos: 'Promos',
   giftCards: 'Gift Card',
   stats: 'Estadísticas',
 } as const

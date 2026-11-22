@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { ActionButton, ActionRow } from '../components/ActionButton'
 import { cn } from '../lib/cn'
 import {
   describeDiscount,
@@ -379,7 +380,7 @@ export function AdminCouponsPage() {
                     value={form.startsOn}
                     onChange={(e) => setField('startsOn', e.target.value)}
                     aria-invalid={errors.startsOn ? true : undefined}
-                    className={fieldCls}
+                    className="dt-field"
                   />
                   {errors.startsOn && <p className="mt-1 text-sm text-red-600">{errors.startsOn}</p>}
                 </div>
@@ -394,7 +395,7 @@ export function AdminCouponsPage() {
                     value={form.endsOn}
                     onChange={(e) => setField('endsOn', e.target.value)}
                     aria-invalid={errors.endsOn ? true : undefined}
-                    className={fieldCls}
+                    className="dt-field"
                   />
                   {errors.endsOn && <p className="mt-1 text-sm text-red-600">{errors.endsOn}</p>}
                 </div>
@@ -565,25 +566,15 @@ export function AdminCouponsPage() {
                   </span>
                 </div>
 
-                <div className="mt-3 flex items-center gap-4 text-xs font-semibold">
-                  <button type="button" onClick={() => openEdit(coupon)} className="text-brand-primary hover:underline">
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void toggleActive(coupon)}
-                    className="text-shell-subtleText hover:text-shell-text hover:underline"
-                  >
+                <ActionRow className="mt-3">
+                  <ActionButton onClick={() => openEdit(coupon)}>Editar</ActionButton>
+                  <ActionButton tone="neutral" onClick={() => void toggleActive(coupon)}>
                     {coupon.isActive ? 'Desactivar' : 'Activar'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirm({ coupon })}
-                    className="text-red-500 hover:text-red-700 hover:underline"
-                  >
+                  </ActionButton>
+                  <ActionButton tone="danger" onClick={() => setConfirm({ coupon })}>
                     Eliminar
-                  </button>
-                </div>
+                  </ActionButton>
+                </ActionRow>
               </li>
             ))}
           </ul>

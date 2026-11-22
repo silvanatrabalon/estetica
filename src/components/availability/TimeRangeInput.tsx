@@ -39,7 +39,7 @@ export function TimeRangeInput({
             onChange={handleStartsAtChange}
             disabled={disabled}
             aria-label={ariaPrefix ? `${ariaPrefix}: hora de inicio` : 'Hora de inicio'}
-            className="border border-shell-border rounded-lg px-2.5 py-1.5 text-sm font-medium text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
+            className="dt-field w-auto font-medium"
           />
         </div>
         <span className="text-sm text-shell-subtleText">–</span>
@@ -51,7 +51,7 @@ export function TimeRangeInput({
             onChange={handleEndsAtChange}
             disabled={disabled}
             aria-label={ariaPrefix ? `${ariaPrefix}: hora de fin` : 'Hora de fin'}
-            className="border border-shell-border rounded-lg px-2.5 py-1.5 text-sm font-medium text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
+            className="dt-field w-auto font-medium"
           />
         </div>
       </div>

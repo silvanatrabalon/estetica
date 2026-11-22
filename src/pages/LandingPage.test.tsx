@@ -13,6 +13,7 @@ vi.mock('../services/landing', () => ({
 }))
 vi.mock('../services/socialLinks', () => ({ getPublicSocialLinks: () => Promise.resolve([]) }))
 vi.mock('../services/coupons', () => ({ listPublicCoupons: () => Promise.resolve([]) }))
+vi.mock('../services/promos', () => ({ listPublicPromos: () => Promise.resolve([]) }))
 // Any chain of select/eq/order/limit resolves to an empty result
 function emptyChain(): unknown {
   const result = { data: [], error: null }

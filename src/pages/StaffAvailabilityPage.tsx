@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Tabs } from '../components/Tabs'
+import { ConfirmModal } from '../components/ConfirmModal'
+import { useBeforeUnloadWarning } from '../hooks/useBeforeUnloadWarning'
 import { useStaffAvailabilityPermissions } from '../hooks/useStaffAvailabilityPermissions'
 import { useSplitShifts } from '../hooks/useSplitShifts'
 import { useStaffAvailability } from '../hooks/useStaffAvailability'
@@ -29,8 +31,17 @@ export function StaffAvailabilityPage() {
     saveSchedule,
     addException,
     removeException,
+    isDirty,
     setIsDirty,
   } = useStaffAvailability(staffId ?? '')
+
+  // Changes to the weekly schedule are only saved with "Guardar horario": leaving asks first
+  const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null)
+  useBeforeUnloadWarning(isDirty)
+  const leaveOrAsk = (leave: () => void) => {
+    if (isDirty) setPendingLeave(() => leave)
+    else leave()
+  }
 
   if (!staffId) {
     return (
@@ -54,7 +65,7 @@ export function StaffAvailabilityPage() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate('/admin/staff')}
+          onClick={() => leaveOrAsk(() => navigate('/admin/staff'))}
           className="text-sm text-shell-subtleText hover:text-shell-text inline-flex items-center gap-1 transition-colors"
         >
           ← Profesionales
@@ -62,6 +73,12 @@ export function StaffAvailabilityPage() {
         <span className="text-shell-subtleText">/</span>
         <h1 className="font-heading text-xl font-semibold text-shell-text">Disponibilidad</h1>
       </div>
+
+      <p className="rounded-2xl border border-shell-border bg-white px-4 py-3 text-sm text-shell-subtleText">
+        <strong className="font-semibold text-shell-text">Esto define los turnos que ve el cliente.</strong>{' '}
+        Los clientes solo pueden reservar con este profesional en los días y horarios que figuran acá. Si un día o una
+        franja no está, no aparece para reservar; los días libres y especiales también quitan o cambian esos turnos.
+      </p>
 
       {errorMessage && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-start gap-2">
@@ -86,7 +103,13 @@ export function StaffAvailabilityPage() {
       <Tabs
         ariaLabel="Disponibilidad"
         active={tab}
-        onChange={setTab}
+        onChange={(next) => {
+          if (next === tab) return
+          leaveOrAsk(() => {
+            setIsDirty(false)
+            setTab(next)
+          })
+        }}
         tabs={[
           { key: 'schedule', label: 'Horario semanal' },
           { key: 'days', label: 'Días libres y especiales' },
@@ -134,6 +157,22 @@ export function StaffAvailabilityPage() {
           />
         </section>
       )}
+
+      <ConfirmModal
+        isOpen={pendingLeave !== null}
+        title="Tenés cambios sin guardar"
+        message="Los cambios del horario semanal no se guardan solos. Volvé y apretá “Guardar horario”, o se pierden."
+        confirmLabel="Salir sin guardar"
+        cancelLabel="Volver y guardar"
+        destructive
+        onConfirm={() => {
+          const leave = pendingLeave
+          setPendingLeave(null)
+          setIsDirty(false)
+          leave?.()
+        }}
+        onCancel={() => setPendingLeave(null)}
+      />
     </div>
   )
 }

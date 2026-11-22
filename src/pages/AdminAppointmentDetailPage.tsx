@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { Select } from '../components/Select'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { formatPriceARS } from '../lib/formatPrice'
@@ -242,35 +243,29 @@ export function AdminAppointmentDetailPage({ mode = 'admin' }: AppointmentDetail
 
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-shell-subtleText">Servicio</span>
-            <select
+            <Select
               aria-label="Servicio"
               value={serviceId}
               onChange={(e) => void handleServiceChange(e.target.value)}
-              className="rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
             >
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
 
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-shell-subtleText">Profesional</span>
-            <select
-              aria-label="Profesional"
-              value={staffId}
-              onChange={(e) => setStaffId(e.target.value)}
-              className="rounded-lg border border-shell-border bg-white px-3 py-2 text-sm"
-            >
+            <Select aria-label="Profesional" value={staffId} onChange={(e) => setStaffId(e.target.value)}>
               <option value="">Elegí un profesional</option>
               {staffOptions.map((s) => (
                 <option key={s.staffMemberId} value={s.staffMemberId}>
                   {s.displayName}
                 </option>
               ))}
-            </select>
+            </Select>
             {staffOptions.length === 0 && (
               <span className="text-xs text-shell-subtleText">
                 Ningún profesional activo realiza este servicio.

@@ -130,7 +130,7 @@ export function AppointmentCard({
           {canReschedule && (
             <Link
               to={`/appointments/${appointment.id}/reschedule`}
-              className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
+              className="text-sm font-medium text-brand-primary hover:underline"
             >
               Reprogramar
             </Link>

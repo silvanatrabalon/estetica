@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { NavBar } from './NavBar'
@@ -59,7 +59,7 @@ describe('NavBar', () => {
 })
 
 describe.each([
-  ['admin', AdminShell, mockSessions.authenticatedAdmin, ['Inicio', 'Turnos']],
+  ['admin', AdminShell, mockSessions.authenticatedAdmin, ['Inicio', 'Turnos', 'Servicios']],
   ['customer', CustomerShell, mockSessions.authenticatedCustomer, ['Inicio', 'Reservar', 'Mis turnos']],
   ['staff', StaffShell, mockSessions.authenticatedStaff, ['Inicio', 'Turnos', 'Disponibilidad']],
 ] as const)('%s shell on a phone', (_role, Shell, session, labels) => {
@@ -153,5 +153,92 @@ describe.each([
     )
     fireEvent.click(screen.getByRole('link', { name: /Ir al sitio/ }))
     expect(onClose).toHaveBeenCalled()
+  })
+})
+
+describe('side menu on desktop: a click outside hides it', () => {
+  const original = window.matchMedia
+
+  afterEach(() => {
+    window.matchMedia = original
+  })
+
+  function desktop(matches: boolean) {
+    window.matchMedia = ((query: string) => ({
+      matches,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      onchange: null,
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia
+  }
+
+  function open(isSidebarOpen = true) {
+    const onToggleSidebar = vi.fn()
+    wrap(
+      <AdminShell>
+        <p>contenido</p>
+        <div role="dialog" aria-label="Ventana">
+          <button type="button">dentro de la ventana</button>
+        </div>
+      </AdminShell>,
+      mockSessions.authenticatedAdmin,
+      vi.fn(),
+      { isSidebarOpen, onToggleSidebar },
+    )
+    return onToggleSidebar
+  }
+
+  it('clicking on the page content hides the menu', () => {
+    desktop(true)
+    const onToggleSidebar = open()
+    fireEvent.mouseDown(screen.getByText('contenido'))
+    expect(onToggleSidebar).toHaveBeenCalledTimes(1)
+  })
+
+  it('clicking inside the menu does not hide it (edge case)', () => {
+    desktop(true)
+    const onToggleSidebar = open()
+    fireEvent.mouseDown(screen.getByRole('link', { name: /Ir al sitio/ }))
+    expect(onToggleSidebar).not.toHaveBeenCalled()
+  })
+
+  it('the hamburger is not an "outside" click, so it does not toggle twice (edge case)', () => {
+    desktop(true)
+    const onToggleSidebar = open()
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'Ocultar menú lateral' }))
+    expect(onToggleSidebar).not.toHaveBeenCalled()
+  })
+
+  it('clicking inside a pop-up does not hide the menu (edge case)', () => {
+    desktop(true)
+    const onToggleSidebar = open()
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'dentro de la ventana' }))
+    expect(onToggleSidebar).not.toHaveBeenCalled()
+  })
+
+  it('on a phone nothing happens: the drawer has its own backdrop (edge case)', () => {
+    desktop(false)
+    const onToggleSidebar = open()
+    fireEvent.mouseDown(screen.getByText('contenido'))
+    expect(onToggleSidebar).not.toHaveBeenCalled()
+  })
+
+  it('when the menu is already hidden a click does nothing (edge case)', () => {
+    desktop(true)
+    const onToggleSidebar = open(false)
+    fireEvent.mouseDown(screen.getByText('contenido'))
+    expect(onToggleSidebar).not.toHaveBeenCalled()
+  })
+
+  it('without matchMedia (old browsers) it does not crash and does nothing (edge case)', () => {
+    // @ts-expect-error simulate an environment without matchMedia
+    window.matchMedia = undefined
+    const onToggleSidebar = open()
+    fireEvent.mouseDown(screen.getByText('contenido'))
+    expect(onToggleSidebar).not.toHaveBeenCalled()
   })
 })

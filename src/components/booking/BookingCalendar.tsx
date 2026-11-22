@@ -110,9 +110,9 @@ export function BookingCalendar({ serviceId, minDate, maxDate, selectedDate, onS
               aria-pressed={isSelected}
               onClick={() => onSelect(key)}
               className={cn(
-                'flex aspect-square flex-col items-center justify-center rounded-xl border text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500',
+                'flex aspect-square flex-col items-center justify-center rounded-xl border text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]',
                 LEVEL_STYLES[level as 'many' | 'few'],
-                isSelected && 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-600',
+                isSelected && 'border-brand-primary bg-brand-primary text-white hover:bg-brand-primary',
               )}
             >
               {dayNumber}

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { BookingForWhom } from './BookingForWhom'
 import type { BookingTarget } from '../../lib/bookingTarget'
+import { pickOption } from '../../hooks/__test-utils__/select'
 
 const account = { kind: 'account' as const, phone: null, isActive: true }
 const clients = [
@@ -42,39 +43,43 @@ describe('BookingForWhom', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  it('lists the clients with name and email, and says the turn is not the user\'s', () => {
+  it('lists the clients with name and email, and says the turn is not the user\'s', async () => {
     const onChange = setup({ kind: 'client', userId: '' })
+    fireEvent.click(screen.getByLabelText('Cliente'))
     expect(screen.getByRole('option', { name: 'Ana Pérez (ana@mail.com)' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'sin-nombre@mail.com' })).toBeInTheDocument()
     expect(screen.getByText(/a nombre del cliente, no tuyo/)).toBeInTheDocument()
-    fireEvent.change(screen.getByLabelText('Cliente'), { target: { value: 'u1' } })
+    fireEvent.click(screen.getByRole('option', { name: 'Ana Pérez (ana@mail.com)' }))
     expect(onChange).toHaveBeenCalledWith({ kind: 'client', userId: 'u1' })
   })
 
   it('also lists deactivated accounts and people without account, flagged (edge case)', () => {
     setup({ kind: 'client', userId: '' })
+    fireEvent.click(screen.getByLabelText('Cliente'))
     expect(screen.getByRole('option', { name: 'Maxi · inactivo' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Rosa Gómez (rosa@mail.com) · sin cuenta' })).toBeInTheDocument()
   })
 
-  it('choosing a person without account fills "Otra persona" with their data', () => {
+  it('choosing a person without account fills "Otra persona" with their data', async () => {
     const onChange = setup({ kind: 'client', userId: '' })
-    fireEvent.change(screen.getByLabelText('Cliente'), { target: { value: 'guest:3' } })
+    await pickOption('Cliente', 'Rosa Gómez (rosa@mail.com) · sin cuenta')
     expect(onChange).toHaveBeenCalledWith({ kind: 'guest', name: 'Rosa Gómez', phone: '1155', email: 'rosa@mail.com' })
   })
 
-  it('a guest without phone or email fills empty strings (edge case)', () => {
+  it('a guest without phone or email fills empty strings (edge case)', async () => {
     const onChange = setup(
       { kind: 'client', userId: '' },
       { clients: [{ kind: 'guest', userId: null, name: 'Sola', email: null, phone: null, isActive: true }] },
     )
-    fireEvent.change(screen.getByLabelText('Cliente'), { target: { value: 'guest:0' } })
+    await pickOption('Cliente', 'Sola · sin cuenta')
     expect(onChange).toHaveBeenCalledWith({ kind: 'guest', name: 'Sola', phone: '', email: '' })
   })
 
   it('shows loading and error states for the client list (edge cases)', () => {
     setup({ kind: 'client', userId: '' }, { loading: true })
-    expect(screen.getByRole('option', { name: 'Cargando clientes…' })).toBeInTheDocument()
+    const box = screen.getByLabelText('Cliente')
+    expect(box).toBeDisabled()
+    expect(box.textContent).toContain('Cargando clientes…')
   })
 
   it('shows the error instead of the list when clients cannot be loaded (edge case)', () => {

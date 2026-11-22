@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { ActionButton, ActionRow } from '../components/ActionButton'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { commonCopy } from '../lib/uiCopy'
 import { roleLabel } from '../lib/adminUsersView'
@@ -501,16 +502,14 @@ export function AdminUsersPage() {
                 </div>
               </div>
 
-              <div className="mt-2 flex items-center gap-4 text-xs font-semibold">
-                <button
-                  type="button"
+              <ActionRow>
+                <ActionButton
                   onClick={() => setEditUserId(user.userId)}
                   aria-label={`Editar roles de ${user.name || user.email || 'usuario'}`}
-                  className="text-brand-primary hover:underline"
                 >
                   Editar roles
-                </button>
-              </div>
+                </ActionButton>
+              </ActionRow>
             </li>
           ))}
 
@@ -526,16 +525,15 @@ export function AdminUsersPage() {
                   Invitación pendiente
                 </span>
               </div>
-              <div className="mt-2 flex items-center gap-4 text-xs font-semibold">
-                <button
-                  type="button"
+              <ActionRow>
+                <ActionButton
+                  tone="danger"
                   onClick={() => handleDeleteInvitation(invitation)}
                   aria-label={`Quitar la invitación de ${invitation.email}`}
-                  className="text-red-500 hover:underline"
                 >
                   Quitar
-                </button>
-              </div>
+                </ActionButton>
+              </ActionRow>
             </li>
           ))}
 
@@ -553,16 +551,11 @@ export function AdminUsersPage() {
                   Sin cuenta
                 </span>
               </div>
-              <div className="mt-2 flex items-center gap-4 text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => openLinkPopup(member)}
-                  aria-label={`Vincular cuenta a ${member.displayName}`}
-                  className="text-brand-primary hover:underline"
-                >
+              <ActionRow>
+                <ActionButton onClick={() => openLinkPopup(member)} aria-label={`Vincular cuenta a ${member.displayName}`}>
                   Vincular cuenta
-                </button>
-              </div>
+                </ActionButton>
+              </ActionRow>
             </li>
           ))}
 

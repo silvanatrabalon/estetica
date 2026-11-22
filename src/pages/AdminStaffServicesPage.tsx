@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ActionButton } from '../components/ActionButton'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   assignServiceToStaff,
@@ -8,7 +9,7 @@ import {
   type StaffService,
 } from '../services/adminStaffServices'
 import { formatPriceARS } from '../lib/formatPrice'
-import { Select } from '../components/Select'
+import { Listbox } from '../components/Listbox'
 
 export function AdminStaffServicesPage() {
   const { staffId } = useParams<{ staffId: string }>()
@@ -111,6 +112,10 @@ export function AdminStaffServicesPage() {
         <h1 className="font-heading text-xl font-semibold text-shell-text">Servicios asignados</h1>
       </div>
 
+      <p className="text-sm text-shell-subtleText">
+        Servicios que este profesional realiza. Los clientes solo pueden reservar con esta persona los que figuran acá.
+      </p>
+
       {errorMessage && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {errorMessage}
@@ -133,18 +138,16 @@ export function AdminStaffServicesPage() {
               <label htmlFor="assign-service-select" className="mb-1 block text-xs font-medium text-shell-subtleText">
                 Agregar un servicio
               </label>
-              <Select
+              <Listbox
                 id="assign-service-select"
                 value={selectedServiceId}
-                onChange={(e) => setSelectedServiceId(e.target.value)}
-                className="w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
-              >
-                {assignableServices.map((s) => (
-                  <option key={s.serviceId} value={s.serviceId}>
-                    {s.name} — {s.durationMinutes} min — {formatPriceARS(s.priceCents)}
-                  </option>
-                ))}
-              </Select>
+                onChange={setSelectedServiceId}
+                options={assignableServices.map((s) => ({
+                  value: s.serviceId,
+                  label: `${s.name} — ${s.durationMinutes} min — ${formatPriceARS(s.priceCents)}`,
+                }))}
+                placeholder="Elegí un servicio"
+              />
             </div>
             <button
               type="button"
@@ -176,14 +179,14 @@ export function AdminStaffServicesPage() {
                   {service.durationMinutes} min · {formatPriceARS(service.priceCents)}
                 </p>
               </div>
-              <button
-                type="button"
+              <ActionButton
+                tone="danger"
                 onClick={() => void handleUnassign(service.serviceId)}
                 disabled={unassigningId === service.serviceId}
-                className="shrink-0 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+                className="shrink-0"
               >
                 {unassigningId === service.serviceId ? 'Quitando...' : 'Quitar'}
-              </button>
+              </ActionButton>
             </li>
           ))}
         </ul>

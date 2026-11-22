@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { pickOption } from '../hooks/__test-utils__/select'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { BookingPage } from './BookingPage'
@@ -74,6 +75,12 @@ vi.mock('../services/adminCategories', () => ({
   listCategories: (...args: unknown[]) => mockListCategories(...args),
 }))
 
+const mockListActivePromos = vi.fn().mockResolvedValue([])
+
+vi.mock('../services/promos', () => ({
+  listActivePromos: (...args: unknown[]) => mockListActivePromos(...args),
+}))
+
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
 const mockService: Service = {
@@ -141,6 +148,11 @@ const todayKey = () => new Date().toISOString().slice(0, 10)
 async function pickDay() {
   const day = await screen.findByRole('button', { name: /horarios? libres?/ })
   fireEvent.click(day)
+}
+
+function currentStep(): string | null {
+  const nav = screen.getByRole('navigation', { name: 'Pasos de la reserva' })
+  return nav.querySelector('[aria-current="step"]')?.textContent?.replace(/^\d+/, '') ?? null
 }
 
 async function selectService(name = 'Corte de cabello') {
@@ -244,7 +256,7 @@ describe('BookingPage', () => {
     it('goes back to step 1 on back button click', async () => {
       await goToStep2()
       fireEvent.click(screen.getByRole('button', { name: 'Volver al paso anterior' }))
-      await waitFor(() => expect(screen.getByText(/Elegí el servicio/)).toBeDefined())
+      await waitFor(() => expect(currentStep()).toBe('Servicio'))
     })
 
     it('advances to step 3 after selecting a date', async () => {
@@ -337,54 +349,45 @@ describe('BookingPage', () => {
     })
   })
 
-  describe('Admin-configured texts', () => {
+  describe('No title or subtitle above the steps', () => {
     const baseSettings = { timezone: 'UTC', bookingMaxHorizonDays: 60, weeklyHours: [] }
 
-    it('shows the admin title and subtitle when configured', async () => {
+    it('does not show the configured title or subtitle (it repeated the business name)', async () => {
       mockGetBusinessSettings.mockResolvedValue({
         ...baseSettings,
-        bookingHeaderText: 'Reservá tu momento',
+        bookingHeaderText: 'Estética So Beauty',
         bookingSubtitleText: 'Elegí tu tratamiento favorito',
       })
       mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [], error: null }))
       renderPage()
 
-      await waitFor(() => expect(screen.getByText('Reservá tu momento')).toBeDefined())
-      expect(screen.getByText('Elegí tu tratamiento favorito')).toBeDefined()
-      expect(screen.queryByText('Reservar turno')).toBeNull()
+      await waitFor(() => expect(mockGetBusinessSettings).toHaveBeenCalled())
+      expect(screen.queryByText('Estética So Beauty')).toBeNull()
+      expect(screen.queryByText('Elegí tu tratamiento favorito')).toBeNull()
+      expect(screen.queryByRole('heading')).toBeNull()
     })
 
-    it('keeps the default texts when the admin left them empty (edge case)', async () => {
-      mockGetBusinessSettings.mockResolvedValue({
-        ...baseSettings,
-        bookingHeaderText: null,
-        bookingSubtitleText: '   ',
-      })
+    it('does not show the default heading or the "Elegí el servicio…" line either (edge case)', async () => {
+      mockGetBusinessSettings.mockResolvedValue({ ...baseSettings, bookingHeaderText: null, bookingSubtitleText: '   ' })
       mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [], error: null }))
       renderPage()
 
       await waitFor(() => expect(mockGetBusinessSettings).toHaveBeenCalled())
-      expect(screen.getByText('Reservar turno')).toBeDefined()
-      expect(screen.getByText('Elegí el servicio que querés reservar.')).toBeDefined()
+      expect(screen.queryByText('Reservar turno')).toBeNull()
+      expect(screen.queryByText('Elegí el servicio que querés reservar.')).toBeNull()
     })
 
-    it('keeps the default texts when business settings fail to load (edge case)', async () => {
+    it('works when business settings fail to load (edge case)', async () => {
       mockGetBusinessSettings.mockRejectedValue(new Error('down'))
       mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [], error: null }))
       renderPage()
 
       await waitFor(() => expect(mockGetBusinessSettings).toHaveBeenCalled())
-      expect(screen.getByText('Reservar turno')).toBeDefined()
+      expect(screen.getByRole('navigation', { name: 'Pasos de la reserva' })).toBeInTheDocument()
     })
   })
 
   describe('Spanish copy', () => {
-    it('page heading is in Spanish', async () => {
-      mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [], error: null }))
-      renderPage()
-      expect(screen.getByText('Reservar turno')).toBeDefined()
-    })
-
     it('step labels are in Spanish', async () => {
       mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [], error: null }))
       renderPage()
@@ -421,7 +424,7 @@ describe('BookingPage', () => {
     it('renders service name on review screen', async () => {
       await goToStep4()
       expect(screen.getByText('Corte de cabello')).toBeDefined()
-      expect(screen.getByText('Servicio')).toBeDefined()
+      expect(screen.getAllByText('Servicio').length).toBe(2) // the step and the review row
     })
 
     it('renders duration in minutes', async () => {
@@ -674,7 +677,8 @@ describe('BookingPage', () => {
       await goToStep3WithSlot()
       fireEvent.click(screen.getByRole('button', { name: 'Volver al paso anterior' }))
       fireEvent.click(screen.getByRole('button', { name: 'Volver al paso anterior' }))
-      expect(screen.getByText(/Elegí el servicio/)).toBeDefined()
+      expect(currentStep()).toBe('Servicio')
+      expect(screen.getByText('Corte de cabello')).toBeDefined()
     })
 
     it('"Siguiente" is disabled again after returning from a conflict error', async () => {
@@ -729,6 +733,111 @@ describe('BookingPage', () => {
       fireEvent.click(busy)
       expect(mockCreateAppointment).toHaveBeenCalledTimes(1)
     })
+  })
+})
+
+describe('BookingPage — step by step menu and phone category filter', () => {
+  const otherRow = { ...mockServiceRow, id: 'svc-2', name: 'Manicura', category_id: 'cat-2' }
+  const hairRow = { ...mockServiceRow, category_id: 'cat-1' }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('the stepper is there from the first step, with Servicio as the current one', async () => {
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [mockServiceRow], error: null }))
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
+    expect(currentStep()).toBe('Servicio')
+    expect(screen.queryByRole('button', { name: 'Volver al paso anterior' })).toBeNull()
+  })
+
+  it('moves along the steps and keeps them in view, with the back arrow from step 2', async () => {
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [mockServiceRow], error: null }))
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
+    await selectService()
+    expect(currentStep()).toBe('Fecha')
+    expect(screen.getByRole('button', { name: 'Volver al paso anterior' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Volver a Servicio' })).toBeInTheDocument()
+  })
+
+  it('pressing Servicio in the stepper goes back to the list and clears the choice', async () => {
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [mockServiceRow], error: null }))
+    mockGetAvailableSlots.mockResolvedValue([mockSlot])
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
+    await selectService()
+    await pickDay()
+    await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a Servicio' }))
+    expect(currentStep()).toBe('Servicio')
+    expect(screen.queryByTestId('slot-block')).toBeNull()
+    expect(screen.getByText('Corte de cabello')).toBeInTheDocument()
+  })
+
+  it('pressing Fecha from the time step returns to the date picker keeping the service (edge case)', async () => {
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [mockServiceRow], error: null }))
+    mockGetAvailableSlots.mockResolvedValue([mockSlot])
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
+    await selectService()
+    await pickDay()
+    await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Volver a Fecha' }))
+    expect(currentStep()).toBe('Fecha')
+    expect(screen.getByText('Corte de cabello', { selector: 'strong' })).toBeDefined()
+  })
+
+  it('on phones the categories are one button with a drop-down; chips remain for larger screens', async () => {
+    mockListCategories.mockResolvedValue([
+      { id: 'cat-1', name: 'Peluquería' },
+      { id: 'cat-2', name: 'Uñas' },
+    ])
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [hairRow, otherRow], error: null }))
+    renderPage()
+    const trigger = await screen.findByRole('button', { name: 'Filtrar por categoría' })
+    expect(trigger.parentElement?.parentElement?.className).toContain('sm:hidden')
+    expect(trigger.textContent).toContain('Todas las categorías')
+    expect(screen.getByRole('button', { name: 'Todos' }).parentElement?.className).toContain('hidden')
+    expect(screen.getByRole('button', { name: 'Todos' }).parentElement?.className).toContain('sm:flex')
+  })
+
+  it('choosing a category in the drop-down filters the services and shows it on the button', async () => {
+    mockListCategories.mockResolvedValue([
+      { id: 'cat-1', name: 'Peluquería' },
+      { id: 'cat-2', name: 'Uñas' },
+    ])
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [hairRow, otherRow], error: null }))
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por categoría' }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Uñas' }))
+    expect(screen.queryByText('Corte de cabello')).toBeNull()
+    expect(screen.getByText('Manicura')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Filtrar por categoría' }).textContent).toContain('Uñas')
+    fireEvent.click(screen.getByRole('button', { name: 'Filtrar por categoría' }))
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Todas las categorías' }))
+    expect(screen.getByText('Corte de cabello')).toBeInTheDocument()
+  })
+
+  it('the drop-down lists only categories that have services (edge case)', async () => {
+    mockListCategories.mockResolvedValue([
+      { id: 'cat-1', name: 'Peluquería' },
+      { id: 'cat-empty', name: 'Vacía' },
+    ])
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [hairRow], error: null }))
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Filtrar por categoría' }))
+    expect(screen.getByRole('menuitemradio', { name: 'Peluquería' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitemradio', { name: 'Vacía' })).toBeNull()
+  })
+
+  it('with no categories there is no filter at all (edge case)', async () => {
+    mockListCategories.mockResolvedValue([])
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [mockServiceRow], error: null }))
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
+    expect(screen.queryByRole('button', { name: 'Filtrar por categoría' })).toBeNull()
   })
 })
 
@@ -888,7 +997,7 @@ describe('BookingPage — booking for someone else (admin and staff)', () => {
   it('books for an existing client account', async () => {
     await goToReview('admin')
     fireEvent.click(screen.getByRole('radio', { name: 'Para un cliente' }))
-    fireEvent.change(await screen.findByLabelText('Cliente'), { target: { value: 'client-1' } })
+    await pickOption('Cliente', 'Ana Pérez (ana@mail.com)')
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
     await waitFor(() =>
       expect(mockCreateAppointment).toHaveBeenCalledWith(expect.objectContaining({ customerUserId: 'client-1' })),
@@ -911,9 +1020,7 @@ describe('BookingPage — booking for someone else (admin and staff)', () => {
   it('picking a person without account from the list books for them as "Otra persona"', async () => {
     await goToReview('admin')
     fireEvent.click(screen.getByRole('radio', { name: 'Para un cliente' }))
-    const select = await screen.findByLabelText('Cliente')
-    await waitFor(() => expect(within(select).getAllByRole('option').length).toBeGreaterThan(2))
-    fireEvent.change(select, { target: { value: 'guest:1' } })
+    await pickOption('Cliente', 'Rosa Gómez (rosa@mail.com) · sin cuenta')
     expect((screen.getByLabelText('Nombre') as HTMLInputElement).value).toBe('Rosa Gómez')
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar reserva' }))
     await waitFor(() =>
@@ -961,5 +1068,92 @@ describe('BookingPage — booking for someone else (admin and staff)', () => {
     expect(screen.getByText(/te enviamos un email con los datos/)).toBeDefined()
     fireEvent.click(screen.getByRole('radio', { name: 'Otra persona' }))
     expect(screen.getByText(/avisamos por email a la persona/)).toBeDefined()
+  })
+})
+
+describe('BookingPage — promo', () => {
+  const promo = {
+    serviceId: 'svc-1',
+    promoId: 'promo-1',
+    name: 'Semana de manos',
+    description: 'Todo con descuento',
+    discountType: 'percent' as const,
+    discountValue: 20,
+    discountCents: 1000,
+    finalPriceCents: 4000,
+    endsOn: '2026-12-31',
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListActivePromos.mockResolvedValue([])
+    mockGetBusinessSettings.mockResolvedValue({ timezone: 'UTC', bookingMaxHorizonDays: 60, weeklyHours: [] })
+    mockListCategories.mockResolvedValue([])
+    mockGetLandingConfig.mockResolvedValue({
+      primaryColor: '#f3e8ff', businessName: 'Test', tagline: null, logoUrl: null, heroImageUrl: null, carouselImages: [],
+    })
+    mockGetAvailableDays.mockResolvedValue([{ day: todayKey(), slotCount: 3 }])
+    mockGetAvailableSlots.mockResolvedValue([mockSlot])
+  })
+
+  async function load() {
+    mockSupabaseFrom.mockReturnValueOnce(buildQueryChain({ data: [mockServiceRow], error: null }))
+    renderPage()
+    await waitFor(() => expect(screen.getByText('Corte de cabello')).toBeDefined())
+  }
+
+  it('marks the service in promo with a badge and the new price', async () => {
+    mockListActivePromos.mockResolvedValue([promo])
+    await load()
+    expect(await screen.findByText('PROMO 20% OFF')).toBeDefined()
+    expect(screen.getByText(/\$\s?40/)).toBeDefined()
+  })
+
+  it('shows no promo badge when there are no promos (edge case)', async () => {
+    await load()
+    expect(screen.queryByText(/^PROMO/)).toBeNull()
+  })
+
+  it('still lists the services when promos fail to load (edge case)', async () => {
+    mockListActivePromos.mockRejectedValue(new Error('boom'))
+    await load()
+    expect(screen.queryByText(/^PROMO/)).toBeNull()
+  })
+
+  it('the review shows the promo discount and total, and hides the coupon box', async () => {
+    mockListActivePromos.mockResolvedValue([promo])
+    await load()
+    await screen.findByText('PROMO 20% OFF')
+    await selectService()
+    await pickDay()
+    await waitFor(() => expect(screen.getByTestId('slot-block')).toBeInTheDocument())
+    fireEvent.click(screen.getByTestId('slot-block'))
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    await waitFor(() => expect(screen.getByText(/Revisá tu reserva/)).toBeDefined())
+    expect(screen.getByText('Promo Semana de manos')).toBeDefined()
+    expect(screen.getByText('-$10.00')).toBeDefined()
+    expect(screen.getByText('$40.00')).toBeDefined()
+    expect(screen.queryByLabelText('¿Tenés un cupón?')).toBeNull()
+    expect(screen.getByText(/no se suma con cupones/)).toBeDefined()
+  })
+
+  it('the Promos filter shows only the services in promo', async () => {
+    mockListActivePromos.mockResolvedValue([promo])
+    mockSupabaseFrom.mockReturnValueOnce(
+      buildQueryChain({ data: [mockServiceRow, { ...mockServiceRow, id: 'svc-2', name: 'Masaje' }], error: null }),
+    )
+    renderPage()
+    await screen.findByText('PROMO 20% OFF')
+    expect(screen.getByText('Masaje')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Promos' }))
+    expect(screen.queryByText('Masaje')).toBeNull()
+    expect(screen.getByText('Corte de cabello')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Todos' }))
+    expect(screen.getByText('Masaje')).toBeDefined()
+  })
+
+  it('has no Promos filter when nothing is in promo (edge case)', async () => {
+    await load()
+    expect(screen.queryByRole('button', { name: 'Promos' })).toBeNull()
   })
 })

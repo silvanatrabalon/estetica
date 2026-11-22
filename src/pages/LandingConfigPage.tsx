@@ -428,7 +428,10 @@ export function LandingConfigPage() {
               id="fontFamily"
               name="fontFamily"
               value={form.fontFamily}
-              onChange={handleFieldChange}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, fontFamily: e.target.value }))
+                setFeedback(null)
+              }}
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-pink-300"
             >
               {FONT_OPTIONS.map((font) => (

@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { ActionButton, ActionRow } from '../components/ActionButton'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ServiceAvailabilityModal } from '../components/admin/ServiceAvailabilityModal'
 import { formatPriceARS } from '../lib/formatPrice'
 import {
   createService,
@@ -87,6 +89,13 @@ function hasErrors(errors: ValidationErrors): boolean {
 
 export function AdminServicesPage() {
   const navigate = useNavigate()
+  // "Disponibilidad" opens a pop-up over the list; /admin/services/:serviceId/availability opens it directly
+  const { serviceId: routeServiceId } = useParams<{ serviceId: string }>()
+  const [availabilityServiceId, setAvailabilityServiceId] = useState<string | null>(routeServiceId ?? null)
+  const closeAvailability = () => {
+    setAvailabilityServiceId(null)
+    if (routeServiceId) navigate('/admin/services', { replace: true })
+  }
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -121,7 +130,6 @@ export function AdminServicesPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const formRef = useRef<HTMLDivElement>(null)
 
   // Confirm modal state
   const [confirmState, setConfirmState] = useState<{
@@ -168,11 +176,16 @@ export function AdminServicesPage() {
     void loadCategories()
   }, [])
 
+  // Escape closes the pop-up (not while it is saving or uploading)
   useEffect(() => {
-    if (formMode !== null && formRef.current) {
-      formRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
+    if (formMode === null) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSaving && !isUploading) closeForm()
     }
-  }, [formMode])
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formMode, isSaving, isUploading])
 
   const openCreateForm = () => {
     setFormMode('create')
@@ -428,6 +441,7 @@ export function AdminServicesPage() {
     if (!trimmed) return
     setCategoryError(null)
     setCategorySuccess(null)
+    setIsSavingCategory(true)
     try {
       const updated = await adminUpdateCategory(editingCategory.id, trimmed, editingCategory.displayOrder)
       setCategories((prev) => prev.map((c) => (c.id === updated.id ? updated : c)))
@@ -436,8 +450,30 @@ export function AdminServicesPage() {
       setCategorySuccess('Categoría actualizada.')
     } catch {
       setCategoryError('No se pudo actualizar la categoría.')
+    } finally {
+      setIsSavingCategory(false)
     }
   }
+
+  const categoryModalOpen = isCategoryFormOpen || editingCategory !== null
+  const closeCategoryModal = () => {
+    setIsCategoryFormOpen(false)
+    setNewCategoryName('')
+    setEditingCategory(null)
+    setEditCategoryName('')
+    setCategoryError(null)
+  }
+
+  // Escape closes the category pop-up (not while it is saving)
+  useEffect(() => {
+    if (!categoryModalOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSavingCategory) closeCategoryModal()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryModalOpen, isSavingCategory])
 
   const handleDeleteCategory = (id: string) => {
     const cat = categories.find((c) => c.id === id)
@@ -499,7 +535,7 @@ export function AdminServicesPage() {
           ]}
         />
 
-        {errorMessage && (
+        {errorMessage && formMode === null && (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errorMessage}
           </div>
@@ -513,49 +549,71 @@ export function AdminServicesPage() {
 
         {tab === 'services' && (
           <div className="space-y-4">
-            {formMode === null && (
-              <div className="flex items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <Listbox
-                    id="service-category-filter"
-                    value={categoryFilter}
-                    onChange={setCategoryFilter}
-                    options={categoryFilterOptions}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={openCreateForm}
-                  className="shrink-0 rounded-lg bg-brand-primary px-3 py-2 text-sm font-medium text-white hover:bg-brand-strong transition-colors"
-                >
-                  + Agregar servicio
-                </button>
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <Listbox
+                  id="service-category-filter"
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                  options={categoryFilterOptions}
+                />
               </div>
-            )}
+              <button
+                type="button"
+                onClick={openCreateForm}
+                className="shrink-0 rounded-lg bg-brand-primary px-3 py-2 text-sm font-medium text-white hover:bg-brand-strong transition-colors"
+              >
+                + Agregar servicio
+              </button>
+            </div>
 
       {formMode !== null && (
-        <div ref={formRef} className="rounded-2xl border border-shell-border bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-base font-semibold text-shell-text">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="service-form-title"
+          className="max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
+        >
+          <h2 id="service-form-title" className="mb-3 text-base font-semibold text-shell-text">
             {formMode === 'create' ? 'Nuevo servicio' : 'Editar servicio'}
           </h2>
           <form onSubmit={(e) => void handleFormSubmit(e)} noValidate className="space-y-3">
-            <div>
-              <label htmlFor="service-name" className="mb-1 block text-sm font-medium text-gray-700">
-                Nombre
-              </label>
-              <input
-                id="service-name"
-                type="text"
-                value={formData.name}
-                onChange={handleField('name')}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Ej: Corte de cabello"
-              />
-              {formErrors.name && <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>}
+            <div className="grid grid-cols-[minmax(0,1fr)_8.5rem] items-start gap-3">
+              <div>
+                <label htmlFor="service-name" className="mb-1 block text-sm font-medium text-gray-700">
+                  Nombre
+                </label>
+                <input
+                  id="service-name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleField('name')}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Ej: Corte de cabello"
+                />
+                {formErrors.name && <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="service-category" className="mb-1 block text-sm font-medium text-gray-700">
+                  Categoría
+                </label>
+                <Listbox
+                  id="service-category"
+                  value={isInlineCategoryOpen ? NEW_CATEGORY_VALUE : formData.categoryId}
+                  onChange={handleCategorySelect}
+                  options={[
+                    { value: '', label: 'Sin categoría' },
+                    ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+                    { value: NEW_CATEGORY_VALUE, label: '+ Crear categoría nueva' },
+                  ]}
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <label>
+            <div className="flex flex-wrap items-start gap-3">
+              <label className="w-16 shrink-0">
                 <span className="text-xs font-medium text-gray-600">Horas</span>
                 <input
                   type="number"
@@ -563,11 +621,11 @@ export function AdminServicesPage() {
                   max="7"
                   value={formData.durationHours}
                   onChange={handleField('durationHours')}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full border border-gray-300 rounded-md px-2 py-2 text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="0"
                 />
               </label>
-              <label>
+              <label className="w-16 shrink-0">
                 <span className="text-xs font-medium text-gray-600">Minutos</span>
                 <input
                   type="number"
@@ -575,11 +633,11 @@ export function AdminServicesPage() {
                   max="59"
                   value={formData.durationMins}
                   onChange={handleField('durationMins')}
-                  className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="mt-1 w-full border border-gray-300 rounded-md px-2 py-2 text-center text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="30"
                 />
               </label>
-              <div className="col-span-2 sm:col-span-1">
+              <div className="min-w-[8rem] flex-1">
                 <label htmlFor="service-price" className="text-xs font-medium text-gray-600">
                   Precio ($)
                 </label>
@@ -595,15 +653,15 @@ export function AdminServicesPage() {
                 />
               </div>
               {formErrors.durationMinutes && (
-                <p className="col-span-2 text-sm text-red-600 sm:col-span-3">{formErrors.durationMinutes}</p>
+                <p className="basis-full text-sm text-red-600">{formErrors.durationMinutes}</p>
               )}
               {formData.priceCents !== '' && !formErrors.priceCents && (
-                <p className="col-span-2 text-xs text-gray-500 sm:col-span-3">
+                <p className="basis-full text-xs text-gray-500">
                   Vista previa: {formatPriceARS(Math.round(Number(formData.priceCents) * 100))}
                 </p>
               )}
               {formErrors.priceCents && (
-                <p className="col-span-2 text-sm text-red-600 sm:col-span-3">{formErrors.priceCents}</p>
+                <p className="basis-full text-sm text-red-600">{formErrors.priceCents}</p>
               )}
             </div>
 
@@ -621,51 +679,36 @@ export function AdminServicesPage() {
               />
             </div>
 
-            <div className="w-full">
-              <label htmlFor="service-category" className="mb-1 block text-sm font-medium text-gray-700">
-                Categoría <span className="font-normal text-gray-400">(opcional)</span>
-              </label>
-              <Listbox
-                id="service-category"
-                value={isInlineCategoryOpen ? NEW_CATEGORY_VALUE : formData.categoryId}
-                onChange={handleCategorySelect}
-                options={[
-                  { value: '', label: 'Sin categoría' },
-                  ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
-                  { value: NEW_CATEGORY_VALUE, label: '+ Crear categoría nueva' },
-                ]}
-              />
-              {isInlineCategoryOpen && (
-                <div className="mt-2 flex flex-wrap items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <input
-                      autoFocus
-                      aria-label="Nombre de la nueva categoría"
-                      value={inlineCategoryName}
-                      onChange={(e) => setInlineCategoryName(e.target.value)}
-                      placeholder="Nombre de la categoría"
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    {inlineCategoryError && <p className="mt-1 text-sm text-red-600">{inlineCategoryError}</p>}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleCreateInlineCategory()}
-                    disabled={isSavingInlineCategory}
-                    className="rounded-md bg-brand-primary px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
-                  >
-                    {isSavingInlineCategory ? 'Creando...' : 'Crear categoría'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsInlineCategoryOpen(false)}
-                    className="rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100"
-                  >
-                    Cancelar
-                  </button>
+            {isInlineCategoryOpen && (
+              <div className="flex flex-wrap items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <input
+                    autoFocus
+                    aria-label="Nombre de la nueva categoría"
+                    value={inlineCategoryName}
+                    onChange={(e) => setInlineCategoryName(e.target.value)}
+                    placeholder="Nombre de la categoría"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  {inlineCategoryError && <p className="mt-1 text-sm text-red-600">{inlineCategoryError}</p>}
                 </div>
-              )}
-            </div>
+                <button
+                  type="button"
+                  onClick={() => void handleCreateInlineCategory()}
+                  disabled={isSavingInlineCategory}
+                  className="rounded-md bg-brand-primary px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
+                >
+                  {isSavingInlineCategory ? 'Creando...' : 'Crear categoría'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsInlineCategoryOpen(false)}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
 
             {/* Image upload — only available in edit mode */}
             <div>
@@ -744,13 +787,19 @@ export function AdminServicesPage() {
                   placeholder="Vacío = lo limitan las agendas"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Normalmente se deja vacío: cada profesional atiende un cliente a la vez y la capacidad sale de sus agendas. Completalo solo si hay algo compartido que limita, como una única cabina o un solo aparato.
+                  Normalmente se deja vacío: cada profesional atiende un cliente a la vez y la capacidad sale de sus agendas. Completalo solo si hay algo compartido que limita, como una única cabina o un solo aparato. Ej: Camilla solar.
                 </p>
                 {formErrors.maxConcurrentBookings && (
                   <p className="mt-1 text-sm text-red-600">{formErrors.maxConcurrentBookings}</p>
                 )}
               </div>
             </details>
+
+            {errorMessage && (
+              <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {errorMessage}
+              </p>
+            )}
 
             <div className="flex gap-3 pt-1">
               <button
@@ -763,26 +812,28 @@ export function AdminServicesPage() {
               <button
                 type="button"
                 onClick={closeForm}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                disabled={isSaving || isUploading}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-60"
               >
                 Cancelar
               </button>
             </div>
           </form>
         </div>
+        </div>
       )}
 
-            {services.length === 0 && formMode === null ? (
+            {services.length === 0 ? (
               <div className="py-12 text-center text-gray-500">
                 <p className="mb-2 text-lg">No hay servicios registrados todavía.</p>
                 <p className="text-sm">Usá el botón &quot;Agregar servicio&quot; para crear el primero.</p>
               </div>
-            ) : visibleServices.length === 0 && formMode === null ? (
+            ) : visibleServices.length === 0 ? (
               <div className="py-10 text-center text-sm text-gray-500">No hay servicios en esta categoría.</div>
             ) : (
               <>
-          {/* Mobile cards */}
-          <div className="md:hidden space-y-3">
+          {/* Cards on every screen size (no table on desktop) */}
+          <div className="max-w-2xl space-y-3">
             {visibleServices.map((service) => (
               <div key={service.id} className="border border-gray-200 rounded-lg p-4 bg-white">
                 <div className="flex items-start justify-between gap-2">
@@ -806,116 +857,17 @@ export function AdminServicesPage() {
                   <span>{service.durationMinutes} min</span>
                   <span>{formatPriceARS(service.priceCents)}</span>
                 </div>
-                <div className="mt-3 flex gap-3 border-t border-gray-100 pt-3">
-                  <button
-                    type="button"
-                    onClick={() => openEditForm(service)}
-                    className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleActive(service)}
-                    className="text-gray-600 hover:text-gray-800 text-xs font-medium"
-                  >
+                <ActionRow className="mt-3">
+                  <ActionButton onClick={() => openEditForm(service)}>Editar</ActionButton>
+                  <ActionButton onClick={() => setAvailabilityServiceId(service.id)}>Disponibilidad</ActionButton>
+                  <ActionButton tone="neutral" onClick={() => handleToggleActive(service)}>
                     {service.isActive ? 'Desactivar' : 'Reactivar'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/admin/services/${service.id}/availability`)}
-                    className="text-purple-600 hover:text-purple-800 text-xs font-medium"
-                  >
-                    Disponibilidad
-                  </button>
-                </div>
+                  </ActionButton>
+                </ActionRow>
               </div>
             ))}
           </div>
 
-          {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-gray-200 text-left text-gray-600">
-                <th className="pb-3 pr-4 font-medium">Imagen</th>
-                <th className="pb-3 pr-4 font-medium">Nombre</th>
-                <th className="pb-3 pr-4 font-medium">Categoría</th>
-                <th className="pb-3 pr-4 font-medium">Descripción</th>
-                <th className="pb-3 pr-4 font-medium">Duración</th>
-                <th className="pb-3 pr-4 font-medium">Precio</th>
-                <th className="pb-3 pr-4 font-medium">Capacidad</th>
-                <th className="pb-3 pr-4 font-medium">Estado</th>
-                <th className="pb-3 font-medium">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleServices.map((service) => (
-                <tr key={service.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 pr-4">
-                    <ServiceImage imageUrl={service.imageUrl} name={service.name} />
-                  </td>
-                  <td className="py-3 pr-4 font-medium text-gray-900">{service.name}</td>
-                  <td className="py-3 pr-4 text-gray-500 text-xs">
-                    {service.categoryName ?? <span className="text-gray-300 italic">Sin categoría</span>}
-                  </td>
-                  <td className="py-3 pr-4 text-gray-500 max-w-xs">
-                    {service.description ? (
-                      <span className="line-clamp-2 text-xs">{service.description}</span>
-                    ) : (
-                      <span className="text-gray-300 text-xs italic">Sin descripción</span>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 text-gray-600">{service.durationMinutes} min</td>
-                  <td className="py-3 pr-4 text-gray-600">{formatPriceARS(service.priceCents)}</td>
-                  <td className="py-3 pr-4 text-gray-600">
-                    {service.maxConcurrentBookings !== null
-                      ? `Cap: ${service.maxConcurrentBookings}`
-                      : 'Sin límite'}
-                  </td>
-                  <td className="py-3 pr-4">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        service.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
-                      {service.isActive ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => openEditForm(service)}
-                        className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(service)}
-                        className="text-gray-600 hover:text-gray-800 text-xs font-medium"
-                      >
-                        {service.isActive ? 'Desactivar' : 'Reactivar'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navigate(`/admin/services/${service.id}/availability`)
-                        }
-                        className="text-purple-600 hover:text-purple-800 text-xs font-medium"
-                      >
-                        Gestionar disponibilidad
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
               </>
             )}
           </div>
@@ -925,107 +877,131 @@ export function AdminServicesPage() {
           <section className="shell-surface rounded-2xl border p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between gap-2">
               <p className="text-sm text-shell-subtleText">Agrupan los servicios en la página de reservas.</p>
-              {!isCategoryFormOpen && !editingCategory && (
-                <button
-                  type="button"
-                  onClick={() => { setIsCategoryFormOpen(true); setCategoryError(null); setCategorySuccess(null) }}
-                  className="shrink-0 rounded-lg border border-shell-border px-3 py-1.5 text-xs font-medium text-shell-text hover:bg-shell-muted transition-colors"
-                >
-                  + Nueva categoría
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingCategory(null)
+                  setNewCategoryName('')
+                  setIsCategoryFormOpen(true)
+                  setCategoryError(null)
+                  setCategorySuccess(null)
+                }}
+                className="shrink-0 rounded-lg border border-shell-border px-3 py-1.5 text-xs font-medium text-shell-text hover:bg-shell-muted transition-colors"
+              >
+                + Nueva categoría
+              </button>
             </div>
-          {categoryError && (
-            <p className="mb-2 text-sm text-red-600">{categoryError}</p>
-          )}
-          {categorySuccess && (
-            <p className="mb-2 text-sm text-emerald-600">{categorySuccess}</p>
-          )}
+            {categoryError && !categoryModalOpen && <p className="mb-2 text-sm text-red-600">{categoryError}</p>}
+            {categorySuccess && <p className="mb-2 text-sm text-emerald-600">{categorySuccess}</p>}
 
-          {categories.length === 0 && !isCategoryFormOpen && (
-            <p className="text-sm text-shell-subtleText italic">Sin categorías todavía.</p>
-          )}
+            {categories.length === 0 && (
+              <p className="text-sm text-shell-subtleText italic">Sin categorías todavía.</p>
+            )}
 
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) =>
-              editingCategory?.id === cat.id ? (
-                <form
+            <div className="flex flex-wrap gap-2">
+              {categories.map((cat) => (
+                <span
                   key={cat.id}
-                  onSubmit={(e) => void handleUpdateCategory(e)}
-                  className="flex flex-wrap items-center gap-2 w-full sm:w-auto"
+                  className="inline-flex items-center gap-0.5 rounded-full bg-shell-muted py-1 pl-3 pr-1 text-sm text-shell-text"
                 >
-                  <input
-                    autoFocus
-                    value={editCategoryName}
-                    onChange={(e) => setEditCategoryName(e.target.value)}
-                    className="flex-1 min-w-0 rounded-lg border border-shell-border px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
-                  />
-                  <div className="flex gap-1">
-                    <button type="submit" className="text-xs px-2 py-1 rounded-lg bg-brand-primary text-white hover:bg-brand-strong">
-                      Guardar
-                    </button>
-                    <button type="button" onClick={() => setEditingCategory(null)} className="text-xs px-2 py-1 rounded-lg border border-shell-border hover:bg-shell-muted">
-                      Cancelar
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <span key={cat.id} className="inline-flex items-center gap-1 px-3 py-1 bg-shell-muted rounded-full text-sm text-shell-text">
                   {cat.name}
                   <button
                     type="button"
                     aria-label={`Editar ${cat.name}`}
-                    onClick={() => { setEditingCategory(cat); setEditCategoryName(cat.name); setCategoryError(null); setCategorySuccess(null) }}
-                    className="text-shell-subtleText hover:text-shell-text ml-1 leading-none"
+                    title="Editar"
+                    onClick={() => {
+                      setIsCategoryFormOpen(false)
+                      setEditingCategory(cat)
+                      setEditCategoryName(cat.name)
+                      setCategoryError(null)
+                      setCategorySuccess(null)
+                    }}
+                    className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-shell-subtleText transition-colors hover:bg-white hover:text-shell-text"
                   >
-                    ✏️
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M12 20h9" />
+                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                    </svg>
                   </button>
                   <button
                     type="button"
                     aria-label={`Eliminar ${cat.name}`}
+                    title="Eliminar"
                     onClick={() => void handleDeleteCategory(cat.id)}
-                    className="text-shell-subtleText hover:text-red-500 leading-none"
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-shell-subtleText transition-colors hover:bg-red-50 hover:text-red-600"
                   >
-                    ✕
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
                   </button>
                 </span>
-              )
-            )}
-          </div>
-
-          {isCategoryFormOpen && (
-            <form
-              onSubmit={(e) => void handleCreateCategory(e)}
-              className="flex flex-col sm:flex-row gap-2 mt-3"
-            >
-              <input
-                autoFocus
-                value={newCategoryName}
-                onChange={(e) => setNewCategoryName(e.target.value)}
-                placeholder="Nombre de la categoría..."
-                className="flex-1 rounded-lg border border-shell-border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={isSavingCategory || !newCategoryName.trim()}
-                  className="flex-1 sm:flex-none text-xs px-4 py-1.5 rounded-lg bg-brand-primary text-white hover:bg-brand-strong disabled:opacity-50"
-                >
-                  {isSavingCategory ? 'Guardando...' : 'Crear'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setIsCategoryFormOpen(false); setNewCategoryName('') }}
-                  className="flex-1 sm:flex-none text-xs px-4 py-1.5 rounded-lg border border-shell-border hover:bg-shell-muted"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          )}
+              ))}
+            </div>
           </section>
         )}
       </div>
+
+      {categoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-4">
+          <form
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="category-form-title"
+            noValidate
+            onSubmit={(e) => void (editingCategory ? handleUpdateCategory(e) : handleCreateCategory(e))}
+            className="max-h-[92dvh] w-full max-w-sm space-y-3 overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
+          >
+            <h2 id="category-form-title" className="text-base font-semibold text-shell-text">
+              {editingCategory ? 'Editar categoría' : 'Nueva categoría'}
+            </h2>
+            <div>
+              <label htmlFor="category-name" className="mb-1 block text-sm font-medium text-gray-700">
+                Nombre
+              </label>
+              <input
+                id="category-name"
+                autoFocus
+                value={editingCategory ? editCategoryName : newCategoryName}
+                onChange={(e) => (editingCategory ? setEditCategoryName(e.target.value) : setNewCategoryName(e.target.value))}
+                placeholder="Ej: Manos"
+                autoComplete="off"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            {categoryError && (
+              <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {categoryError}
+              </p>
+            )}
+            <div className="flex gap-3 pt-1">
+              <button
+                type="submit"
+                disabled={isSavingCategory || !(editingCategory ? editCategoryName : newCategoryName).trim()}
+                className="rounded-md bg-brand-primary px-4 py-2 text-sm font-medium text-white hover:bg-brand-strong disabled:opacity-50"
+              >
+                {isSavingCategory ? 'Guardando...' : editingCategory ? 'Guardar' : 'Crear'}
+              </button>
+              <button
+                type="button"
+                onClick={closeCategoryModal}
+                disabled={isSavingCategory}
+                className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {availabilityServiceId && (
+        <ServiceAvailabilityModal
+          key={availabilityServiceId}
+          serviceId={availabilityServiceId}
+          serviceName={services.find((s) => s.id === availabilityServiceId)?.name}
+          onClose={closeAvailability}
+        />
+      )}
 
       <ConfirmModal
         isOpen={confirmState.isOpen}
@@ -1040,48 +1016,6 @@ export function AdminServicesPage() {
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
-function ServiceImage({ imageUrl, name }: { imageUrl: string | null; name: string }) {
-  const [hasError, setHasError] = useState(false)
-
-  if (!imageUrl || hasError) {
-    return (
-      <div
-        aria-label="Sin imagen"
-        className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center text-gray-400"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3 3l18 18"
-          />
-        </svg>
-      </div>
-    )
-  }
-
-  return (
-    <img
-      src={imageUrl}
-      alt={name}
-      className="w-10 h-10 rounded object-cover"
-      onError={() => setHasError(true)}
-    />
-  )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ServiceImagePreview — larger thumbnail for the edit form
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ServiceImagePreview({ imageUrl }: { imageUrl: string | null }) {

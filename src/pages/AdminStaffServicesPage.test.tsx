@@ -172,3 +172,47 @@ describe('AdminStaffServicesPage', () => {
     expect(await screen.findByRole('button', { name: 'Volver a profesionales' })).toBeDefined()
   })
 })
+
+describe('AdminStaffServicesPage — styled drop-down and explanation', () => {
+  const other = { ...mockAssignableService, serviceId: 'svc-3', name: 'Masaje', durationMinutes: 60, priceCents: 1700000 }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListStaffServices.mockResolvedValue([])
+    mockListAssignableServices.mockResolvedValue([mockAssignableService, other])
+    mockAssignServiceToStaff.mockResolvedValue(undefined)
+  })
+
+  it('explains what the list is for', async () => {
+    renderPage()
+    expect(await screen.findByText(/Servicios que este profesional realiza/)).toBeInTheDocument()
+    expect(screen.getByText(/solo pueden reservar con esta persona los que figuran acá/)).toBeInTheDocument()
+  })
+
+  it('uses the styled drop-down (not the browser one), with the first service chosen', async () => {
+    renderPage()
+    const box = await screen.findByLabelText('Agregar un servicio')
+    expect(box).toHaveAttribute('aria-haspopup', 'listbox')
+    expect(box.textContent).toContain(mockAssignableService.name)
+    expect(document.querySelector('select')).toBeNull()
+  })
+
+  it('opens a styled list with name, duration and price, and choosing one assigns that one', async () => {
+    renderPage()
+    const box = await screen.findByLabelText('Agregar un servicio')
+    fireEvent.click(box)
+    const list = await screen.findByRole('listbox')
+    expect(list.className).toContain('overflow-auto')
+    fireEvent.click(screen.getByRole('option', { name: /Masaje — 60 min/ }))
+    expect(screen.queryByRole('listbox')).toBeNull()
+    fireEvent.click(screen.getByText('Asignar'))
+    await waitFor(() => expect(mockAssignServiceToStaff).toHaveBeenCalledWith('staff-123', 'svc-3'))
+  })
+
+  it('keeps showing the empty message when everything is assigned, with no drop-down (edge case)', async () => {
+    mockListAssignableServices.mockResolvedValue([])
+    renderPage()
+    expect(await screen.findByText('Todos los servicios activos ya están asignados.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Agregar un servicio')).toBeNull()
+  })
+})

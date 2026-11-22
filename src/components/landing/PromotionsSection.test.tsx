@@ -42,4 +42,34 @@ describe('PromotionsSection', () => {
     render(<PromotionsSection coupons={[coupon, { ...coupon, code: 'OTRO20' }]} />)
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
   })
+
+  const promo = {
+    promoId: 'p1',
+    name: 'Semana de manos',
+    description: 'Todo con descuento',
+    discountType: 'percent' as const,
+    discountValue: 20,
+    endsOn: '2026-12-31',
+    serviceNames: ['Manicura', 'Pedicura'],
+  }
+
+  it('shows a promo with its services and end date, without a code', () => {
+    render(<PromotionsSection coupons={[]} promos={[promo]} />)
+    expect(screen.getByText('20% OFF')).toBeInTheDocument()
+    expect(screen.getByText('Manicura, Pedicura')).toBeInTheDocument()
+    expect(screen.getByText(/Hasta el 31 de diciembre/)).toBeInTheDocument()
+    expect(screen.getByText(/Se aplican solas/)).toBeInTheDocument()
+  })
+
+  it('shows promos and coupons together (edge case)', () => {
+    render(<PromotionsSection coupons={[coupon]} promos={[promo]} />)
+    expect(screen.getByText('VERANO10')).toBeInTheDocument()
+    expect(screen.getByText(/Semana de manos/)).toBeInTheDocument()
+    expect(screen.getByText(/Usá el código/)).toBeInTheDocument()
+  })
+
+  it('renders nothing without promos nor coupons (edge case)', () => {
+    const { container } = render(<PromotionsSection coupons={[]} promos={[]} />)
+    expect(container).toBeEmptyDOMElement()
+  })
 })

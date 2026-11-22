@@ -1,34 +1,62 @@
-import { SelectHTMLAttributes } from 'react'
-import { cn } from '../lib/cn'
+import { Children, isValidElement, type ReactNode } from 'react'
+import { Listbox, type ListboxOption } from './Listbox'
 
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  /** Extra classes applied to the wrapper div (e.g. "mt-1") */
-  wrapperClassName?: string
+interface SelectChangeEvent {
+  target: { name: string; value: string }
 }
 
-export function Select({ className, wrapperClassName, style, children, ...props }: SelectProps) {
+interface SelectProps {
+  id?: string
+  name?: string
+  value: string | number
+  /** Receives something shaped like a change event, so `e.target.value` keeps working. */
+  onChange?: (event: SelectChangeEvent) => void
+  disabled?: boolean
+  /** Accessible name when there is no <label htmlFor>. */
+  'aria-label'?: string
+  /** Extra classes for the wrapper (e.g. "mt-1"). */
+  wrapperClassName?: string
+  /** Ignored: the drop-down has its own style. Kept so existing calls do not break. */
+  className?: string
+  /** <option value="...">Label</option> elements, like a native select. */
+  children?: ReactNode
+}
+
+function textOf(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(textOf).join('')
+  if (isValidElement<{ children?: ReactNode }>(node)) return textOf(node.props.children)
+  return ''
+}
+
+/** Options from <option> children (also inside fragments or arrays). */
+function optionsFrom(children: ReactNode): ListboxOption[] {
+  const options: ListboxOption[] = []
+  Children.forEach(children, (child) => {
+    if (!isValidElement<{ value?: string | number; children?: ReactNode }>(child)) return
+    if (child.type === 'option') {
+      options.push({ value: String(child.props.value ?? textOf(child.props.children)), label: textOf(child.props.children) })
+    } else if (child.props.children) {
+      options.push(...optionsFrom(child.props.children))
+    }
+  })
+  return options
+}
+
+/**
+ * The app's drop-down: same API as a native <select> with <option> children, but the open list is
+ * styled like the rest of the app instead of the browser's own menu.
+ */
+export function Select({ id, name = '', value, onChange, disabled, wrapperClassName, children, ...rest }: SelectProps) {
   return (
-    <div className={cn('relative w-full', wrapperClassName)}>
-      <select
-        className={cn('w-full appearance-none', className)}
-        // inline style ensures the right padding is never overridden by a px-* Tailwind class
-        style={{ paddingRight: '2.25rem', ...style }}
-        {...props}
-      >
-        {children}
-      </select>
-      <span
-        className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-gray-400"
-        aria-hidden="true"
-      >
-        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-          <path
-            fillRule="evenodd"
-            d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </span>
-    </div>
+    <Listbox
+      id={id}
+      value={String(value)}
+      disabled={disabled}
+      className={wrapperClassName}
+      ariaLabel={rest['aria-label']}
+      options={optionsFrom(children)}
+      onChange={(next) => onChange?.({ target: { name, value: next } })}
+    />
   )
 }

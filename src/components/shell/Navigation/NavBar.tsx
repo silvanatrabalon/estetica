@@ -21,6 +21,7 @@ export function NavBar() {
             aria-label={isSidebarOpen ? 'Ocultar menú lateral' : 'Mostrar menú lateral'}
             aria-expanded={isSidebarOpen}
             aria-controls="primary-sidebar"
+            data-sidebar-toggle
             title={isSidebarOpen ? 'Ocultar menú' : 'Mostrar menú'}
             className="mr-3 hidden h-9 w-9 items-center justify-center rounded-lg text-shell-subtleText hover:bg-shell-muted hover:text-shell-text focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)] md:flex"
           >

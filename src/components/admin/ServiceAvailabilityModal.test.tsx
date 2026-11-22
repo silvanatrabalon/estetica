@@ -1,40 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { AdminServiceAvailabilityPage } from './AdminServiceAvailabilityPage'
-import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
-import { mockSessions } from '../hooks/__test-utils__/fixtures'
+import { ServiceAvailabilityModal } from './ServiceAvailabilityModal'
 
 const mockListServiceAvailableDates = vi.fn()
 const mockAddServiceAvailableDate = vi.fn()
 const mockRemoveServiceAvailableDate = vi.fn()
 
-vi.mock('../services/adminServiceAvailability', () => ({
+vi.mock('../../services/adminServiceAvailability', () => ({
   listServiceAvailableDates: (...args: unknown[]) => mockListServiceAvailableDates(...args),
   addServiceAvailableDate: (...args: unknown[]) => mockAddServiceAvailableDate(...args),
   removeServiceAvailableDate: (...args: unknown[]) => mockRemoveServiceAvailableDate(...args),
 }))
 
-function renderPage(serviceId = 'svc-1') {
-  return render(
-    <MemoryRouter initialEntries={[`/admin/services/${serviceId}/availability`]}>
-      <Routes>
-        <Route
-          path="/admin/services/:serviceId/availability"
-          element={
-            <TestUserProvider
-              user={mockSessions.authenticatedAdmin.user}
-              roles={['admin']}
-              activeRole="admin"
-              isLoading={false}
-            >
-              <AdminServiceAvailabilityPage />
-            </TestUserProvider>
-          }
-        />
-      </Routes>
-    </MemoryRouter>,
-  )
+const onClose = vi.fn()
+
+function renderPage(serviceId = 'svc-1', serviceName = 'Depilación láser') {
+  return render(<ServiceAvailabilityModal serviceId={serviceId} serviceName={serviceName} onClose={onClose} />)
 }
 
 const mockDate = {
@@ -43,7 +24,7 @@ const mockDate = {
   createdAt: '2026-01-01T00:00:00.000Z',
 }
 
-describe('AdminServiceAvailabilityPage', () => {
+describe('ServiceAvailabilityModal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -151,5 +132,54 @@ describe('AdminServiceAvailabilityPage', () => {
     await waitFor(() => {
       expect(screen.getByText('No pudimos eliminar la fecha disponible.')).toBeDefined()
     })
+  })
+})
+
+describe('ServiceAvailabilityModal — pop-up', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListServiceAvailableDates.mockResolvedValue([])
+  })
+
+  it('is a pop-up (sheet on phones, centered on larger screens) with the service name', async () => {
+    renderPage()
+    const dialog = screen.getByRole('dialog', { name: 'Disponibilidad del servicio' })
+    expect(dialog.parentElement?.className).toContain('fixed inset-0')
+    expect(dialog.parentElement?.className).toContain('items-end')
+    expect(dialog.parentElement?.className).toContain('sm:items-center')
+    expect(dialog.className).toContain('max-h-[92dvh]')
+    expect(screen.getByText('Depilación láser')).toBeInTheDocument()
+    await screen.findByText('Disponible cualquier día')
+  })
+
+  it('the explanation ends with an example: jornadas de depilación', async () => {
+    renderPage()
+    expect(await screen.findByText(/Cargá fechas si solo se ofrece algunos días\. Ej: jornadas de depilación\./)).toBeInTheDocument()
+  })
+
+  it('closes with the × button and with Escape (edge case)', async () => {
+    renderPage()
+    await screen.findByText('Disponible cualquier día')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(2)
+  })
+
+  it('works without a service name (edge case)', async () => {
+    render(<ServiceAvailabilityModal serviceId="svc-1" onClose={onClose} />)
+    expect(screen.getByRole('dialog', { name: 'Disponibilidad del servicio' })).toBeInTheDocument()
+    await screen.findByText('Disponible cualquier día')
+  })
+
+  it('the range mode adds every date and asks for both ends (edge case)', async () => {
+    mockAddServiceAvailableDate.mockResolvedValue(undefined)
+    renderPage()
+    await screen.findByText('Disponible cualquier día')
+    fireEvent.click(screen.getByRole('button', { name: 'Rango de fechas' }))
+    expect(screen.getByRole('button', { name: 'Agregar rango' })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Fecha inicio'), { target: { value: '2026-06-15' } })
+    fireEvent.change(screen.getByLabelText('Fecha fin'), { target: { value: '2026-06-17' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar rango' }))
+    await waitFor(() => expect(mockAddServiceAvailableDate).toHaveBeenCalledTimes(3))
   })
 })

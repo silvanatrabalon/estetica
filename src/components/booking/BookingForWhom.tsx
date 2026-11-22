@@ -20,7 +20,7 @@ const OPTIONS: { kind: BookingTarget['kind']; label: string }[] = [
 ]
 
 const fieldCls =
-  'w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text focus:outline-none focus:ring-2 focus:ring-emerald-500'
+  'w-full rounded-lg border border-shell-border bg-white px-3 py-2 text-sm text-shell-text focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]'
 
 /** Only shown to admin and staff: who is this appointment for? */
 export function BookingForWhom({ value, onChange, clients, loading, error, validationError }: BookingForWhomProps) {
@@ -46,7 +46,7 @@ export function BookingForWhom({ value, onChange, clients, loading, error, valid
             className={cn(
               'rounded-xl border px-2 py-2 text-sm font-medium transition-colors',
               value.kind === opt.kind
-                ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                ? 'border-brand-primary bg-[var(--color-lilac)]/50 text-shell-text'
                 : 'border-shell-border bg-white text-shell-text hover:bg-shell-muted',
             )}
           >

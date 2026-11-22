@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { pickOption } from '../hooks/__test-utils__/select'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AdminAppointmentDetailPage } from './AdminAppointmentDetailPage'
@@ -39,9 +40,6 @@ const userEvent = {
     },
     type: async (el: Element, text: string) => {
       fireEvent.change(el, { target: { value: (el as HTMLTextAreaElement).value + text } })
-    },
-    selectOptions: async (el: Element, value: string) => {
-      fireEvent.change(el, { target: { value } })
     },
     paste: async () => {},
   }),
@@ -189,7 +187,7 @@ describe('AdminAppointmentDetailPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Editar' }))
     await screen.findByLabelText('Servicio')
     expect(screen.queryByLabelText('Nota interna')).not.toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('Profesional'), 'm2')
+    await pickOption('Profesional', 'Marta')
     await user.click(screen.getByRole('button', { name: 'Guardar cambios' }))
     await waitFor(() =>
       expect(mocks.adminUpdateAppointment).toHaveBeenCalledWith({
@@ -220,8 +218,8 @@ describe('AdminAppointmentDetailPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Editar' }))
     await screen.findByLabelText('Servicio')
     mocks.listStaffForService.mockResolvedValue([{ staffMemberId: 'm3', displayName: 'Rosa' }])
-    await user.selectOptions(screen.getByLabelText('Servicio'), 's2')
-    await waitFor(() => expect(screen.getByLabelText('Profesional')).toHaveValue(''))
+    await pickOption('Servicio', 'Facial')
+    await waitFor(() => expect(screen.getByLabelText('Profesional').textContent).toContain('Elegí un profesional'))
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
   })
 
@@ -231,7 +229,7 @@ describe('AdminAppointmentDetailPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Editar' }))
     await screen.findByLabelText('Servicio')
     mocks.listStaffForService.mockResolvedValue([])
-    await user.selectOptions(screen.getByLabelText('Servicio'), 's2')
+    await pickOption('Servicio', 'Facial')
     expect(await screen.findByText('Ningún profesional activo realiza este servicio.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDisabled()
   })

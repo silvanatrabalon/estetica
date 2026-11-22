@@ -126,6 +126,13 @@ export const navigationByRole: Record<'customer' | 'staff' | 'admin' | 'all', Na
       roles: ['admin'],
     },
     {
+      id: 'promos',
+      label: navigationCopy.promos,
+      href: '/admin/promos',
+      icon: undefined,
+      roles: ['admin'],
+    },
+    {
       id: 'gift-cards',
       label: navigationCopy.giftCards,
       href: '/admin/gift-cards',

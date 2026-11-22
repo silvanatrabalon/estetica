@@ -1,4 +1,5 @@
 import type { StaffScheduleException } from '../../services/staffAvailability'
+import { ActionButton } from '../ActionButton'
 import { describeShifts, toDayShifts } from '../../lib/shifts'
 
 const TYPE_LABELS: Record<string, string> = {
@@ -62,14 +63,14 @@ export function ExceptionDateList({ exceptions, isSaving, onRemove, readOnly = f
             </div>
           </div>
           {!readOnly && (
-          <button
-            type="button"
+          <ActionButton
+            tone="danger"
             onClick={() => onRemove(exc.exceptionDate)}
             disabled={isSaving}
-            className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition-colors disabled:opacity-40"
+            className="shrink-0"
           >
             Eliminar
-          </button>
+          </ActionButton>
           )}
         </li>
       ))}

@@ -15,12 +15,14 @@ const ICON = {
   calendar: 'M3 5h18v16H3zM16 3v4M8 3v4M3 10h18',
   calendarPlus: 'M3 5h18v16H3zM16 3v4M8 3v4M3 10h18M12 13v6M9 16h6',
   clock: 'M12 7v5l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z',
+  tag: 'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM7 7h.01',
 }
 
 // Labels match the side menu so the same thing is never called two names.
 export const ADMIN_TABS: MobileTab[] = [
   { href: '/admin/dashboard', label: 'Inicio', icon: ICON.home },
   { href: '/admin/appointments', label: 'Turnos', icon: ICON.calendar },
+  { href: '/admin/services', label: 'Servicios', icon: ICON.tag },
 ]
 
 export const CUSTOMER_TABS: MobileTab[] = [

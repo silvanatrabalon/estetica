@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from 'react'
+import { ActionButton } from '../components/ActionButton'
 import { cn } from '../lib/cn'
 import { ShiftsFields } from '../components/availability'
 import { toDayShifts, validateShifts, type DayShifts } from '../lib/shifts'
@@ -118,6 +119,9 @@ export function BusinessSettingsPage() {
   const [savedHours, setSavedHours] = useState<BusinessHoursRecord[]>([])
   const [savedPolicy, setSavedPolicy] = useState<PolicySnapshot>({ minNotice: 60, maxHorizon: 60, email: '', enabled: true })
   const [closureDraft, setClosureDraft] = useState<ClosureDraft>(emptyClosureDraft())
+  // "Agregar cierre" and "Editar" open the form in a pop-up; its errors show inside it
+  const [closureModalOpen, setClosureModalOpen] = useState(false)
+  const [closureError, setClosureError] = useState<string | null>(null)
   const [missingReadiness, setMissingReadiness] = useState<string[]>([])
   const [activeTab, setActiveTab] = useState<'identity' | 'hours' | 'closures' | 'policy' | 'danger'>('identity')
   const [isLoading, setIsLoading] = useState(true)
@@ -418,6 +422,7 @@ export function BusinessSettingsPage() {
     event.preventDefault()
     setErrorMessage(null)
     setSuccessMessage(null)
+    setClosureError(null)
     setIsSavingClosure(true)
 
     try {
@@ -432,13 +437,42 @@ export function BusinessSettingsPage() {
 
       await refreshClosures()
       setClosureDraft(emptyClosureDraft())
+      setClosureModalOpen(false)
       setSuccessMessage('Cierre excepcional guardado correctamente.')
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'No pudimos guardar el cierre excepcional.')
+      setClosureError(error instanceof Error ? error.message : 'No pudimos guardar el cierre excepcional.')
     } finally {
       setIsSavingClosure(false)
     }
   }
+
+  const openAddClosure = () => {
+    setClosureDraft(emptyClosureDraft())
+    setClosureError(null)
+    setClosureModalOpen(true)
+  }
+
+  const openEditClosure = (closure: BusinessClosureRecord) => {
+    setClosureDraft(toDraft(closure))
+    setClosureError(null)
+    setClosureModalOpen(true)
+  }
+
+  const closeClosureModal = () => {
+    setClosureModalOpen(false)
+    setClosureDraft(emptyClosureDraft())
+    setClosureError(null)
+  }
+
+  // Escape closes the pop-up (not while it is saving)
+  useEffect(() => {
+    if (!closureModalOpen) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSavingClosure) closeClosureModal()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [closureModalOpen, isSavingClosure])
 
   const handleDeleteClosure = (closureId: string) => {
     showConfirm(
@@ -679,6 +713,15 @@ export function BusinessSettingsPage() {
             <p className="mt-1 mb-3 text-sm text-gray-500">
               Elegí cómo trabaja el negocio. Los profesionales siguen la misma forma de trabajo.
             </p>
+            <p
+              role="note"
+              className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900"
+            >
+              <strong className="font-semibold">Estos horarios tienen prioridad sobre los de los profesionales.</strong> Si el local
+              está cerrado un día, o fuera de este horario, el cliente no puede reservar, aunque el profesional esté
+              disponible. Un profesional solo puede ofrecer turnos dentro de estos horarios; los cierres de la pestaña
+              Cierres también quitan turnos.
+            </p>
             <div role="radiogroup" aria-label="Forma de trabajo" className="mb-5 grid grid-cols-2 gap-2 sm:max-w-sm">
               {[
                 { value: false, label: 'Jornada corrida' },
@@ -768,93 +811,16 @@ export function BusinessSettingsPage() {
       <div className={activeTab !== 'closures' ? 'hidden' : ''}>
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-shell-border shadow-sm p-5">
-            <h3 className="font-semibold text-gray-900 text-sm">Cierres excepcionales</h3>
-            <p className="mt-1 mb-4 text-sm text-gray-500">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-semibold text-gray-900 text-sm">Cierres excepcionales</h3>
+              <button type="button" onClick={openAddClosure} className={cn(saveBtnCls, 'shrink-0 !px-4')}>
+                + Agregar cierre
+              </button>
+            </div>
+            {/* Under the title and button, across the whole width, so it takes less height on phones */}
+            <p className="mt-2 text-sm text-gray-500">
               Para feriados, vacaciones o un día que no atendés. Un cierre tiene prioridad sobre tus horarios de la semana.
             </p>
-            <form onSubmit={handleSaveClosure} className="space-y-3">
-              <div>
-                <label htmlFor="closure-date" className="block text-sm text-gray-700">Fecha</label>
-                <input
-                  id="closure-date"
-                  className={cn(fieldCls, 'mt-1')}
-                  type="date"
-                  value={closureDraft.closureDate}
-                  onChange={(e) => setClosureDraft((d) => ({ ...d, closureDate: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="closure-type" className="block text-sm text-gray-700">Tipo de cierre</label>
-                <Select
-                  id="closure-type"
-                  className={fieldCls}
-                  wrapperClassName="mt-1"
-                  value={closureDraft.closureType}
-                  onChange={(e) =>
-                    setClosureDraft((d) => ({
-                      ...d,
-                      closureType: e.target.value as BusinessClosureType,
-                    }))
-                  }
-                >
-                  <option value="full_day">Todo el día</option>
-                  <option value="half_day">Media jornada</option>
-                </Select>
-              </div>
-
-              {closureDraft.closureType === 'half_day' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="closure-starts" className="block text-sm text-gray-700">Cierra desde</label>
-                    <input
-                      id="closure-starts"
-                      className={cn(fieldCls, 'mt-1')}
-                      type="time"
-                      value={closureDraft.startsAt}
-                      onChange={(e) => setClosureDraft((d) => ({ ...d, startsAt: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="closure-ends" className="block text-sm text-gray-700">Reabre a las</label>
-                    <input
-                      id="closure-ends"
-                      className={cn(fieldCls, 'mt-1')}
-                      type="time"
-                      value={closureDraft.endsAt}
-                      onChange={(e) => setClosureDraft((d) => ({ ...d, endsAt: e.target.value }))}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label htmlFor="closure-reason" className="block text-sm text-gray-700">Motivo (opcional)</label>
-                <input
-                  id="closure-reason"
-                  className={cn(fieldCls, 'mt-1')}
-                  type="text"
-                  value={closureDraft.reason}
-                  onChange={(e) => setClosureDraft((d) => ({ ...d, reason: e.target.value }))}
-                  placeholder="Ej: Feriado nacional"
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <button type="submit" disabled={isSavingClosure} className={saveBtnCls}>
-                  {isSavingClosure ? 'Guardando…' : closureDraft.id ? 'Actualizar cierre' : 'Guardar cierre'}
-                </button>
-                {closureDraft.id && (
-                  <button
-                    type="button"
-                    onClick={() => setClosureDraft(emptyClosureDraft())}
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-                  >
-                    Cancelar
-                  </button>
-                )}
-              </div>
-            </form>
           </div>
 
           {closures.length > 0 && (
@@ -872,23 +838,20 @@ export function BusinessSettingsPage() {
                         {closure.reason ? ` · ${closure.reason}` : ''}
                       </p>
                     </div>
-                    <div className="flex shrink-0 gap-1">
-                      <button
-                        type="button"
+                    <div className="flex shrink-0 items-center gap-4">
+                      <ActionButton
                         aria-label={`Editar cierre del ${formatClosureDate(closure.closureDate)}`}
-                        onClick={() => setClosureDraft(toDraft(closure))}
-                        className="min-h-11 rounded-lg px-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+                        onClick={() => openEditClosure(closure)}
                       >
                         Editar
-                      </button>
-                      <button
-                        type="button"
+                      </ActionButton>
+                      <ActionButton
+                        tone="danger"
                         aria-label={`Eliminar cierre del ${formatClosureDate(closure.closureDate)}`}
                         onClick={() => handleDeleteClosure(closure.id)}
-                        className="min-h-11 rounded-lg px-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
                       >
                         Eliminar
-                      </button>
+                      </ActionButton>
                     </div>
                   </li>
                 ))}
@@ -997,6 +960,109 @@ export function BusinessSettingsPage() {
           </div>
         </form>
       </div>
+
+      {closureModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 sm:items-center sm:p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="closure-modal-title"
+            className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-white p-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl sm:rounded-2xl"
+          >
+            <h3 id="closure-modal-title" className="mb-3 text-base font-semibold text-gray-900">
+              {closureDraft.id ? 'Editar cierre' : 'Agregar cierre'}
+            </h3>
+            <form onSubmit={handleSaveClosure} noValidate className="space-y-3">
+              <div>
+                <label htmlFor="closure-date" className="block text-sm text-gray-700">Fecha</label>
+                <input
+                  id="closure-date"
+                  className="dt-field mt-1"
+                  type="date"
+                  value={closureDraft.closureDate}
+                  onChange={(e) => setClosureDraft((d) => ({ ...d, closureDate: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="closure-type" className="block text-sm text-gray-700">Tipo de cierre</label>
+                <Select
+                  id="closure-type"
+                  className={fieldCls}
+                  wrapperClassName="mt-1"
+                  value={closureDraft.closureType}
+                  onChange={(e) =>
+                    setClosureDraft((d) => ({
+                      ...d,
+                      closureType: e.target.value as BusinessClosureType,
+                    }))
+                  }
+                >
+                  <option value="full_day">Todo el día</option>
+                  <option value="half_day">Media jornada</option>
+                </Select>
+              </div>
+
+              {closureDraft.closureType === 'half_day' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label htmlFor="closure-starts" className="block text-sm text-gray-700">Cierra desde</label>
+                    <input
+                      id="closure-starts"
+                      className="dt-field mt-1"
+                      type="time"
+                      value={closureDraft.startsAt}
+                      onChange={(e) => setClosureDraft((d) => ({ ...d, startsAt: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="closure-ends" className="block text-sm text-gray-700">Reabre a las</label>
+                    <input
+                      id="closure-ends"
+                      className="dt-field mt-1"
+                      type="time"
+                      value={closureDraft.endsAt}
+                      onChange={(e) => setClosureDraft((d) => ({ ...d, endsAt: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="closure-reason" className="block text-sm text-gray-700">Motivo (opcional)</label>
+                <input
+                  id="closure-reason"
+                  className={cn(fieldCls, 'mt-1')}
+                  type="text"
+                  value={closureDraft.reason}
+                  onChange={(e) => setClosureDraft((d) => ({ ...d, reason: e.target.value }))}
+                  placeholder="Ej: Feriado nacional"
+                />
+              </div>
+
+              {closureError && (
+                <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {closureError}
+                </p>
+              )}
+
+              <div className="flex gap-3">
+                <button type="submit" disabled={isSavingClosure} className={saveBtnCls}>
+                  {isSavingClosure ? 'Guardando…' : closureDraft.id ? 'Actualizar cierre' : 'Guardar cierre'}
+                </button>
+                <button
+                  type="button"
+                  onClick={closeClosureModal}
+                  disabled={isSavingClosure}
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <FeedbackToast
         success={successMessage}

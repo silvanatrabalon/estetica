@@ -40,6 +40,7 @@ export const routePolicies: RoutePolicy[] = [
   { path: '/admin/appointments', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/stats', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/coupons', access: 'role-restricted', allowedRoles: ['admin'] },
+  { path: '/admin/promos', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/gift-cards', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/reports', access: 'role-restricted', allowedRoles: ['admin'] },
   { path: '/admin/appearance', access: 'role-restricted', allowedRoles: ['admin'] },

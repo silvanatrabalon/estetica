@@ -1,4 +1,5 @@
-import { resolveBookingTexts } from '../lib/brand'
+import { BookingStepper } from '../components/booking/BookingStepper'
+import { FilterMenu } from '../components/FilterMenu'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../hooks/useUser'
@@ -20,13 +21,18 @@ import { getBusinessSettings } from '../services/businessSettings'
 import { getLandingConfig } from '../services/landing'
 import { createAppointment, isConflictError } from '../services/appointments'
 import { validateCoupon } from '../services/coupons'
-import { normalizeCouponCode } from '../lib/coupons'
+import { normalizeCouponCode, shortDiscount } from '../lib/coupons'
 import type { AvailableSlot } from '../services/availability'
 import type { Service } from '../services/adminServices'
 import { listCategories } from '../services/adminCategories'
+import { listActivePromos, type ActivePromo } from '../services/promos'
+import { formatPromoDay } from '../lib/promos'
 import type { ServiceCategory } from '../services/adminCategories'
 
 type Step = 1 | 2 | 3 | 4
+
+/** Filter value for "only services in promo" (category ids are UUIDs, so no clash). */
+const PROMO_FILTER = 'promo'
 
 function addDays(date: Date, days: number): string {
   const result = new Date(date)
@@ -47,7 +53,6 @@ export function BookingPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<AvailableSlot | null>(null)
   const [orgTimezone, setOrgTimezone] = useState('UTC')
-  const [bookingTexts, setBookingTexts] = useState(() => resolveBookingTexts({}))
   const [orgOpenTime, setOrgOpenTime] = useState('08:00')
   const [orgCloseTime, setOrgCloseTime] = useState('20:00')
   const [maxHorizonDays, setMaxHorizonDays] = useState(60)
@@ -65,6 +70,7 @@ export function BookingPage() {
     finalPriceCents: number
   } | null>(null)
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
+  const [promos, setPromos] = useState<Record<string, ActivePromo>>({})
 
   const { services, loading: servicesLoading, error: servicesError } = useActiveServices()
   const {
@@ -77,12 +83,6 @@ export function BookingPage() {
     void Promise.all([
       getBusinessSettings().then((settings) => {
         setOrgTimezone(settings.timezone)
-        setBookingTexts(
-          resolveBookingTexts({
-            bookingHeaderText: settings.bookingHeaderText,
-            bookingSubtitleText: settings.bookingSubtitleText,
-          }),
-        )
         setMaxHorizonDays(settings.bookingMaxHorizonDays)
         const { openTime, closeTime } = deriveGridTimes(settings.weeklyHours)
         setOrgOpenTime(openTime)
@@ -92,11 +92,16 @@ export function BookingPage() {
         if (config.primaryColor) setPrimaryColor(config.primaryColor)
       }),
       listCategories().then(setCategories).catch(() => {}),
+      listActivePromos()
+        .then((list) => setPromos(Object.fromEntries(list.map((p) => [p.serviceId, p]))))
+        .catch(() => {}),
     ]).catch(() => {
       // Non-critical: fallback values already set
     })
   }, [])
 
+  const hasPromos = services.some((s) => promos[s.id])
+  const selectedPromo = selectedService ? promos[selectedService.id] : undefined
   const today = toLocalDateKey(new Date().toISOString(), orgTimezone)
   const maxDate = addDays(new Date(today + 'T12:00:00Z'), maxHorizonDays)
 
@@ -153,6 +158,21 @@ export function BookingPage() {
   }
 
 
+  // Pressing a step already done in the stepper goes back to it, dropping what was chosen after it
+  function goToStep(target: 1 | 2 | 3) {
+    if (target >= step) return
+    setBookingError(null)
+    if (target === 1) {
+      setSelectedService(null)
+      setSelectedDate(null)
+      setSelectedSlot(null)
+    } else if (target === 2) {
+      setSelectedDate(null)
+      setSelectedSlot(null)
+    }
+    setStep(target)
+  }
+
   function handleBack() {
     if (step === 2) {
       setSelectedService(null)
@@ -199,37 +219,23 @@ export function BookingPage() {
 
   return (
     <div className="max-w-lg mx-auto pb-24">
-      {/* Sticky step bar — shown from step 2+, sits just below the shell navbar */}
-      {step > 1 && (
-        <div className="sticky top-16 z-20 -mx-4 md:-mx-6 mb-5 flex items-center gap-3 border-b border-shell-border bg-shell-surface/95 px-4 py-2.5 backdrop-blur-sm md:px-6">
+      {/* Step by step menu, always at the top; back arrow from step 2.
+          Not sticky: the shell's <main> is the scroll container and never scrolls, so sticky left a gap. */}
+      <div className="mb-5 flex items-start gap-3">
+        {step > 1 && (
           <button
             type="button"
             onClick={handleBack}
             aria-label="Volver al paso anterior"
-            className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-shell-border bg-white text-shell-subtleText shadow-sm transition-colors hover:border-shell-text hover:text-shell-text"
+            className="mt-0 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-shell-border bg-white text-shell-subtleText shadow-sm transition-colors hover:border-shell-text hover:text-shell-text"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="m15 18-6-6 6-6" />
             </svg>
           </button>
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] leading-none text-shell-subtleText mb-0.5">Reservar turno</p>
-            <p className="text-sm font-semibold text-shell-text truncate">
-              {step === 2 ? 'Elegí una fecha' : step === 3 ? 'Elegí un horario' : 'Confirmá tu reserva'}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {[2, 3, 4].map((s) => (
-              <span
-                key={s}
-                className={`block h-1.5 rounded-full transition-all duration-300 ${
-                  s < step ? 'w-3 bg-emerald-500' : s === step ? 'w-4 bg-emerald-500' : 'w-1.5 bg-shell-border'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+        )}
+        <BookingStepper step={step} onGoTo={goToStep} />
+      </div>
 
       {/* Fixed CTA — shown from step 3+ */}
       {step >= 3 && (
@@ -238,34 +244,16 @@ export function BookingPage() {
             type="button"
             onClick={step === 4 ? handleConfirm : () => { setBookingError(null); setStep(4) }}
             disabled={step === 3 ? selectedSlot === null : bookingLoading}
-            className="w-full md:w-auto rounded-lg bg-emerald-600 px-6 py-3 font-semibold text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+            className="w-full md:w-auto rounded-lg bg-brand-primary px-6 py-3 font-semibold text-white hover:bg-brand-strong disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {step === 4 ? (bookingLoading ? 'Confirmando…' : 'Confirmar reserva') : 'Siguiente'}
           </button>
         </div>
       )}
 
-      {step === 1 && (
-        <h2 className="text-2xl font-heading font-bold text-shell-text mb-6">{bookingTexts.header}</h2>
-      )}
-
-      {/* Step indicator — only on step 1 */}
-      {step === 1 && (
-        <div className="flex items-center gap-2 mb-6 text-sm text-shell-subtleText">
-          <span className="font-semibold text-shell-text">Servicio</span>
-          <span>›</span>
-          <span>Fecha</span>
-          <span>›</span>
-          <span>Horario</span>
-          <span>›</span>
-          <span>Confirmar</span>
-        </div>
-      )}
-
       {/* Step 1: Service selector */}
       {step === 1 && (
         <div>
-          <p className="text-shell-subtleText mb-4">{bookingTexts.subtitle}</p>
           {servicesLoading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3].map((i) => (
@@ -290,48 +278,91 @@ export function BookingPage() {
           )}
           {!servicesLoading && !servicesError && services.length > 0 && (
             <>
-              {/* Category filter chips */}
-              {categories.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => setActiveCategoryId(null)}
-                    className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                      activeCategoryId === null
-                        ? 'bg-gray-800 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Todos
-                  </button>
-                  {categories
-                    .filter((cat) => services.some((s) => s.categoryId === cat.id))
-                    .map((cat) => (
+              {/* Category filter: one button with a drop-down on phones, chips from sm up */}
+              {(categories.length > 0 || hasPromos) && (
+                <>
+                  <div className="mb-4 sm:hidden">
+                    <FilterMenu
+                      label="Filtrar por categoría"
+                      options={[
+                        { value: '', label: 'Todas las categorías' },
+                        ...(hasPromos ? [{ value: PROMO_FILTER, label: 'Promos' }] : []),
+                        ...categories
+                          .filter((cat) => services.some((s) => s.categoryId === cat.id))
+                          .map((cat) => ({ value: cat.id, label: cat.name })),
+                      ]}
+                      value={activeCategoryId ?? ''}
+                      onSelect={(value) => setActiveCategoryId(value === '' ? null : value)}
+                      active={activeCategoryId !== null}
+                    >
+                      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3 5h18l-7 8v6l-4 2v-8L3 5z" />
+                      </svg>
+                      {activeCategoryId === null
+                        ? 'Todas las categorías'
+                        : activeCategoryId === PROMO_FILTER
+                          ? 'Promos'
+                          : (categories.find((c) => c.id === activeCategoryId)?.name ?? 'Categoría')}
+                      <span aria-hidden="true" className="text-xs text-shell-subtleText">▾</span>
+                    </FilterMenu>
+                  </div>
+                  <div className="hidden flex-wrap gap-2 mb-4 sm:flex">
+                    <button
+                      type="button"
+                      onClick={() => setActiveCategoryId(null)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                        activeCategoryId === null
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    {hasPromos && (
                       <button
-                        key={cat.id}
                         type="button"
-                        onClick={() => setActiveCategoryId(cat.id)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                          activeCategoryId === cat.id
-                            ? 'bg-gray-800 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        onClick={() => setActiveCategoryId(PROMO_FILTER)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-bold transition-colors ${
+                          activeCategoryId === PROMO_FILTER
+                            ? 'bg-[var(--color-peach-ink)] text-white'
+                            : 'bg-[var(--color-peach)] text-[var(--color-peach-ink)] hover:brightness-95'
                         }`}
                       >
-                        {cat.name}
+                        Promos
                       </button>
-                    ))}
-                </div>
+                    )}
+                    {categories
+                      .filter((cat) => services.some((s) => s.categoryId === cat.id))
+                      .map((cat) => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setActiveCategoryId(cat.id)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                            activeCategoryId === cat.id
+                              ? 'bg-gray-800 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {cat.name}
+                        </button>
+                      ))}
+                  </div>
+                </>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {(activeCategoryId === null
                   ? services
-                  : services.filter((s) => s.categoryId === activeCategoryId)
+                  : activeCategoryId === PROMO_FILTER
+                    ? services.filter((s) => promos[s.id])
+                    : services.filter((s) => s.categoryId === activeCategoryId)
                 ).map((svc) => (
                   <ServiceCard
                     key={svc.id}
                     service={svc}
                     selected={selectedService?.id === svc.id}
                     primaryColor={primaryColor}
+                    promo={promos[svc.id]}
                     onClick={() => handleCardClick(svc)}
                   />
                 ))}
@@ -341,6 +372,7 @@ export function BookingPage() {
 
           <ServiceDetailPanel
             service={panelService}
+            promo={panelService ? promos[panelService.id] : undefined}
             isOpen={panelService !== null}
             onClose={() => setPanelService(null)}
             onSelect={handleServiceSelect}
@@ -424,6 +456,22 @@ export function BookingPage() {
                 ${(selectedService.priceCents / 100).toFixed(2)}
               </span>
             </div>
+            {selectedPromo && (
+              <>
+                <div className="px-4 py-3 flex justify-between bg-[var(--color-peach)]/40">
+                  <span className="text-sm font-medium text-[var(--color-peach-ink)]">Promo {selectedPromo.name}</span>
+                  <span className="text-sm font-medium text-[var(--color-peach-ink)]">
+                    -${(selectedPromo.discountCents / 100).toFixed(2)}
+                  </span>
+                </div>
+                <div className="px-4 py-3 flex justify-between">
+                  <span className="text-sm font-semibold text-shell-text">Total</span>
+                  <span className="text-sm font-bold text-shell-text">
+                    ${(selectedPromo.finalPriceCents / 100).toFixed(2)}
+                  </span>
+                </div>
+              </>
+            )}
             {appliedCoupon && (
               <>
                 <div className="px-4 py-3 flex justify-between">
@@ -454,7 +502,12 @@ export function BookingPage() {
           )}
 
           {/* Coupon: only for the person booking for themselves */}
-          {canUseCoupon(target) && (
+          {selectedPromo && canUseCoupon(target) && (
+            <p className="mb-4 rounded-2xl bg-[var(--color-peach)]/40 px-4 py-3 text-sm text-[var(--color-peach-ink)]">
+              Este servicio ya tiene una promo y no se suma con cupones.
+            </p>
+          )}
+          {!selectedPromo && canUseCoupon(target) && (
           <div className="mb-4 rounded-3xl border border-shell-border bg-white p-4">
             {appliedCoupon ? (
               <div className="flex items-center justify-between gap-3">
@@ -483,7 +536,7 @@ export function BookingPage() {
                     }}
                     placeholder="Ej: VERANO10"
                     autoComplete="off"
-                    className="min-w-0 flex-1 rounded-lg border border-shell-border px-3 py-2 font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="min-w-0 flex-1 rounded-lg border border-shell-border px-3 py-2 font-mono text-sm uppercase focus:outline-none focus:ring-2 focus:ring-[var(--color-focus-ring)]"
                   />
                   <button
                     type="button"
@@ -540,10 +593,11 @@ interface ServiceCardProps {
   service: Service
   selected: boolean
   primaryColor: string
+  promo?: ActivePromo
   onClick: () => void
 }
 
-function ServiceCard({ service, selected, primaryColor, onClick }: ServiceCardProps) {
+function ServiceCard({ service, selected, primaryColor, promo, onClick }: ServiceCardProps) {
   const [imgError, setImgError] = useState(false)
   const truncatedDesc = service.description
     ? service.description.length > 80
@@ -555,10 +609,12 @@ function ServiceCard({ service, selected, primaryColor, onClick }: ServiceCardPr
     <button
       type="button"
       onClick={onClick}
-      className={`relative w-full text-left rounded-xl border transition-all duration-150 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+      className={`relative w-full text-left rounded-xl border transition-all duration-150 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-focus-ring)] ${
         selected
-          ? 'border-emerald-500 shadow-md ring-1 ring-emerald-500'
-          : 'border-shell-border bg-white hover:shadow-md hover:border-emerald-300'
+          ? 'border-brand-primary shadow-md ring-1 ring-brand-primary'
+          : promo
+            ? 'border-[var(--color-peach-ink)]/40 bg-white hover:shadow-md hover:border-[var(--color-peach-ink)]'
+            : 'border-shell-border bg-white hover:shadow-md hover:border-brand-primary/40'
       }`}
     >
       {/* Image area */}
@@ -596,9 +652,15 @@ function ServiceCard({ service, selected, primaryColor, onClick }: ServiceCardPr
         )}
       </div>
 
+      {promo && (
+        <span className="absolute left-2 top-2 rounded-full bg-[var(--color-peach)] px-2.5 py-1 text-xs font-bold text-[var(--color-peach-ink)] shadow-sm">
+          PROMO {shortDiscount({ type: promo.discountType, value: promo.discountValue })}
+        </span>
+      )}
+
       {/* Selected checkmark */}
       {selected && (
-        <div className="absolute top-2 right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
+        <div className="absolute top-2 right-2 w-6 h-6 bg-brand-primary rounded-full flex items-center justify-center">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="w-3.5 h-3.5 text-white"
@@ -616,9 +678,17 @@ function ServiceCard({ service, selected, primaryColor, onClick }: ServiceCardPr
       {/* Card body */}
       <div className="p-3">
         <p className="font-semibold text-shell-text text-sm leading-tight">{service.name}</p>
-        <p className="text-xs text-shell-subtleText mt-0.5">
-          {formatPriceARS(service.priceCents)} · {service.durationMinutes} min
-        </p>
+        {promo ? (
+          <p className="text-xs mt-0.5">
+            <s className="text-shell-subtleText">{formatPriceARS(service.priceCents)}</s>{' '}
+            <strong className="text-sm text-[var(--color-peach-ink)]">{formatPriceARS(promo.finalPriceCents)}</strong>
+            <span className="text-shell-subtleText"> · {service.durationMinutes} min</span>
+          </p>
+        ) : (
+          <p className="text-xs text-shell-subtleText mt-0.5">
+            {formatPriceARS(service.priceCents)} · {service.durationMinutes} min
+          </p>
+        )}
         {truncatedDesc && (
           <p className="text-xs text-shell-subtleText mt-1 line-clamp-2">{truncatedDesc}</p>
         )}
@@ -633,6 +703,7 @@ function ServiceCard({ service, selected, primaryColor, onClick }: ServiceCardPr
 
 interface ServiceDetailPanelProps {
   service: Service | null
+  promo?: ActivePromo
   isOpen: boolean
   onClose: () => void
   onSelect: (service: Service) => void
@@ -640,6 +711,7 @@ interface ServiceDetailPanelProps {
 
 function ServiceDetailPanel({
   service,
+  promo,
   isOpen,
   onClose,
   onSelect,
@@ -736,9 +808,26 @@ function ServiceDetailPanel({
         {/* Content */}
         <div className="p-6">
           <h3 className="text-xl font-bold text-shell-text">{service.name}</h3>
-          <p className="text-shell-subtleText mt-1">
-            {formatPriceARS(service.priceCents)} · {service.durationMinutes} min
-          </p>
+          {promo ? (
+            <>
+              <p className="mt-1 text-shell-subtleText">
+                <s>{formatPriceARS(service.priceCents)}</s>{' '}
+                <strong className="text-lg text-[var(--color-peach-ink)]">{formatPriceARS(promo.finalPriceCents)}</strong>
+                {' '}· {service.durationMinutes} min
+              </p>
+              <div className="mt-3 rounded-xl bg-[var(--color-peach)]/50 px-3 py-2 text-sm text-[var(--color-peach-ink)]">
+                <p className="font-bold">
+                  Promo {promo.name} · {shortDiscount({ type: promo.discountType, value: promo.discountValue })}
+                </p>
+                {promo.description && <p>{promo.description}</p>}
+                <p className="text-xs">Válida hasta el {formatPromoDay(promo.endsOn)}</p>
+              </div>
+            </>
+          ) : (
+            <p className="text-shell-subtleText mt-1">
+              {formatPriceARS(service.priceCents)} · {service.durationMinutes} min
+            </p>
+          )}
           {service.description && (
             <p className="mt-4 text-sm text-shell-text leading-relaxed">{service.description}</p>
           )}
@@ -746,7 +835,7 @@ function ServiceDetailPanel({
           <button
             type="button"
             onClick={() => onSelect(service)}
-            className="mt-6 w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 transition-colors"
+            className="mt-6 w-full rounded-lg bg-brand-primary px-4 py-3 font-semibold text-white hover:bg-brand-strong transition-colors"
           >
             Seleccionar este servicio
           </button>

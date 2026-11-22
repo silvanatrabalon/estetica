@@ -85,7 +85,7 @@ export function ExceptionDateForm({ isSaving, split = false, onAdd }: ExceptionD
             value={exceptionDate}
             onChange={(e) => setExceptionDate(e.target.value)}
             disabled={isSaving}
-            className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:opacity-50 disabled:bg-gray-50"
+            className="dt-field"
           />
           {dateError && <p className="mt-1.5 text-xs text-red-500">{dateError}</p>}
         </div>

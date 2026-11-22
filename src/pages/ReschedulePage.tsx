@@ -132,7 +132,7 @@ export function ReschedulePage() {
               type="date"
               min={today}
               max={maxDate}
-              className="block w-full rounded-lg border border-shell-border px-3 py-2 text-shell-text focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="dt-field"
               onChange={(e) => {
                 if (e.target.value) {
                   setSelectedDate(e.target.value)
@@ -182,8 +182,8 @@ export function ReschedulePage() {
                         }}
                         className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                           isSelected
-                            ? 'bg-emerald-600 border-emerald-600 text-white'
-                            : 'border-shell-border bg-white text-shell-text hover:bg-emerald-50 hover:border-emerald-400'
+                            ? 'bg-brand-primary border-brand-primary text-white'
+                            : 'border-shell-border bg-white text-shell-text hover:bg-shell-muted hover:border-brand-primary/50'
                         }`}
                       >
                         {formatSlotTime(slot.starts_at, orgTimezone)}
@@ -243,7 +243,7 @@ export function ReschedulePage() {
             type="button"
             onClick={handleConfirm}
             disabled={rescheduleLoading}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full rounded-lg bg-brand-primary px-4 py-3 font-semibold text-white hover:bg-brand-strong disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {rescheduleLoading ? 'Reprogramando turno...' : 'Confirmar reprogramación'}
           </button>

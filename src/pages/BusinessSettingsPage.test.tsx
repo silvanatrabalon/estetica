@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { BusinessSettingsPage } from './BusinessSettingsPage'
 import { TestUserProvider } from '../hooks/__test-utils__/test-providers'
 import { mockSessions } from '../hooks/__test-utils__/fixtures'
+import { pickOption, listOptions } from '../hooks/__test-utils__/select'
 
 const mockGetBusinessSettings = vi.fn()
 const mockSaveBusinessSettings = vi.fn()
@@ -123,8 +124,9 @@ describe('BusinessSettingsPage', () => {
       expect(screen.getByText('Cierres excepcionales')).toBeDefined()
     })
 
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar cierre' }))
     fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-05-20' } })
-    fireEvent.change(screen.getByLabelText('Tipo de cierre'), { target: { value: 'half_day' } })
+    await pickOption('Tipo de cierre', 'Media jornada')
     fireEvent.change(screen.getByLabelText('Cierra desde'), { target: { value: '13:00' } })
     fireEvent.change(screen.getByLabelText('Reabre a las'), { target: { value: '17:00' } })
     fireEvent.change(screen.getByLabelText('Motivo (opcional)'), { target: { value: 'Capacitacion' } })
@@ -300,7 +302,7 @@ describe('BusinessSettingsPage', () => {
       await screen.findByDisplayValue('Salon Centro')
 
       fireEvent.click(screen.getByRole('tab', { name: /Política/ }))
-      fireEvent.change(await screen.findByLabelText('Anticipación mínima para reservar'), { target: { value: '120' } })
+      await pickOption('Anticipación mínima para reservar', '2 horas')
 
       expect(screen.getByRole('tab', { name: /Política.*con cambios sin guardar/ })).toBeDefined()
     })
@@ -486,6 +488,7 @@ describe('BusinessSettingsPage', () => {
       fireEvent.change(screen.getByLabelText('Lunes: hora de inicio'), { target: { value: '08:30' } })
       fireEvent.click(screen.getByRole('tab', { name: /Cierres/ }))
       mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ closures: [closure] }))
+      fireEvent.click(screen.getByRole('button', { name: '+ Agregar cierre' }))
       fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2099-12-24' } })
       fireEvent.click(screen.getByRole('button', { name: 'Guardar cierre' }))
 
@@ -659,30 +662,32 @@ describe('BusinessSettingsPage', () => {
         expect(screen.getByLabelText('Cuántos días hacia adelante se puede reservar')).toBeDefined()
       })
 
-      const noticeInput = screen.getByLabelText('Anticipación mínima para reservar') as HTMLSelectElement
+      const noticeInput = screen.getByLabelText('Anticipación mínima para reservar')
       const horizonInput = screen.getByLabelText('Cuántos días hacia adelante se puede reservar') as HTMLInputElement
-      expect(noticeInput.value).toBe('120')
+      expect(noticeInput.textContent).toContain('2 horas')
+      fireEvent.click(noticeInput)
       expect(screen.getByRole('option', { name: '2 horas' })).toBeDefined()
       expect(horizonInput.value).toBe('90')
     })
 
     it('offers the notice in plain words instead of raw minutes', async () => {
       renderBusinessSettingsPage()
-      const select = (await screen.findByLabelText('Anticipación mínima para reservar')) as HTMLSelectElement
+      const select = await screen.findByLabelText('Anticipación mínima para reservar')
+      expect(select.textContent).toContain('1 hora')
 
-      const labels = Array.from(select.options).map((o) => o.textContent)
+      const labels = await listOptions('Anticipación mínima para reservar')
       expect(labels).toEqual(
         expect.arrayContaining(['Sin anticipación', '30 minutos', '1 hora', '1 día', '1 semana']),
       )
-      expect(select.value).toBe('60')
     })
 
     it('keeps a stored custom notice selectable, shown in words (edge case)', async () => {
       mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ bookingMinNoticeMinutes: 90 }))
       renderBusinessSettingsPage()
 
-      const select = (await screen.findByLabelText('Anticipación mínima para reservar')) as HTMLSelectElement
-      expect(select.value).toBe('90')
+      const select = await screen.findByLabelText('Anticipación mínima para reservar')
+      expect(select.textContent).toContain('90 minutos')
+      fireEvent.click(select)
       expect(screen.getByRole('option', { name: '90 minutos' })).toBeDefined()
     })
 
@@ -725,9 +730,7 @@ describe('BusinessSettingsPage', () => {
         expect(screen.getByLabelText('Anticipación mínima para reservar')).toBeDefined()
       })
 
-      fireEvent.change(screen.getByLabelText('Anticipación mínima para reservar'), {
-        target: { value: '30' },
-      })
+      await pickOption('Anticipación mínima para reservar', '30 minutos')
       fireEvent.change(screen.getByLabelText('Cuántos días hacia adelante se puede reservar'), {
         target: { value: '90' },
       })
@@ -1005,5 +1008,136 @@ describe('BusinessSettingsPage — unsaved changes are never saved on their own'
     const back = new Event('beforeunload', { cancelable: true })
     window.dispatchEvent(back)
     expect(back.defaultPrevented).toBe(false)
+  })
+})
+
+describe('BusinessSettingsPage — hours explanation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse())
+  })
+
+  it('says that the business hours override the professionals\' hours', async () => {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    fireEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
+    const note = screen.getByRole('note')
+    expect(note).toHaveTextContent('Estos horarios tienen prioridad sobre los de los profesionales.')
+    expect(note).toHaveTextContent(/Si el local está cerrado un día, o fuera de este horario, el cliente no puede reservar, aunque el profesional esté disponible/)
+    expect(note).toHaveTextContent(/los cierres de la pestaña Cierres también quitan turnos/)
+  })
+
+  it('the note is only inside the Horarios section (edge case)', async () => {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    const note = screen.getByRole('note')
+    expect(note.closest('div[class*="hidden"]')).not.toBeNull() // hidden until Horarios is chosen
+    fireEvent.click(screen.getByRole('tab', { name: 'Horarios' }))
+    expect(note.closest('div[class*="hidden"]')).toBeNull()
+  })
+})
+
+describe('BusinessSettingsPage — Cierres in pop-ups', () => {
+  const closure = { id: 'c1', closureDate: '2026-12-24', closureType: 'full_day', startsAt: null, endsAt: null, reason: 'Navidad' }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ closures: [closure] }))
+    mockSaveBusinessClosure.mockResolvedValue(undefined)
+  })
+
+  async function openClosures() {
+    renderBusinessSettingsPage()
+    await screen.findByDisplayValue('Salon Centro')
+    fireEvent.click(screen.getByRole('tab', { name: /Cierres/ }))
+  }
+
+  it('the form is not on the page: there is an "Agregar cierre" button instead', async () => {
+    await openClosures()
+    expect(screen.getByRole('button', { name: '+ Agregar cierre' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByLabelText('Tipo de cierre')).toBeNull()
+  })
+
+  it('"Agregar cierre" opens a pop-up with an empty form (sheet on phones, centered on larger screens)', async () => {
+    await openClosures()
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar cierre' }))
+    const dialog = screen.getByRole('dialog', { name: 'Agregar cierre' })
+    expect(dialog.parentElement?.className).toContain('items-end')
+    expect(dialog.parentElement?.className).toContain('sm:items-center')
+    expect(dialog.className).toContain('max-h-[92dvh]')
+    expect((screen.getByLabelText('Fecha') as HTMLInputElement).value).toBe('')
+    expect(screen.getByRole('button', { name: 'Guardar cierre' })).toBeInTheDocument()
+  })
+
+  it('"Editar" opens the pop-up with that closure loaded', async () => {
+    await openClosures()
+    fireEvent.click(screen.getByRole('button', { name: /Editar cierre del Jueves 24 de diciembre/ }))
+    const dialog = screen.getByRole('dialog', { name: 'Editar cierre' })
+    expect(dialog).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Navidad')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('2026-12-24')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Actualizar cierre' })).toBeInTheDocument()
+  })
+
+  it('opening "Agregar" after "Editar" does not carry the old data over (edge case)', async () => {
+    await openClosures()
+    fireEvent.click(screen.getByRole('button', { name: /Editar cierre del/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar cierre' }))
+    expect((screen.getByLabelText('Fecha') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('Motivo (opcional)') as HTMLInputElement).value).toBe('')
+    expect(screen.getByRole('button', { name: 'Guardar cierre' })).toBeInTheDocument()
+  })
+
+  it('saving closes the pop-up and shows the success notice', async () => {
+    await openClosures()
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar cierre' }))
+    fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-12-31' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cierre' }))
+    await waitFor(() => expect(mockSaveBusinessClosure).toHaveBeenCalled())
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(await screen.findByText('Cierre excepcional guardado correctamente.')).toBeInTheDocument()
+  })
+
+  it('a failed save keeps the pop-up open and shows the error inside it (edge case)', async () => {
+    mockSaveBusinessClosure.mockRejectedValue(new Error('Ya hay un cierre ese día.'))
+    await openClosures()
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar cierre' }))
+    fireEvent.change(screen.getByLabelText('Fecha'), { target: { value: '2026-12-24' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cierre' }))
+    const dialog = screen.getByRole('dialog', { name: 'Agregar cierre' })
+    await waitFor(() => expect(dialog).toHaveTextContent('Ya hay un cierre ese día.'))
+    expect(screen.getAllByText('Ya hay un cierre ese día.')).toHaveLength(1)
+  })
+
+  it('Cancelar and Escape close it without saving (edge case)', async () => {
+    await openClosures()
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar cierre' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar cierre' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(mockSaveBusinessClosure).not.toHaveBeenCalled()
+  })
+
+  it('the button is there even with no closures, next to the empty message (edge case)', async () => {
+    mockGetBusinessSettings.mockResolvedValue(createSettingsResponse({ closures: [] }))
+    await openClosures()
+    expect(screen.getByText('Todavía no cargaste ningún cierre excepcional.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '+ Agregar cierre' })).toBeInTheDocument()
+  })
+
+  it('the explanation goes under the title and the button, across the whole width (edge case)', async () => {
+    await openClosures()
+    const title = screen.getByRole('heading', { name: 'Cierres excepcionales' })
+    const button = screen.getByRole('button', { name: '+ Agregar cierre' })
+    const row = title.parentElement!
+    expect(row).toContainElement(button)
+    const text = screen.getByText(/Para feriados, vacaciones o un día que no atendés/)
+    expect(row).not.toContainElement(text)
+    expect(text.parentElement).toBe(row.parentElement)
+    expect(title.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

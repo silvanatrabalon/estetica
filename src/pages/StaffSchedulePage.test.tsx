@@ -103,3 +103,58 @@ describe('StaffSchedulePage permission', () => {
     expect(screen.getByText('+ Agregar día')).toBeInTheDocument()
   })
 })
+
+describe('StaffSchedulePage explanation', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('tells the professional that this defines the appointments the client sees', () => {
+    render(<StaffSchedulePage />)
+    expect(screen.getByText('Esto define los turnos que ve el cliente.')).toBeInTheDocument()
+    expect(screen.getByText(/solo pueden reservar con vos en los días y horarios que figuran acá/)).toBeInTheDocument()
+  })
+})
+
+describe('StaffSchedulePage — unsaved changes', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('changing section with unsaved changes asks first; "Volver y guardar" stays', () => {
+    mockHook.mockReturnValue(hookValue({ isDirty: true }))
+    render(<StaffSchedulePage />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Días libres y especiales' }))
+    expect(screen.getByText('Tenés cambios sin guardar')).toBeInTheDocument()
+    expect(screen.getByText(/no se guardan solos/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Volver y guardar' }))
+    expect(screen.getByRole('tab', { name: 'Horario semanal' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('"Salir sin guardar" changes section and clears the unsaved mark', () => {
+    const setIsDirty = vi.fn()
+    mockHook.mockReturnValue(hookValue({ isDirty: true, setIsDirty }))
+    render(<StaffSchedulePage />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Días libres y especiales' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Salir sin guardar' }))
+    expect(screen.getByRole('tab', { name: 'Días libres y especiales' })).toHaveAttribute('aria-selected', 'true')
+    expect(setIsDirty).toHaveBeenCalledWith(false)
+  })
+
+  it('with nothing unsaved it changes section without asking (edge case)', () => {
+    mockHook.mockReturnValue(hookValue({ isDirty: false }))
+    render(<StaffSchedulePage />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Días libres y especiales' }))
+    expect(screen.queryByText('Tenés cambios sin guardar')).toBeNull()
+    expect(screen.getByRole('tab', { name: 'Días libres y especiales' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('the browser warns before closing only while there are unsaved changes (edge case)', () => {
+    mockHook.mockReturnValue(hookValue({ isDirty: false }))
+    const { rerender } = render(<StaffSchedulePage />)
+    const clean = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(clean)
+    expect(clean.defaultPrevented).toBe(false)
+    mockHook.mockReturnValue(hookValue({ isDirty: true }))
+    rerender(<StaffSchedulePage />)
+    const dirty = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(dirty)
+    expect(dirty.defaultPrevented).toBe(true)
+  })
+})
