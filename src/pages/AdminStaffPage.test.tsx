@@ -8,11 +8,17 @@ import { mockSessions } from '../hooks/__test-utils__/fixtures'
 const mockListAdminStaffMembers = vi.fn()
 const mockAdminCreateStaffMember = vi.fn()
 const mockAdminSetStaffActive = vi.fn()
+const mockCreateWithoutAccount = vi.fn()
+const mockLinkStaff = vi.fn()
+const mockRenameStaff = vi.fn()
 
 vi.mock('../services/adminStaff', () => ({
   listAdminStaffMembers: (...args: unknown[]) => mockListAdminStaffMembers(...args),
   adminCreateStaffMember: (...args: unknown[]) => mockAdminCreateStaffMember(...args),
   adminSetStaffActive: (...args: unknown[]) => mockAdminSetStaffActive(...args),
+  adminCreateStaffWithoutAccount: (...args: unknown[]) => mockCreateWithoutAccount(...args),
+  adminLinkStaffMember: (...args: unknown[]) => mockLinkStaff(...args),
+  adminRenameStaffMember: (...args: unknown[]) => mockRenameStaff(...args),
 }))
 
 const mockListAdminUsers = vi.fn()
@@ -283,14 +289,15 @@ describe('AdminStaffPage', () => {
       expect(Array.from(card.querySelectorAll('span')).some((el) => el.textContent === 'Staff')).toBe(true)
     })
 
-    it('falls back when the professional has no linked user (edge case)', async () => {
+    it('shows "Sin cuenta" instead of a role when the professional has no linked user (edge case)', async () => {
       mockListAdminUsers.mockResolvedValue(mockUsers)
       mockListAdminStaffMembers.mockResolvedValue([{ ...mockStaffMember, profileUserId: null, role: 'customer' }])
       renderAdminStaffPage()
 
       await screen.findByText('Bruno')
       const card = screen.getByText('Bruno').closest('div.shell-surface') as HTMLElement
-      expect(Array.from(card.querySelectorAll('span')).some((el) => el.textContent === 'Cliente')).toBe(true)
+      expect(Array.from(card.querySelectorAll('span')).some((el) => el.textContent === 'Sin cuenta')).toBe(true)
+      expect(Array.from(card.querySelectorAll('span')).some((el) => el.textContent === 'Cliente')).toBe(false)
     })
   })
 
@@ -310,6 +317,152 @@ describe('AdminStaffPage', () => {
       for (const name of ['Disponibilidad', 'Servicios', 'Editar roles', 'Desactivar']) {
         expect(screen.getByRole('button', { name })).toBeInTheDocument()
       }
+    })
+  })
+
+  describe('professionals without an account', () => {
+    const noAccount = {
+      ...mockStaffMember,
+      id: 'sm-9',
+      profileUserId: null,
+      displayName: 'Laura Sosa',
+      fullName: null,
+      inviteEmail: 'laura@mail.com',
+    }
+
+    async function openGuestForm() {
+      fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
+      fireEvent.click(await screen.findByRole('radio', { name: 'Sin cuenta' }))
+    }
+
+    it('offers "Con cuenta" and "Sin cuenta" and the second one asks for a name and an optional email', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([])
+      renderAdminStaffPage()
+      fireEvent.click((await screen.findAllByRole('button', { name: /Agregar profesional/ }))[0])
+      expect(screen.getByRole('radio', { name: 'Con cuenta' })).toHaveAttribute('aria-checked', 'true')
+      expect(screen.getByLabelText('Usuario vinculado')).toBeDefined()
+
+      fireEvent.click(screen.getByRole('radio', { name: 'Sin cuenta' }))
+      expect(screen.getByLabelText('Nombre')).toBeDefined()
+      expect(screen.getByLabelText(/Email/)).toBeDefined()
+      expect(screen.queryByLabelText('Usuario vinculado')).toBeNull()
+    })
+
+    it('creates a professional with a name and an invitation email', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([])
+      mockCreateWithoutAccount.mockResolvedValue(noAccount)
+      renderAdminStaffPage()
+      await openGuestForm()
+
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Laura Sosa' } })
+      fireEvent.change(screen.getByLabelText(/Email/), { target: { value: 'laura@mail.com' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+      await waitFor(() => expect(mockCreateWithoutAccount).toHaveBeenCalledWith('Laura Sosa', 'laura@mail.com'))
+      expect(await screen.findByText(/Cuando laura@mail.com entre a la app, queda vinculado/)).toBeDefined()
+      expect(screen.getByText('Sin cuenta')).toBeDefined()
+      expect(screen.getByText('Invitación: laura@mail.com')).toBeDefined()
+    })
+
+    it('a name alone is enough (edge case)', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([])
+      mockCreateWithoutAccount.mockResolvedValue({ ...noAccount, inviteEmail: null })
+      renderAdminStaffPage()
+      await openGuestForm()
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Laura Sosa' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      await waitFor(() => expect(mockCreateWithoutAccount).toHaveBeenCalledWith('Laura Sosa', ''))
+      expect(await screen.findByText('Profesional creado sin cuenta.')).toBeDefined()
+    })
+
+    it('needs a name of at least 2 letters (edge case)', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([])
+      renderAdminStaffPage()
+      await openGuestForm()
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'L' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      expect(await screen.findByText('El nombre debe tener al menos 2 caracteres.')).toBeDefined()
+      expect(mockCreateWithoutAccount).not.toHaveBeenCalled()
+    })
+
+    it('says so when the email already had an account and the link was immediate (edge case)', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([])
+      mockCreateWithoutAccount.mockResolvedValue({ ...mockStaffMember, profileUserId: 'u-5', inviteEmail: null })
+      renderAdminStaffPage()
+      await openGuestForm()
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Laura Sosa' } })
+      fireEvent.change(screen.getByLabelText(/Email/), { target: { value: 'ya@existe.com' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      expect(await screen.findByText('Ese email ya tenía cuenta: el profesional quedó vinculado.')).toBeDefined()
+    })
+
+    it('shows the database error and keeps the form open (edge case)', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([])
+      mockCreateWithoutAccount.mockRejectedValue(new Error('Ya hay un profesional sin cuenta con ese email.'))
+      renderAdminStaffPage()
+      await openGuestForm()
+      fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Laura Sosa' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+      expect(await screen.findByText('Ya hay un profesional sin cuenta con ese email.')).toBeDefined()
+      expect(screen.getByLabelText('Nombre')).toBeDefined()
+    })
+
+    it('a card without account offers linking and renaming, not "Editar roles"', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([noAccount])
+      renderAdminStaffPage()
+      await screen.findByText('Laura Sosa')
+      expect(screen.getByRole('button', { name: 'Vincular cuenta' })).toBeDefined()
+      expect(screen.getByRole('button', { name: 'Cambiar nombre' })).toBeDefined()
+      expect(screen.queryByRole('button', { name: 'Editar roles' })).toBeNull()
+    })
+
+    it('a card with account has neither "Vincular cuenta" nor "Cambiar nombre" (edge case)', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([mockStaffMember])
+      renderAdminStaffPage()
+      await screen.findByText('Bruno')
+      expect(screen.queryByRole('button', { name: 'Vincular cuenta' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Cambiar nombre' })).toBeNull()
+    })
+
+    it('links a professional to an account and takes the account name', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([noAccount])
+      mockLinkStaff.mockResolvedValue({ ...noAccount, profileUserId: 'u-1', displayName: 'Ana García', fullName: 'Ana García', inviteEmail: null })
+      renderAdminStaffPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Vincular cuenta' }))
+
+      expect(await screen.findByRole('heading', { name: 'Vincular una cuenta a Laura Sosa' })).toBeDefined()
+      fireEvent.change(screen.getByLabelText('Usuario vinculado'), { target: { value: 'u-1' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+      await waitFor(() => expect(mockLinkStaff).toHaveBeenCalledWith('sm-9', 'u-1'))
+      expect(await screen.findByText(/Cuenta vinculada/)).toBeDefined()
+      expect(screen.getByText('Ana García')).toBeDefined()
+      expect(screen.queryByText('Sin cuenta')).toBeNull()
+    })
+
+    it('does not link without choosing an account (edge case)', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([noAccount])
+      renderAdminStaffPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Vincular cuenta' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Guardar' }))
+      expect(await screen.findByText('Seleccioná un usuario para vincular al profesional.')).toBeDefined()
+      expect(mockLinkStaff).not.toHaveBeenCalled()
+    })
+
+    it('renames a professional without account', async () => {
+      mockListAdminStaffMembers.mockResolvedValue([noAccount])
+      mockRenameStaff.mockResolvedValue(undefined)
+      renderAdminStaffPage()
+      fireEvent.click(await screen.findByRole('button', { name: 'Cambiar nombre' }))
+
+      const input = (await screen.findByLabelText('Nombre')) as HTMLInputElement
+      expect(input.value).toBe('Laura Sosa')
+      fireEvent.change(input, { target: { value: 'Laura S.' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+      await waitFor(() => expect(mockRenameStaff).toHaveBeenCalledWith('sm-9', 'Laura S.'))
+      expect(await screen.findByText('Nombre actualizado.')).toBeDefined()
+      expect(screen.getByText('Laura S.')).toBeDefined()
     })
   })
 })

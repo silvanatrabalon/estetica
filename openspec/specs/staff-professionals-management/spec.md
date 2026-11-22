@@ -123,3 +123,24 @@ Each professional card MUST show one badge per role of the linked user (Administ
 
 ### Requirement: A professional's name is the name of their account
 `staff_members.display_name` SHALL always equal the account's name (profile full name; if the account has none, the email prefix at creation). Creating a professional ignores any typed name, renaming the account renames the professional (a blank name never overwrites it), and existing professionals were aligned once. There is no separate "nombre para mostrar" and no "Cambiar nombre" action; the name is edited in Usuarios y roles.
+
+### Requirement: Professionals without an account
+The admin can create a professional with just a name and an optional email ("Sin cuenta" in the creation form). It appears in the list with a "Sin cuenta" badge and, when there is an email, "Invitación: {email}". It can have availability and services and receives appointments like any other.
+
+#### Scenario: Invitation by email
+- **WHEN** a person signs in for the first time with the email saved on a professional without account
+- **THEN** they are linked to that professional, get the staff role and take the name of their account
+
+#### Scenario: The email already has an account
+- **WHEN** the admin creates the professional with an email that already belongs to an account
+- **THEN** the professional is linked right away (unless that account already has one)
+
+#### Scenario: Link by hand
+- **WHEN** the admin chooses "Vincular cuenta" and picks an account without a professional
+- **THEN** the professional is linked, gets the staff role and takes the account's name
+
+#### Scenario: Rename
+- **WHEN** the professional has no account
+- **THEN** "Cambiar nombre" is available; linked professionals have no such action (their name is the account's)
+
+Two professionals without account cannot share the same invitation email.

@@ -2,6 +2,9 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   adminCreateStaffMember,
+  adminCreateStaffWithoutAccount,
+  adminLinkStaffMember,
+  adminRenameStaffMember,
   adminSetStaffActive,
   listAdminStaffMembers,
   type AdminStaffMember,
@@ -11,7 +14,8 @@ import { roleLabel } from '../lib/adminUsersView'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { Select } from '../components/Select'
 
-type FormMode = 'create' | null
+/** 'account': new professional from an account. 'guest': new one without account. 'link' / 'rename': act on one. */
+type FormMode = 'account' | 'guest' | 'link' | 'rename' | null
 
 function getInitials(name: string): string {
   return name
@@ -26,6 +30,8 @@ interface StaffMemberCardProps {
   member: AdminStaffMember
   onToggleActive: (member: AdminStaffMember) => void
   onNavigate: (path: string) => void
+  onLink: (member: AdminStaffMember) => void
+  onRename: (member: AdminStaffMember) => void
   /** All roles of the linked user (from the users directory) */
   roles?: AdminManagedRole[]
 }
@@ -34,8 +40,11 @@ function StaffMemberCard({
   member,
   onToggleActive,
   onNavigate,
+  onLink,
+  onRename,
   roles,
 }: StaffMemberCardProps) {
+  const hasAccount = member.profileUserId !== null
   const initials = getInitials(member.displayName)
   // Highest role first; fall back to the single role from the staff list if the user is unknown
   const roleOrder: AdminManagedRole[] = ['admin', 'staff', 'customer']
@@ -60,16 +69,27 @@ function StaffMemberCard({
           {member.fullName && member.fullName !== member.displayName && (
             <p className="truncate text-xs text-shell-subtleText">{member.fullName}</p>
           )}
-          <div className="mt-1 flex flex-wrap gap-1">
-            {shownRoles.map((r) => (
-              <span
-                key={r}
-                className="rounded-full bg-shell-muted px-1.5 py-0.5 text-[11px] font-medium text-shell-subtleText"
-              >
-                {roleLabel(r)}
+          {hasAccount ? (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {shownRoles.map((r) => (
+                <span
+                  key={r}
+                  className="rounded-full bg-shell-muted px-1.5 py-0.5 text-[11px] font-medium text-shell-subtleText"
+                >
+                  {roleLabel(r)}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              <span className="rounded-full bg-[var(--color-peach)] px-1.5 py-0.5 text-[11px] font-medium text-[var(--color-peach-ink)]">
+                Sin cuenta
               </span>
-            ))}
-          </div>
+              {member.inviteEmail && (
+                <span className="truncate text-[11px] text-shell-subtleText">Invitación: {member.inviteEmail}</span>
+              )}
+            </div>
+          )}
         </div>
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -98,7 +118,7 @@ function StaffMemberCard({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium">
-        {member.profileUserId && (
+        {hasAccount ? (
           <button
             type="button"
             onClick={() => onNavigate(`/admin/users/${member.profileUserId}`)}
@@ -106,6 +126,15 @@ function StaffMemberCard({
           >
             Editar roles
           </button>
+        ) : (
+          <>
+            <button type="button" onClick={() => onLink(member)} className="text-brand-primary hover:underline">
+              Vincular cuenta
+            </button>
+            <button type="button" onClick={() => onRename(member)} className="text-shell-subtleText hover:text-shell-text hover:underline">
+              Cambiar nombre
+            </button>
+          </>
         )}
         <button
           type="button"
@@ -130,6 +159,9 @@ export function AdminStaffPage() {
   const [formMode, setFormMode] = useState<FormMode>(null)
   const formRef = useRef<HTMLElement | null>(null)
   const [selectedUserId, setSelectedUserId] = useState('')
+  const [targetStaff, setTargetStaff] = useState<AdminStaffMember | null>(null)
+  const [guestName, setGuestName] = useState('')
+  const [guestEmail, setGuestEmail] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
   const [confirmState, setConfirmState] = useState<{
@@ -168,16 +200,40 @@ export function AdminStaffPage() {
     }
   }, [formMode])
 
-  const openCreateForm = () => {
-    setFormMode('create')
+  const resetForm = () => {
     setSelectedUserId('')
+    setTargetStaff(null)
+    setGuestName('')
+    setGuestEmail('')
+  }
+
+  const openCreateForm = () => {
+    resetForm()
+    setFormMode('account')
+    setSuccessMessage(null)
+    setErrorMessage(null)
+  }
+
+  const openLinkForm = (member: AdminStaffMember) => {
+    resetForm()
+    setTargetStaff(member)
+    setFormMode('link')
+    setSuccessMessage(null)
+    setErrorMessage(null)
+  }
+
+  const openRenameForm = (member: AdminStaffMember) => {
+    resetForm()
+    setTargetStaff(member)
+    setGuestName(member.displayName)
+    setFormMode('rename')
     setSuccessMessage(null)
     setErrorMessage(null)
   }
 
   const closeForm = () => {
     setFormMode(null)
-    setSelectedUserId('')
+    resetForm()
   }
 
   const handleFormSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -185,25 +241,51 @@ export function AdminStaffPage() {
     setSuccessMessage(null)
     setErrorMessage(null)
 
-    if (!selectedUserId) {
+    if ((formMode === 'account' || formMode === 'link') && !selectedUserId) {
       setErrorMessage('Seleccioná un usuario para vincular al profesional.')
+      return
+    }
+    if ((formMode === 'guest' || formMode === 'rename') && guestName.trim().length < 2) {
+      setErrorMessage('El nombre debe tener al menos 2 caracteres.')
       return
     }
 
     setIsSaving(true)
 
     try {
-      // The professional takes the name of the account: nothing else to type
-      const created = await adminCreateStaffMember(selectedUserId)
-      setStaffMembers((current) => [...current, created])
-      setSuccessMessage('Profesional creado correctamente.')
+      if (formMode === 'account') {
+        // The professional takes the name of the account: nothing else to type
+        const created = await adminCreateStaffMember(selectedUserId)
+        setStaffMembers((current) => [...current, created])
+        setSuccessMessage('Profesional creado correctamente.')
+      } else if (formMode === 'guest') {
+        const created = await adminCreateStaffWithoutAccount(guestName.trim(), guestEmail)
+        setStaffMembers((current) => [...current, created])
+        setSuccessMessage(
+          created.profileUserId
+            ? 'Ese email ya tenía cuenta: el profesional quedó vinculado.'
+            : created.inviteEmail
+              ? `Profesional creado. Cuando ${created.inviteEmail} entre a la app, queda vinculado.`
+              : 'Profesional creado sin cuenta.',
+        )
+      } else if (formMode === 'link' && targetStaff) {
+        const linked = await adminLinkStaffMember(targetStaff.id, selectedUserId)
+        setStaffMembers((current) => current.map((m) => (m.id === linked.id ? linked : m)))
+        setSuccessMessage('Cuenta vinculada. El profesional usa el nombre de la cuenta.')
+      } else if (formMode === 'rename' && targetStaff) {
+        await adminRenameStaffMember(targetStaff.id, guestName.trim())
+        setStaffMembers((current) =>
+          current.map((m) => (m.id === targetStaff.id ? { ...m, displayName: guestName.trim() } : m)),
+        )
+        setSuccessMessage('Nombre actualizado.')
+      }
       closeForm()
     } catch (err) {
       const message = err instanceof Error ? err.message : ''
       if (message.includes('duplicate') || message.includes('unique')) {
         setErrorMessage('Ya existe un profesional vinculado a ese usuario.')
       } else {
-        setErrorMessage('No pudimos guardar los cambios. Intentá de nuevo.')
+        setErrorMessage(message || 'No pudimos guardar los cambios. Intentá de nuevo.')
       }
     } finally {
       setIsSaving(false)
@@ -295,43 +377,120 @@ export function AdminStaffPage() {
           </div>
         )}
 
-        {/* Create form */}
+        {/* Create / link / rename form */}
         {formMode !== null && (
           <section ref={formRef} className="shell-surface rounded-2xl border shadow-sm overflow-hidden">
             <div className="p-4">
-              <h2 className="mb-1 font-heading text-base font-semibold text-shell-text">Nuevo profesional</h2>
-              <p className="mb-3 text-sm text-shell-subtleText">
-                Elegí la cuenta. El profesional usa el nombre de esa cuenta.
-              </p>
-              <form onSubmit={(e) => void handleFormSubmit(e)} noValidate className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="staff-user-select"
-                    className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide"
-                  >
-                    Usuario vinculado
-                  </label>
-                  {availableUsers.length === 0 ? (
-                    <p className="text-sm text-shell-subtleText">
-                      No hay usuarios disponibles. Todos los usuarios ya tienen un profesional asignado.
-                    </p>
-                  ) : (
-                    <Select
-                      id="staff-user-select"
-                      value={selectedUserId}
-                      onChange={(e) => setSelectedUserId(e.target.value)}
-                      className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                      required
+              <h2 className="mb-1 font-heading text-base font-semibold text-shell-text">
+                {formMode === 'link'
+                  ? `Vincular una cuenta a ${targetStaff?.displayName ?? ''}`
+                  : formMode === 'rename'
+                    ? `Cambiar nombre de ${targetStaff?.displayName ?? ''}`
+                    : 'Nuevo profesional'}
+              </h2>
+
+              {(formMode === 'account' || formMode === 'guest') && (
+                <div role="radiogroup" aria-label="Tipo de profesional" className="mb-3 mt-2 grid grid-cols-2 gap-2">
+                  {([
+                    { value: 'account', label: 'Con cuenta' },
+                    { value: 'guest', label: 'Sin cuenta' },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={formMode === opt.value}
+                      onClick={() => setFormMode(opt.value)}
+                      className={`rounded-xl border px-3 py-2 text-sm font-medium transition-colors ${
+                        formMode === opt.value
+                          ? 'border-brand-primary bg-brand-primary/10 text-brand-primary'
+                          : 'border-shell-border bg-white text-shell-text hover:bg-shell-muted'
+                      }`}
                     >
-                      <option value="">Seleccioná un usuario</option>
-                      {availableUsers.map((u) => (
-                        <option key={u.userId} value={u.userId}>
-                          {u.name || u.email || u.userId}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
+              )}
+
+              <form onSubmit={(e) => void handleFormSubmit(e)} noValidate className="space-y-4">
+                {(formMode === 'account' || formMode === 'link') && (
+                  <div>
+                    <p className="mb-2 text-sm text-shell-subtleText">
+                      Elegí la cuenta. El profesional usa el nombre de esa cuenta.
+                    </p>
+                    <label
+                      htmlFor="staff-user-select"
+                      className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide"
+                    >
+                      Usuario vinculado
+                    </label>
+                    {availableUsers.length === 0 ? (
+                      <p className="text-sm text-shell-subtleText">
+                        No hay usuarios disponibles. Todos los usuarios ya tienen un profesional asignado.
+                      </p>
+                    ) : (
+                      <Select
+                        id="staff-user-select"
+                        value={selectedUserId}
+                        onChange={(e) => setSelectedUserId(e.target.value)}
+                        className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="">Seleccioná un usuario</option>
+                        {availableUsers.map((u) => (
+                          <option key={u.userId} value={u.userId}>
+                            {u.name || u.email || u.userId}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  </div>
+                )}
+
+                {(formMode === 'guest' || formMode === 'rename') && (
+                  <div className="space-y-3">
+                    <div>
+                      <label
+                        htmlFor="staff-guest-name"
+                        className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide"
+                      >
+                        Nombre
+                      </label>
+                      <input
+                        id="staff-guest-name"
+                        value={guestName}
+                        onChange={(e) => setGuestName(e.target.value)}
+                        className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                        placeholder="Ej: María González"
+                        autoComplete="off"
+                      />
+                    </div>
+                    {formMode === 'guest' && (
+                      <div>
+                        <label
+                          htmlFor="staff-guest-email"
+                          className="block text-xs font-semibold text-shell-subtleText mb-1.5 uppercase tracking-wide"
+                        >
+                          Email <span className="normal-case font-normal">(opcional)</span>
+                        </label>
+                        <input
+                          id="staff-guest-email"
+                          type="email"
+                          value={guestEmail}
+                          onChange={(e) => setGuestEmail(e.target.value)}
+                          className="w-full border border-shell-border rounded-xl px-3 py-2 text-sm text-shell-text bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                          placeholder="maria@gmail.com"
+                          autoComplete="off"
+                        />
+                        <p className="mt-1.5 text-xs text-shell-subtleText">
+                          Cuando esa persona entre a la app con este email, queda vinculada sola y pasa a ser staff.
+                          Podés vincularla a mano más adelante.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex gap-3 justify-end pt-1">
                   <button
@@ -382,6 +541,8 @@ export function AdminStaffPage() {
                 member={member}
                 onToggleActive={handleToggleActive}
                 onNavigate={navigate}
+                onLink={openLinkForm}
+                onRename={openRenameForm}
                 roles={allUsers.find((u) => u.userId === member.profileUserId)?.roles}
               />
             ))}

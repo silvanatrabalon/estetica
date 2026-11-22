@@ -10,6 +10,8 @@ export interface AdminStaffMember {
   createdAt: string
   fullName: string | null
   role: AdminManagedRole
+  /** Email saved for a professional without account: they get linked when they sign in with it. */
+  inviteEmail: string | null
 }
 
 interface AdminStaffMemberRow {
@@ -21,6 +23,7 @@ interface AdminStaffMemberRow {
   created_at: string
   full_name: string | null
   role: AdminManagedRole
+  invite_email?: string | null
 }
 
 function toAdminStaffMember(row: AdminStaffMemberRow): AdminStaffMember {
@@ -33,6 +36,7 @@ function toAdminStaffMember(row: AdminStaffMemberRow): AdminStaffMember {
     createdAt: row.created_at,
     fullName: row.full_name,
     role: row.role,
+    inviteEmail: row.invite_email ?? null,
   }
 }
 
@@ -160,5 +164,83 @@ export async function adminSetStaffDaysOffPermission(staffId: string, allowed: b
 
   if (error) {
     throw error
+  }
+}
+
+// ── Professionals without an account ──────────────────────────────────────────
+
+const STAFF_ERRORS: Record<string, string> = {
+  STAFF_NAME_INVALID: 'El nombre debe tener entre 2 y 80 caracteres.',
+  STAFF_EMAIL_INVALID: 'El email no parece válido.',
+  STAFF_INVITE_EMAIL_TAKEN: 'Ya hay un profesional sin cuenta con ese email.',
+  STAFF_USER_TAKEN: 'Esa cuenta ya tiene un profesional.',
+  STAFF_ALREADY_LINKED: 'Ese profesional ya tiene una cuenta vinculada.',
+  STAFF_NOT_FOUND: 'No encontramos al profesional.',
+  USER_NOT_FOUND: 'No encontramos esa cuenta.',
+  STAFF_NAME_FROM_ACCOUNT: 'El nombre de un profesional con cuenta se cambia desde su cuenta.',
+}
+
+/** Spanish message for the errors of the functions below. */
+export function translateStaffError(message: string): string {
+  for (const [code, text] of Object.entries(STAFF_ERRORS)) {
+    if (message.includes(code)) return text
+  }
+  return 'No pudimos guardar los cambios. Intentá de nuevo.'
+}
+
+/**
+ * Creates a professional with just a name (and optionally an email). With an email, the person
+ * is linked the first time they sign in with it; if that email already has an account the link
+ * is immediate.
+ */
+export async function adminCreateStaffWithoutAccount(displayName: string, email = ''): Promise<AdminStaffMember> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('admin_create_staff_without_account', {
+    p_display_name: displayName,
+    p_email: email.trim() || null,
+  })
+
+  if (error) {
+    throw new Error(translateStaffError(error.message))
+  }
+
+  const rows = (data ?? []) as AdminStaffMemberRow[]
+  if (rows.length === 0) {
+    throw new Error('No se pudo crear el profesional.')
+  }
+
+  return toAdminStaffMember(rows[0])
+}
+
+/** Links a professional without account to an existing account (it takes the account's name). */
+export async function adminLinkStaffMember(staffId: string, userId: string): Promise<AdminStaffMember> {
+  const supabase = initSupabase()
+  const { data, error } = await supabase.rpc('admin_link_staff_member', {
+    p_staff_id: staffId,
+    p_user_id: userId,
+  })
+
+  if (error) {
+    throw new Error(translateStaffError(error.message))
+  }
+
+  const rows = (data ?? []) as AdminStaffMemberRow[]
+  if (rows.length === 0) {
+    throw new Error('No se pudo vincular la cuenta.')
+  }
+
+  return toAdminStaffMember(rows[0])
+}
+
+/** Renames a professional that has no account (linked ones take the name of their account). */
+export async function adminRenameStaffMember(staffId: string, displayName: string): Promise<void> {
+  const supabase = initSupabase()
+  const { error } = await supabase.rpc('admin_rename_staff_member', {
+    p_staff_id: staffId,
+    p_display_name: displayName,
+  })
+
+  if (error) {
+    throw new Error(translateStaffError(error.message))
   }
 }
